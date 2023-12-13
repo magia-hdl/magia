@@ -279,6 +279,18 @@ class Signal(Synthesizable):
             return ~Operation.create(OPType.ALL, self, None)
         raise ValueError(f"`in` operator only supports 0/1/True/False. Got {item}.")
 
+    def __matmul__(self, other) -> "Signal":
+        """
+        Special operation for the `@` operator, which is the concatenation operator.
+        """
+        if isinstance(other, Signal):
+            return Operation.create(OPType.CONCAT, self, other)
+        raise TypeError(f"Cannot perform operation on {type(other)}")
+
+    def __imatmul__(self, other) -> "Signal":
+        return self.__matmul__(other)
+
+
     def __len__(self):
         return self._config.width
 
@@ -451,6 +463,8 @@ class Operation(Signal):
         OPType.ANY: Template("$output = $a != 0;"),
         OPType.ALL: Template("$output = $a == '1;"),
 
+        OPType.CONCAT: Template("$output = {$a, $b};"),
+
         OPType.SLICE: Template("$output = $a[$slice_start:$slice_stop];"),
     }
     OP_WIDTH_INFERENCE = {
@@ -471,6 +485,8 @@ class Operation(Signal):
         OPType.ANY: lambda x, y: 1,
         OPType.ALL: lambda x, y: 1,
 
+        OPType.CONCAT: lambda x, y: len(x) + len(y),
+
         OPType.SLICE: lambda x, s: abs(s.stop - s.start) + 1,
     }
     OP_SIGN_INFERENCE = {
@@ -490,6 +506,8 @@ class Operation(Signal):
 
         OPType.ANY: lambda x, y: False,
         OPType.ALL: lambda x, y: False,
+
+        OPType.CONCAT: lambda x, y: x.signed,
         OPType.SLICE: lambda x, s: x.signed,
     }
     OP_BLOCK_TEMPLATE = Template("always_comb\n  $op_impl")
