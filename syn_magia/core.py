@@ -154,13 +154,13 @@ class Signal(Synthesizable):
         return Operation.create(OPType.ADD, self, other)
 
     def __iadd__(self, other) -> "Signal":
-        return Operation.create(OPType.ADD, self, other)
+        return self.__add__(other)
 
     def __sub__(self, other) -> "Signal":
         return Operation.create(OPType.MINUS, self, other)
 
     def __isub__(self, other) -> "Signal":
-        return Operation.create(OPType.MINUS, self, other)
+        return self.__sub__(other)
 
     def __neg__(self) -> "Signal":
         return Operation.create(
@@ -170,10 +170,12 @@ class Signal(Synthesizable):
         )
 
     def __mul__(self, other) -> "Signal":
+        if isinstance(other, int):
+            other = Constant(other, len(self), self.signed)
         return Operation.create(OPType.MUL, self, other)
 
     def __imul__(self, other) -> "Signal":
-        return Operation.create(OPType.MUL, self, other)
+        return self.__mul__(other)
 
     def __eq__(self, other) -> "Signal":
         if isinstance(other, int):
@@ -210,15 +212,24 @@ class Signal(Synthesizable):
             other = Constant(other, len(self), self.signed)
         return Operation.create(OPType.AND, self, other)
 
+    def __iand__(self, other) -> "Signal":
+        return self.__and__(other)
+
     def __or__(self, other) -> "Signal":
         if isinstance(other, int):
             other = Constant(other, len(self), self.signed)
         return Operation.create(OPType.OR, self, other)
 
+    def __ior__(self, other) -> "Signal":
+        return self.__or__(other)
+
     def __xor__(self, other) -> "Signal":
         if isinstance(other, int):
             other = Constant(other, len(self), self.signed)
         return Operation.create(OPType.XOR, self, other)
+
+    def __ixor__(self, other) -> "Signal":
+        return self.__xor__(other)
 
     def __invert__(self) -> "Signal":
         return Operation.create(OPType.NOT, self, None)
