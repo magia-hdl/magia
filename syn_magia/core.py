@@ -106,6 +106,29 @@ class Signal(Synthesizable):
     def signed(self) -> bool:
         return self._config.signed
 
+    def driver(self, driver_name: str = SINGLE_DRIVER_NAME) -> Optional["Signal"]:
+        """
+        Get the driver of the signal.
+        :param driver_name: The name of the driver. Default to the single driver.
+        :return: The driver signal.
+        """
+        return self._drivers[driver_name]
+
+    @property
+    def drivers(self) -> list["Signal"]:
+        """
+        Get the drivers of the signal.
+        :return: The driver signals.
+        """
+        return list(self._drivers.values())
+
+    @property
+    def owned_by(self) -> Optional["Instance"]:
+        """
+        Get the module instance that owns this signal.
+        It is applicable to input / output signals only.
+        """
+        return self._owned_by
     ...
 
     def set_width(self, width: int):
