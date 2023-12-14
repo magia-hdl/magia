@@ -1,3 +1,4 @@
+from collections import Counter
 from dataclasses import dataclass
 from itertools import count
 from string import Template
@@ -139,6 +140,16 @@ class Module(Synthesizable):
         to_be_elab_signal.reverse()
         to_be_elab_inst.reverse()
 
+        # Check if we have name conflict on the signals and instances
+        sig_name_counter = Counter(sig.name for sig in to_be_elab_signal)
+        inst_name_counter = Counter(inst.name for inst in to_be_elab_inst)
+        sig_conflicts = [name for name, cnt in sig_name_counter.items() if cnt > 1]
+        inst_conflicts = [name for name, cnt in inst_name_counter.items() if cnt > 1]
+        if sig_conflicts:
+            raise ValueError(f"Signal name conflict: {sig_conflicts}")
+        if inst_conflicts:
+            raise ValueError(f"Instance name conflict: {inst_conflicts}")
+
         mod_impl = [
             inst.elaborate()
             for inst in to_be_elab_inst
@@ -245,6 +256,10 @@ class Instance(Synthesizable):
     @property
     def output_names(self) -> list[str]:
         return self._io.output_names
+
+    @property
+    def name(self) -> str:
+        return self._inst_config.name
 
     def validate(self) -> list[Exception]:
         errors = []
