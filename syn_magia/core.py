@@ -71,17 +71,21 @@ class Signal(Synthesizable):
     SIGNAL_CONNECT_TEMPLATE = Template("always_comb\n  $name = $driver;")
     SIGNAL_ASSIGN_TEMPLATE = Template("assign $name = $driver;")
 
-    signal_name_counter = count(0)
+    new_signal_counter = count(0)
 
     def __init__(
             self,
             width: int = 0, signed: bool = False,
+            name: Optional[str] = None,
             owned_by: Optional["Instance"] = None,
             **kwargs
     ):
+        if name is None:
+            name = f"net_{next(self.new_signal_counter)}"
+
         super().__init__(**kwargs)
         self._config = SignalConfig(
-            name=kwargs.get("name"),
+            name=name,
             width=width,
             signed=signed,
         )
@@ -128,13 +132,6 @@ class Signal(Synthesizable):
             width=f"[{width - 1}:0]" if (width := len(self)) > 1 else "",
             name=self._config.name,
         )
-
-    def build(self):
-        """
-        Resolve the signal name.
-        """
-        if self.name is None:
-            self.set_name(f"net_{next(self.signal_name_counter)}")
 
     def elaborate(self) -> str:
         signal_decl = self.signal_decl()
@@ -469,16 +466,25 @@ class Constant(Signal):
     """
     Representing a constant signal. The value stored in bytes representing the constance driver.
     """
+    new_const_counter = count(0)
 
-    def __init__(self, value, width: int, signed: bool = False, **kwargs):
-        super().__init__(width=width, signed=signed, **kwargs)
+    def __init__(
+            self,
+            value, width: int, signed: bool = False,
+            name: Optional[str] = None,
+            **kwargs
+    ):
+        if name is None:
+            name = f"const_{next(self.new_const_counter)}"
+
+        super().__init__(width=width, signed=signed, name=name, **kwargs)
         self._config.signal_type = SignalType.CONSTANT
         self.value: bytes = value
 
     def elaborate(self) -> str:
         signal_decl = self.signal_decl()
         assignment = self.SIGNAL_ASSIGN_TEMPLATE.substitute(
-            name=self._config.name,
+            name=self.name,
             driver=sv_constant(self.value, len(self), self.signed),
         )
         return "\n".join((signal_decl, assignment))
@@ -686,6 +692,8 @@ class Register(Operation):
         ),
     }
 
+    new_reg_counter = count(0)
+
     def __init__(self, width: int,
                  enable: Optional[Signal] = None,
                  reset: Optional[Signal] = None,
@@ -693,9 +701,13 @@ class Register(Operation):
                  async_reset: Optional[Signal] = None,
                  async_reset_value: Optional[Union[bytes, int]] = None,
                  clk: Optional[Input] = None,
+                 name: Optional[str] = None,
                  **kwargs
                  ):
-        super().__init__(width=width, **kwargs)
+        if name is None:
+            name = f"reg_{next(self.new_reg_counter)}"
+
+        super().__init__(width=width, name=name, **kwargs)
         self._config.op_type = OPType.REG
 
         self._reg_config = RegisterConfig(
@@ -789,5 +801,3 @@ class Register(Operation):
         reg_impl = self.REG_TEMPLATE[reg_type].substitute(**connections)
 
         return "\n".join((reg_decl, reg_impl))
-
-
