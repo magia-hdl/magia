@@ -67,12 +67,12 @@ class Signal(Synthesizable):
     The general signal class. It has drivers, which is another signal.
     It can also drive other signals / module instances.
     """
-    SINGLE_DRIVER_NAME: str = "d"
-    SIGNAL_DECL_TEMPLATE = Template("logic $signed $width $name;")
-    SIGNAL_CONNECT_TEMPLATE = Template("always_comb\n  $name = $driver;")
-    SIGNAL_ASSIGN_TEMPLATE = Template("assign $name = $driver;")
+    _SINGLE_DRIVER_NAME: str = "d"
+    _SIGNAL_DECL_TEMPLATE = Template("logic $signed $width $name;")
+    _SIGNAL_CONNECT_TEMPLATE = Template("always_comb\n  $name = $driver;")
+    _SIGNAL_ASSIGN_TEMPLATE = Template("assign $name = $driver;")
 
-    new_signal_counter = count(0)
+    _new_signal_counter = count(0)
 
     def __init__(
             self,
@@ -82,7 +82,7 @@ class Signal(Synthesizable):
             **kwargs
     ):
         if name is None:
-            name = f"net_{next(self.new_signal_counter)}"
+            name = f"net_{next(self._new_signal_counter)}"
 
         super().__init__(**kwargs)
         self._config = SignalConfig(
@@ -107,7 +107,7 @@ class Signal(Synthesizable):
     def signed(self) -> bool:
         return self._config.signed
 
-    def driver(self, driver_name: str = SINGLE_DRIVER_NAME) -> Optional["Signal"]:
+    def driver(self, driver_name: str = _SINGLE_DRIVER_NAME) -> Optional["Signal"]:
         """
         Get the driver of the signal.
         :param driver_name: The name of the driver. Default to the single driver.
@@ -151,7 +151,7 @@ class Signal(Synthesizable):
         if len(self) == 0:
             raise ValueError("Signal width is not set and cannot be inferred")
 
-        return self.SIGNAL_DECL_TEMPLATE.substitute(
+        return self._SIGNAL_DECL_TEMPLATE.substitute(
             signed="signed" if self.signed else "",
             width=f"[{width - 1}:0]" if (width := len(self)) > 1 else "",
             name=self._config.name,
@@ -161,10 +161,10 @@ class Signal(Synthesizable):
         signal_decl = self.signal_decl()
 
         # Ignore assignment signal if it is driven by an output of a module instance
-        if self._drivers[self.SINGLE_DRIVER_NAME].type != SignalType.OUTPUT:
-            assignment = self.SIGNAL_ASSIGN_TEMPLATE.substitute(
+        if self._drivers[self._SINGLE_DRIVER_NAME].type != SignalType.OUTPUT:
+            assignment = self._SIGNAL_ASSIGN_TEMPLATE.substitute(
                 name=self._config.name,
-                driver=self._drivers[self.SINGLE_DRIVER_NAME].name,
+                driver=self._drivers[self._SINGLE_DRIVER_NAME].name,
             )
             return "\n".join((signal_decl, assignment))
         else:
@@ -190,7 +190,7 @@ class Signal(Synthesizable):
         """
         if not isinstance(other, Signal):
             raise TypeError(f"Cannot assign {type(other)} to drive {type(self)}")
-        self._drivers[self.SINGLE_DRIVER_NAME] = other
+        self._drivers[self._SINGLE_DRIVER_NAME] = other
         if len(self) == 0:
             self.set_width(len(other))
         elif len(other) == 0:
@@ -340,7 +340,7 @@ class Signal(Synthesizable):
     def __len__(self):
         return self._config.width
 
-    def Reg(
+    def reg(
             self,
             clk: Optional["Input"] = None,
             enable: Optional["Signal"] = None,
@@ -349,6 +349,9 @@ class Signal(Synthesizable):
             reset_value: Optional[Union[bytes, int]] = None,
             async_reset_value: Optional[Union[bytes, int]] = None
     ) -> "Register":
+        """
+        Create a register from the signal.
+        """
         register = Register(
             width=len(self),
             enable=enable,
@@ -507,7 +510,7 @@ class Constant(Signal):
 
     def elaborate(self) -> str:
         signal_decl = self.signal_decl()
-        assignment = self.SIGNAL_ASSIGN_TEMPLATE.substitute(
+        assignment = self._SIGNAL_ASSIGN_TEMPLATE.substitute(
             name=self.name,
             driver=sv_constant(self.value, len(self), self.signed),
         )
@@ -518,7 +521,7 @@ class Operation(Signal):
     """
     Representing an operation, most likely a combination logic
     """
-    OP_IMPL_TEMPLATE = {
+    _OP_IMPL_TEMPLATE = {
         OPType.NOT: Template("$output = ~$a;"),
         OPType.OR: Template("$output = $a | $b;"),
         OPType.AND: Template("$output = $a & $b;"),
@@ -540,7 +543,7 @@ class Operation(Signal):
 
         OPType.SLICE: Template("$output = $a[$slice_start:$slice_stop];"),
     }
-    OP_WIDTH_INFERENCE = {
+    _OP_WIDTH_INFERENCE = {
         OPType.NOT: lambda x, y: len(x),
         OPType.OR: lambda x, y: max(len(x), len(y)),
         OPType.AND: lambda x, y: max(len(x), len(y)),
@@ -562,7 +565,7 @@ class Operation(Signal):
 
         OPType.SLICE: lambda x, s: abs(s.stop - s.start) + 1,
     }
-    OP_SIGN_INFERENCE = {
+    _OP_SIGN_INFERENCE = {
         OPType.NOT: lambda x, y: x.signed,
         OPType.OR: lambda x, y: x.signed or y.signed,
         OPType.AND: lambda x, y: x.signed or y.signed,
@@ -583,7 +586,7 @@ class Operation(Signal):
         OPType.CONCAT: lambda x, y: x.signed,
         OPType.SLICE: lambda x, s: x.signed,
     }
-    OP_BLOCK_TEMPLATE = Template("always_comb\n  $op_impl")
+    _OP_BLOCK_TEMPLATE = Template("always_comb\n  $op_impl")
 
     def __init__(self, width: int, signed: bool = False, **kwargs):
         super().__init__(width=width, signed=signed, **kwargs)
@@ -597,7 +600,7 @@ class Operation(Signal):
         """
         signal_decl = self.signal_decl()
         op_impl = ""
-        if self._op_config.op_type in self.OP_IMPL_TEMPLATE:
+        if self._op_config.op_type in self._OP_IMPL_TEMPLATE:
             impl_params = dict(
                 output=self.name,
                 a=self._drivers["a"].name,
@@ -611,8 +614,8 @@ class Operation(Signal):
                 impl_params["slice_start"] = self._op_config.slicing.start
                 impl_params["slice_stop"] = self._op_config.slicing.stop
 
-            op_impl = self.OP_IMPL_TEMPLATE[self._op_config.op_type].substitute(**impl_params)
-            op_impl = self.OP_BLOCK_TEMPLATE.substitute(op_impl=op_impl)
+            op_impl = self._OP_IMPL_TEMPLATE[self._op_config.op_type].substitute(**impl_params)
+            op_impl = self._OP_BLOCK_TEMPLATE.substitute(op_impl=op_impl)
 
         return "\n".join((signal_decl, op_impl))
 
@@ -631,7 +634,7 @@ class Operation(Signal):
             if not isinstance(y, Signal) and y is not None:
                 raise TypeError(f"Cannot perform operation on {type(y)}")
 
-        if op_type not in Operation.OP_IMPL_TEMPLATE:
+        if op_type not in Operation._OP_IMPL_TEMPLATE:
             raise ValueError(f"Operation {op_type} is not supported.")
         if op_type not in (OPType.NOT, OPType.ANY, OPType.ALL) and y is None:
             raise ValueError(f"Operation {op_type} requires two operand.")
@@ -640,8 +643,8 @@ class Operation(Signal):
             y = Operation._legalize_slice(x, y)
 
         new_op = Operation(
-            width=Operation.OP_WIDTH_INFERENCE[op_type](x, y),
-            signed=Operation.OP_SIGN_INFERENCE[op_type](x, y),
+            width=Operation._OP_WIDTH_INFERENCE[op_type](x, y),
+            signed=Operation._OP_SIGN_INFERENCE[op_type](x, y),
         )
         new_op._drivers["a"] = x
         if isinstance(y, Signal):
@@ -673,7 +676,7 @@ class Register(Operation):
     """
     Representing a register, most likely DFF
     """
-    REG_TEMPLATE = {
+    _REG_TEMPLATE = {
         RegType.DFF: Template("always_ff @(posedge $clk) begin\n  $output <= $driver;\nend"),
         RegType.DFF_EN: Template("always_ff @(posedge $clk) begin\n  if ($enable) $output <= $driver;\nend"),
         RegType.DFF_RST: Template(
@@ -716,7 +719,7 @@ class Register(Operation):
         ),
     }
 
-    new_reg_counter = count(0)
+    _new_reg_counter = count(0)
 
     def __init__(self, width: int,
                  enable: Optional[Signal] = None,
@@ -729,7 +732,7 @@ class Register(Operation):
                  **kwargs
                  ):
         if name is None:
-            name = f"reg_{next(self.new_reg_counter)}"
+            name = f"reg_{next(self._new_reg_counter)}"
 
         super().__init__(width=width, name=name, **kwargs)
         self._config.op_type = OPType.REG
@@ -752,7 +755,7 @@ class Register(Operation):
             raise ValueError("Register requires a clock signal.")
 
         self._drivers["clk"] = clk
-        self._drivers[Signal.SINGLE_DRIVER_NAME] = None
+        self._drivers[Signal._SINGLE_DRIVER_NAME] = None
 
         if self._reg_config.enable:
             self._drivers["enable"] = enable
@@ -768,7 +771,7 @@ class Register(Operation):
         if len(self._drivers["clk"]) != 1:
             errors.append(ValueError("Clock has to be a single bit."))
 
-        if self._drivers[Signal.SINGLE_DRIVER_NAME] is None:
+        if self._drivers[Signal._SINGLE_DRIVER_NAME] is None:
             errors.append(ValueError("Register requires a driver."))
 
         if self._reg_config.enable:
@@ -811,7 +814,7 @@ class Register(Operation):
 
         connections = {
             "output": self.name,
-            "driver": self._drivers[Signal.SINGLE_DRIVER_NAME].name,
+            "driver": self._drivers[Signal._SINGLE_DRIVER_NAME].name,
             "clk": self._drivers["clk"].name,
         }
         if self._reg_config.enable:
@@ -827,6 +830,6 @@ class Register(Operation):
                 self._reg_config.async_reset_value, len(self), self._config.signed
             )
 
-        reg_impl = self.REG_TEMPLATE[reg_type].substitute(**connections)
+        reg_impl = self._REG_TEMPLATE[reg_type].substitute(**connections)
 
         return "\n".join((reg_decl, reg_impl))

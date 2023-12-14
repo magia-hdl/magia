@@ -33,17 +33,25 @@ class Module(Synthesizable):
     It is because we can generate the code for the specialized module with parametrized values hard-coded.
 
     The module can be instantiated with the `instance` method.
+
+    Designers shall implement the circuit logic in the `__init__` method.
+    However, we highly recommend designers to extract the logic implementation into a seperated method.
+    e.g.
+    def __init__(self, **kwargs):
+        self.io += Input("a", 8)
+        self.io += Output("q", 8)
+        self.implement()
+
+    def implement(self):
+        self.io.q <<= self.io.a + 1
     """
-    MOD_DECL_TEMPLATE = Template("module $name (\n$io\n);")
-    module_pool: dict[int, "Module"] = {}
-    new_module_counter = count(0)
+    _MOD_DECL_TEMPLATE = Template("module $name (\n$io\n);")
+    _new_module_counter = count(0)
 
     def __init__(self, name: Optional[str] = None, **kwargs):
         super().__init__(**kwargs)
         if name is None:
-            name = f"{self.__class__.__name__}_{next(self.new_module_counter)}"
-        if name in self._module_names():
-            raise ValueError(f"Module name {name} is already used.")
+            name = f"{self.__class__.__name__}_{next(self._new_module_counter)}"
 
         self._config = ModuleConfig(
             module_class=type(self),
@@ -53,7 +61,6 @@ class Module(Synthesizable):
         self._signals: dict[str, Signal] = {}
         self._instance_counter = count(0)
 
-        self.module_pool[id(self)] = self
         ...
 
     def __setitem__(self, key, value: Signal):
@@ -70,9 +77,6 @@ class Module(Synthesizable):
         return signal
 
     def build(self):
-        """
-        Designer shall implement the module with this method.
-        """
         ...
 
     def validate(self) -> bool:
@@ -85,7 +89,7 @@ class Module(Synthesizable):
         """
         # self.build()
 
-        mod_decl = self.MOD_DECL_TEMPLATE.substitute(
+        mod_decl = self._MOD_DECL_TEMPLATE.substitute(
             name=self.name,
             io=",\n".join(
                 port.elaborate()
@@ -111,7 +115,7 @@ class Module(Synthesizable):
         mod_impl = "\n".join(mod_impl)
 
         mod_output_assignment = "\n".join(
-            Signal.SIGNAL_ASSIGN_TEMPLATE.substitute(
+            Signal._SIGNAL_ASSIGN_TEMPLATE.substitute(
                 name=output.name,
                 driver=output.driver().name,
             )
@@ -204,10 +208,6 @@ class Module(Synthesizable):
     def name(self) -> str:
         return self._config.name
 
-    @classmethod
-    def _module_names(cls):
-        return [mod.name for mod in cls.module_pool.values()]
-
     def register_module_doc(self, locals_param: dict) -> str:
         """
         Generate the summary of a module and register it to the module.
@@ -239,10 +239,10 @@ class Instance(Synthesizable):
     """
     An instance of a module
     """
-    INST_TEMPLATE = Template("$module_name $inst_name (\n$io\n);")
-    IO_TEMPLATE = Template(".$port_name($signal_name)")
+    _INST_TEMPLATE = Template("$module_name $inst_name (\n$io\n);")
+    _IO_TEMPLATE = Template(".$port_name($signal_name)")
 
-    new_inst_counter = count(0)
+    _new_inst_counter = count(0)
 
     def __init__(self,
                  module: "Module", name: Optional[str] = None,
@@ -250,7 +250,7 @@ class Instance(Synthesizable):
                  **kwargs
                  ):
         if name is None:
-            name = f"{module.name}_inst_{next(self.new_inst_counter)}"
+            name = f"{module.name}_inst_{next(self._new_inst_counter)}"
         super().__init__(**kwargs)
         self._inst_config = ModuleInstanceConfig(
             module=module,
@@ -318,18 +318,18 @@ class Instance(Synthesizable):
 
         io_list = []
         for port in self._io.inputs():
-            io_list.append(self.IO_TEMPLATE.substitute(
+            io_list.append(self._IO_TEMPLATE.substitute(
                 port_name=port.name,
                 signal_name=port.driver().name,
             ))
         for port in self._io.outputs():
-            io_list.append(self.IO_TEMPLATE.substitute(
+            io_list.append(self._IO_TEMPLATE.substitute(
                 port_name=port.name,
                 signal_name=self.outputs[port.name].name,
             ))
 
         io_list = ",\n".join(io_list)
-        return self.INST_TEMPLATE.substitute(
+        return self._INST_TEMPLATE.substitute(
             module_name=module_name,
             inst_name=inst_name,
             io=io_list,
