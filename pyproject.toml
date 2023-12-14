@@ -12,6 +12,10 @@ readme = "README.md"
 authors = ["khwong-c64 <kin.hin.wong.c@gmail.com>"]
 license = "LICENSE"
 
+packages = [
+    { include = "magia"},
+]
+
 classifiers = [
     "Development Status :: 3 - Alpha",
     "License :: OSI Approved :: MIT License",
