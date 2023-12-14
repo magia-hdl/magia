@@ -7,6 +7,7 @@ from string import Template
 from typing import Optional, Union
 
 from .constants import SignalType, OPType, RegType
+from .clock import get_cur_clock
 from .util import sv_constant
 
 
@@ -744,6 +745,11 @@ class Register(Operation):
             self._reg_config.reset_value = 0
         if self._reg_config.async_reset_value is None:
             self._reg_config.async_reset_value = 0
+
+        if clk is None:
+            clk = get_cur_clock()
+        if clk is None:
+            raise ValueError("Register requires a clock signal.")
 
         self._drivers["clk"] = clk
         self._drivers[Signal.SINGLE_DRIVER_NAME] = None
