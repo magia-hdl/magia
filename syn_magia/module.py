@@ -82,10 +82,12 @@ class Module(Synthesizable):
     def validate(self) -> bool:
         ...
 
-    def elaborate(self) -> str:
+    def elaborate(self) -> tuple[str, set["Module"]]:
         """
         Trace nets and operations from output ports
-        This method generates the SystemVerilog code for the module, including the submodules.
+        This method generates the SystemVerilog code for the module.
+
+        :return: The SystemVerilog code for the module, and the list of submodules of the instance in the module.
         """
         # self.build()
 
@@ -124,7 +126,13 @@ class Module(Synthesizable):
 
         mod_end = "endmodule"
 
-        return "\n".join((mod_decl, mod_doc, mod_impl, mod_output_assignment, mod_end))
+        sv_code = "\n".join((mod_decl, mod_doc, mod_impl, mod_output_assignment, mod_end))
+        submodules = set(
+            inst.module
+            for inst in insts
+        )
+
+        return sv_code, submodules
 
     def trace(self) -> tuple[list[Signal], list["Instance"]]:
         """
@@ -233,6 +241,27 @@ class Module(Synthesizable):
 
         setattr(self, "_mod_doc", doc)
         return doc
+
+    @staticmethod
+    def elaborate_all(*modules: "Module") -> dict[str, str]:
+        """
+        Elaborate all modules in the list.
+        Each module will be elaborated only once and return the SystemVerilog code, plus a list of submodules
+        Duplicated submodules will not be elaborated again.
+        The elaboration is done recursively, untill all submodules are elaborated.
+
+        :param modules: The modules to be elaborated.
+        :return: A dictionary of the SystemVerilog code for each module.
+        """
+        modules = list(modules)
+        elaborated_modules: dict[str, str] = {}
+        while modules:
+            mod = modules.pop()
+            if mod.name not in elaborated_modules:
+                sv_code, submodules = mod.elaborate()
+                elaborated_modules[mod.name] = sv_code
+                modules += submodules
+        return elaborated_modules
 
 
 class Instance(Synthesizable):
