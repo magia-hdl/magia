@@ -2,6 +2,7 @@ from collections import UserDict
 from collections.abc import Iterable
 
 from dataclasses import dataclass
+from itertools import count
 from string import Template
 from typing import Optional, Union
 
@@ -44,8 +45,20 @@ class Synthesizable:
     def __init__(self, **kwargs):
         ...
 
+    def build(self):
+        """
+        Phase of defining the implementation details of a synthesizable object.
+        e.g. resolving signal names, etc.
+        """
+        return
+
     def elaborate(self) -> str:
-        ...
+        """
+        Elaborate the object into SystemVerilog code.
+        All configuration should be resolved before calling this method.
+        :return: SystemVerilog code
+        """
+        return ""
 
 
 class Signal(Synthesizable):
@@ -57,6 +70,8 @@ class Signal(Synthesizable):
     SIGNAL_DECL_TEMPLATE = Template("logic $signed $width $name;")
     SIGNAL_CONNECT_TEMPLATE = Template("always_comb\n  $name = $driver;")
     SIGNAL_ASSIGN_TEMPLATE = Template("assign $name = $driver;")
+
+    signal_name_counter = count(0)
 
     def __init__(
             self,
@@ -86,6 +101,7 @@ class Signal(Synthesizable):
     @property
     def signed(self) -> bool:
         return self._config.signed
+
     ...
 
     def set_width(self, width: int):
@@ -102,13 +118,23 @@ class Signal(Synthesizable):
         Declare the signal in the module implementation.
         :return: logic (signed) [...]SIGNAL_NAME
         """
-        if self._config.name is None:
+        if self.name is None:
             raise ValueError("Signal name is not set")
+        if len(self) == 0:
+            raise ValueError("Signal width is not set and cannot be inferred")
+
         return self.SIGNAL_DECL_TEMPLATE.substitute(
             signed="signed" if self.signed else "",
             width=f"[{width - 1}:0]" if (width := len(self)) > 1 else "",
             name=self._config.name,
         )
+
+    def build(self):
+        """
+        Resolve the signal name.
+        """
+        if self.name is None:
+            self.set_name(f"net_{next(self.signal_name_counter)}")
 
     def elaborate(self) -> str:
         signal_decl = self.signal_decl()
@@ -290,7 +316,6 @@ class Signal(Synthesizable):
     def __imatmul__(self, other) -> "Signal":
         return self.__matmul__(other)
 
-
     def __len__(self):
         return self._config.width
 
@@ -362,6 +387,15 @@ class Input(Signal):
         self._config.signal_type = SignalType.INPUT
         ...
 
+    def build(self):
+        """
+        I/O ports must have name and width well-defined by designers.
+        """
+        if self.name is None:
+            raise ValueError("Input name is not set")
+        if len(self) == 0:
+            raise ValueError("Input width is not set")
+
     def elaborate(self) -> str:
         """
         Elaborate the input signal in the module declaration.
@@ -399,6 +433,15 @@ class Output(Signal):
         super().__init__(name=name, width=width, signed=signed, **kwargs)
         self._config.signal_type = SignalType.OUTPUT
         ...
+
+    def build(self):
+        """
+        I/O ports must have name and width well-defined by designers.
+        """
+        if self.name is None:
+            raise ValueError("Input name is not set")
+        if len(self) == 0:
+            raise ValueError("Input width is not set")
 
     def elaborate(self) -> str:
         """
