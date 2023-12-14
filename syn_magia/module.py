@@ -1,3 +1,4 @@
+import inspect
 from collections import Counter
 from dataclasses import dataclass
 from itertools import count
@@ -82,7 +83,7 @@ class Module(Synthesizable):
         Trace nets and operations from output ports
         This method generates the SystemVerilog code for the module, including the submodules.
         """
-        self.build()
+        # self.build()
 
         mod_decl = self.MOD_DECL_TEMPLATE.substitute(
             name=self.name,
@@ -92,71 +93,14 @@ class Module(Synthesizable):
             ),
         )
 
-        sig_id_to_be_elab: set[int] = set()
-        inst_id_to_be_elab: set[int] = set()
-
-        to_be_elab_signal: list[Signal] = []
-        to_be_elab_inst: list[Instance] = []
-        to_be_trace_signal: dict[int, Signal] = {}
-
-        for output in self.io.outputs():
-            to_be_trace_signal |= {
-                id(sig): sig
-                for sig in output.drivers
-            }
-
-        while to_be_trace_signal:
-            next_trace = {}
-            for signal_id, signal in to_be_trace_signal.items():
-
-                # Tracing Instances with Output connected
-                if signal.type == SignalType.OUTPUT:
-                    inst: Optional[Instance] = signal.owned_by
-                    if inst is not None:
-                        if id(inst) not in inst_id_to_be_elab:
-                            inst_id_to_be_elab.add(id(inst))
-                            to_be_elab_inst.append(inst)
-
-                            # The Input port of the instance is skipped
-                            # We will go directly to the driver as it must be driven by another signal.
-                            input_drivers = [i.driver() for i in inst.inputs.values()]
-                            next_trace |= {
-                                id_sig: sig
-                                for sig in input_drivers
-                                if (id_sig := id(sig)) not in sig_id_to_be_elab
-                            }
-
-                elif signal.type != SignalType.INPUT and signal_id not in sig_id_to_be_elab:
-                    sig_id_to_be_elab.add(signal_id)
-                    to_be_elab_signal.append(signal)
-                    next_trace |= {
-                        id_sig: sig
-                        for sig in signal.drivers
-                        if sig.type in (SignalType.WIRE, SignalType.CONSTANT, SignalType.OUTPUT)
-                           and (id_sig := id(sig)) not in sig_id_to_be_elab
-                    }
-            to_be_trace_signal = next_trace
-
-        to_be_elab_signal.reverse()
-        to_be_elab_inst.reverse()
-
-        # Check if we have name conflict on the signals and instances
-        sig_name_counter = Counter(sig.name for sig in to_be_elab_signal)
-        inst_name_counter = Counter(inst.name for inst in to_be_elab_inst)
-        sig_conflicts = [name for name, cnt in sig_name_counter.items() if cnt > 1]
-        inst_conflicts = [name for name, cnt in inst_name_counter.items() if cnt > 1]
-        if sig_conflicts:
-            raise ValueError(f"Signal name conflict: {sig_conflicts}")
-        if inst_conflicts:
-            raise ValueError(f"Instance name conflict: {inst_conflicts}")
-
+        signals, insts = self.trace()
         mod_impl = [
             inst.elaborate()
-            for inst in to_be_elab_inst
+            for inst in insts
         ]
         mod_impl += [
             signal.elaborate()
-            for signal in to_be_elab_signal
+            for signal in signals
         ]
 
         mod_impl = "\n".join(mod_impl)
@@ -171,7 +115,68 @@ class Module(Synthesizable):
 
         mod_end = "endmodule"
 
-        return "\n".join((mod_decl, mod_impl, mod_output_assignment, mod_end))
+
+    def trace(self) -> tuple[list[Signal], list["Instance"]]:
+        """
+        Trace nets and instances from output ports
+        """
+        traced_sig_id: set[int] = set()
+        traced_inst_id: set[int] = set()
+        traced_signal: list[Signal] = []
+        traced_inst: list[Instance] = []
+        sig_to_be_traced: dict[int, Signal] = {}
+
+        for output in self.io.outputs():
+            sig_to_be_traced |= {
+                id(sig): sig
+                for sig in output.drivers
+            }
+        while sig_to_be_traced:
+            next_trace = {}
+            for signal_id, signal in sig_to_be_traced.items():
+
+                # Tracing Instances with Output connected
+                if signal.type == SignalType.OUTPUT:
+                    inst: Optional[Instance] = signal.owned_by
+                    if inst is not None:
+                        if id(inst) not in traced_inst_id:
+                            traced_inst_id.add(id(inst))
+                            traced_inst.append(inst)
+
+                            # The Input port of the instance is skipped
+                            # We will go directly to the driver as it must be driven by another signal.
+                            input_drivers = [i.driver() for i in inst.inputs.values()]
+                            next_trace |= {
+                                id_sig: sig
+                                for sig in input_drivers
+                                if (id_sig := id(sig)) not in traced_sig_id
+                            }
+
+                elif signal.type != SignalType.INPUT and signal_id not in traced_sig_id:
+                    traced_sig_id.add(signal_id)
+                    traced_signal.append(signal)
+                    next_trace |= {
+                        id_sig: sig
+                        for sig in signal.drivers
+                        if sig.type in (SignalType.WIRE, SignalType.CONSTANT, SignalType.OUTPUT)
+                           and (id_sig := id(sig)) not in traced_sig_id
+                    }
+            sig_to_be_traced = next_trace
+
+        traced_signal.reverse()
+        traced_inst.reverse()
+
+        # Check if we have name conflict on the signals and instances
+        sig_name_counter = Counter(sig.name for sig in traced_signal)
+        inst_name_counter = Counter(inst.name for inst in traced_inst)
+        sig_conflicts = [name for name, cnt in sig_name_counter.items() if cnt > 1]
+        inst_conflicts = [name for name, cnt in inst_name_counter.items() if cnt > 1]
+        if sig_conflicts:
+            raise ValueError(f"Signal name conflict: {sig_conflicts}")
+        if inst_conflicts:
+            raise ValueError(f"Instance name conflict: {inst_conflicts}")
+
+        return traced_signal, traced_inst
 
     def instance(
             self, name: Optional[str] = None,
@@ -261,6 +266,10 @@ class Instance(Synthesizable):
     def name(self) -> str:
         return self._inst_config.name
 
+    @property
+    def module(self) -> Module:
+        return self._inst_config.module
+
     def validate(self) -> list[Exception]:
         errors = []
         for signal in self.inputs.values():
@@ -279,8 +288,8 @@ class Instance(Synthesizable):
         if errors:
             raise ValueError(f"Instance {self.name} is not valid.", errors)
 
-        module_name = self._inst_config.module._config.name
-        inst_name = self._inst_config.name
+        module_name = self.module.name
+        inst_name = self.name
 
         io_list = []
         for port in self._io.inputs():
