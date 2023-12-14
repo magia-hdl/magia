@@ -107,3 +107,48 @@ class IOBundle(SignalBundle):
     @property
     def output_names(self) -> list[str]:
         return self._output_names
+
+    def flip(self, ignore: Optional[list[str]] = None) -> "IOBundle":
+        """
+        Create a new IOBundle with the Input and Output inverted.
+        Ports specified in the `ignore` arguments will not be inverted.
+
+        If `ignore` is not specified, default ports: "clk", "rst_n", "reset" are remain unchanged.
+        """
+        if ignore is None:
+            ignore = ["clk", "rst_n", "reset"]
+        new_bundle = IOBundle()
+        for port in self.signals:
+            if port.name in ignore:
+                new_bundle += port
+            else:
+                new_port_type = {
+                    SignalType.INPUT: Output,
+                    SignalType.OUTPUT: Input,
+                }[port.type]
+                new_port = new_port_type(name=port.name, width=len(port), signed=port.signed)
+                new_bundle += new_port
+        return new_bundle
+
+    def signal_bundle(self) -> SignalBundle:
+        """
+        Return a Signal Bundle that turns all the ports into normal signals
+        """
+        new_bundle = SignalBundle()
+        for port in self.signals:
+            new_bundle += Signal(name=port.name, width=len(port), signed=port.signed)
+        return new_bundle
+
+    def with_name(self, prefix: str = "", suffix: str = "") -> "IOBundle":
+        """
+        Create a new IOBundle with the name of each port prefixed with `prefix` and suffixed with `suffix`.
+        """
+        new_bundle = IOBundle()
+        for port in self.signals:
+            new_port_type = {
+                SignalType.INPUT: Input,
+                SignalType.OUTPUT: Output,
+            }[port.type]
+            new_port = new_port_type(name=f"{prefix}{port.name}{suffix}", width=len(port), signed=port.signed)
+            new_bundle += new_port
+        return new_bundle
