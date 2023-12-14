@@ -94,6 +94,11 @@ class Module(Synthesizable):
         )
 
         signals, insts = self.trace()
+
+        mod_doc = ""
+        if hasattr(self, "_mod_doc"):
+            mod_doc = self._mod_doc
+
         mod_impl = [
             inst.elaborate()
             for inst in insts
@@ -115,6 +120,7 @@ class Module(Synthesizable):
 
         mod_end = "endmodule"
 
+        return "\n".join((mod_decl, mod_doc, mod_impl, mod_output_assignment, mod_end))
 
     def trace(self) -> tuple[list[Signal], list["Instance"]]:
         """
@@ -202,12 +208,31 @@ class Module(Synthesizable):
     def _module_names(cls):
         return [mod.name for mod in cls.module_pool.values()]
 
-    @classmethod
-    def elaborate_all(cls) -> dict[str, str]:
-        return {
-            module.name: module.elaborate()
-            for module in cls.module_pool.values()
-        }
+    def register_module_doc(self, locals_param: dict) -> str:
+        """
+        Generate the summary of a module and register it to the module.
+        It will be written into the SystemVerilog code during elaboration.
+
+        Calling this method in the __init__ method with the following:
+        self.register_module_doc(locals())
+        """
+        doc = inspect.getdoc(self)
+        if doc is None:
+            doc = ""
+        else:
+            doc += "\n\n"
+
+        signature = inspect.signature(self.__init__)
+        args = {k: v for k, v in locals_param.items() if k in signature.parameters}
+
+        doc += "Module Parameters:\n"
+        doc += "-----------------\n"
+        for k, v in args.items():
+            doc += f"{k}: {v}\n"
+        doc = f"/*\n{doc}*/\n"
+
+        setattr(self, "_mod_doc", doc)
+        return doc
 
 
 class Instance(Synthesizable):
