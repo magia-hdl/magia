@@ -319,14 +319,14 @@ class Signal(Synthesizable):
 
     def __lshift__(self, other) -> "Signal":
         if isinstance(other, int):
-            op = Operation.create(OPType.LSHIFT, self, None)
+            op = Operation.create(OPType.LSHIFT, self, other)
             op._op_config.shifting = other
             return op
         raise NotImplementedError("Only Constant Shift is not implemented.")
 
     def __rshift__(self, other) -> "Signal":
         if isinstance(other, int):
-            op = Operation.create(OPType.RSHIFT, self, None)
+            op = Operation.create(OPType.RSHIFT, self, other)
             op._op_config.shifting = other
             return op
         raise NotImplementedError("Only Constant Shift is not implemented.")
@@ -599,6 +599,9 @@ class Operation(Signal):
         OPType.GT: Template("$output = $a > $b;"),
         OPType.GE: Template("$output = $a >= $b;"),
 
+        OPType.LSHIFT: Template("$output = $a << $b;"),
+        OPType.RSHIFT: Template("$output = $a >> $b;"),
+
         OPType.ANY: Template("$output = $a != 0;"),
         OPType.ALL: Template("$output = $a == '1;"),
 
@@ -621,6 +624,9 @@ class Operation(Signal):
         OPType.GT: lambda x, y: 1,
         OPType.GE: lambda x, y: 1,
 
+        OPType.LSHIFT:  lambda x, s: len(x),
+        OPType.RSHIFT:  lambda x, s: len(x),
+
         OPType.ANY: lambda x, y: 1,
         OPType.ALL: lambda x, y: 1,
 
@@ -642,6 +648,9 @@ class Operation(Signal):
         OPType.LE: lambda x, y: False,
         OPType.GT: lambda x, y: False,
         OPType.GE: lambda x, y: False,
+
+        OPType.LSHIFT: lambda x, s: x.signed,
+        OPType.RSHIFT: lambda x, s: x.signed,
 
         OPType.ANY: lambda x, y: False,
         OPType.ALL: lambda x, y: False,
@@ -677,13 +686,17 @@ class Operation(Signal):
                 impl_params["slice_start"] = self._op_config.slicing.start
                 impl_params["slice_stop"] = self._op_config.slicing.stop
 
+            # Shifting Operator
+            if self._op_config.shifting is not None:
+                impl_params["b"] = self._op_config.shifting
+
             op_impl = self._OP_IMPL_TEMPLATE[self._op_config.op_type].substitute(**impl_params)
             op_impl = self._OP_BLOCK_TEMPLATE.substitute(op_impl=op_impl)
 
         return "\n".join((signal_decl, op_impl))
 
     @staticmethod
-    def create(op_type: OPType, x: "Signal", y: Optional[Union["Signal", slice]]) -> "Operation":
+    def create(op_type: OPType, x: "Signal", y: Optional[Union["Signal", slice, int, bytes]]) -> "Operation":
         """
         Factory method to create common operation with single / two arguments.
         """
@@ -693,7 +706,12 @@ class Operation(Signal):
         if op_type == OPType.SLICE:
             if not isinstance(y, slice):
                 raise TypeError("Slicing Operator requires a slice as 2nd operand.")
+        elif op_type == OPType.LSHIFT or op_type == OPType.RSHIFT:
+            if not isinstance(y, int):
+                raise TypeError("Shifting Operator only support constant shifting with integer.")
         else:
+            if isinstance(y, int) or isinstance(y, bytes):
+                y = Constant(y, len(x), x.signed)
             if not isinstance(y, Signal) and y is not None:
                 raise TypeError(f"Cannot perform operation on {type(y)}")
 
@@ -715,6 +733,8 @@ class Operation(Signal):
         new_op._op_config.op_type = op_type
         if op_type == OPType.SLICE:
             new_op._op_config.slicing = y
+        if op_type == OPType.LSHIFT or op_type == OPType.RSHIFT:
+            new_op._op_config.shifting = y
         return new_op
 
     @staticmethod
