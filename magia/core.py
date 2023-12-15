@@ -17,6 +17,14 @@ class SignalConfig:
     width: int = 0
     signed: bool = False
     signal_type: SignalType = SignalType.WIRE
+
+    # The module instance that owns this signal
+    # Applicable to input / output ports only
+    owner_instance: Optional["Instance"] = None
+
+    # The signal bundle that owns this signal
+    # Applicable to signals only
+    parent_bundle: Optional["SignalBundle"] = None
     ...
 
 
@@ -78,7 +86,7 @@ class Signal(Synthesizable):
             self,
             width: int = 0, signed: bool = False,
             name: Optional[str] = None,
-            owned_by: Optional["Instance"] = None,
+            parent_bundle: Optional["SignalBundle"] = None,
             **kwargs
     ):
         if name is None:
@@ -89,11 +97,9 @@ class Signal(Synthesizable):
             name=name,
             width=width,
             signed=signed,
+            parent_bundle=parent_bundle,
         )
         self._drivers = SignalDict()
-        # The module instance that owns this signal
-        # Applicable to input / output signals only
-        self._owned_by: Optional["Instance"] = owned_by
 
     @property
     def name(self) -> str:
@@ -113,7 +119,7 @@ class Signal(Synthesizable):
         :param driver_name: The name of the driver. Default to the single driver.
         :return: The driver signal.
         """
-        return self._drivers[driver_name]
+        return self._drivers.get(driver_name)
 
     @property
     def drivers(self) -> list["Signal"]:
@@ -124,12 +130,12 @@ class Signal(Synthesizable):
         return list(self._drivers.values())
 
     @property
-    def owned_by(self) -> Optional["Instance"]:
+    def owner_instance(self) -> Optional["Instance"]:
         """
         Get the module instance that owns this signal.
         It is applicable to input / output signals only.
         """
-        return self._owned_by
+        return self._config.owner_instance
     ...
 
     def set_width(self, width: int):
@@ -163,7 +169,7 @@ class Signal(Synthesizable):
         # Ignore assignment signal if it is driven by an output of a module instance
         if self._drivers[self._SINGLE_DRIVER_NAME].type != SignalType.OUTPUT:
             assignment = self._SIGNAL_ASSIGN_TEMPLATE.substitute(
-                name=self._config.name,
+                name=self.name,
                 driver=self._drivers[self._SINGLE_DRIVER_NAME].name,
             )
             return "\n".join((signal_decl, assignment))
@@ -190,6 +196,19 @@ class Signal(Synthesizable):
         """
         if not isinstance(other, Signal):
             raise TypeError(f"Cannot assign {type(other)} to drive {type(self)}")
+        if self._drivers.get(self._SINGLE_DRIVER_NAME) is not None:
+            raise ValueError(f"Multiple driver on Signal {self.name}.")
+        if self.type == SignalType.OUTPUT and self.owner_instance is not None:
+            raise ValueError("Cannot drive output of a module instance.")
+        if other.type == SignalType.INPUT and other.owner_instance is not None:
+            raise ValueError("Input of a module instance cannot drive other signal.")
+        if self.type == SignalType.INPUT and self.owner_instance is None:
+            raise ValueError("Cannot drive the Input of a module type.")
+        if other.type == SignalType.OUTPUT and other.owner_instance is None:
+            raise ValueError("Output of a module type cannot drive other signal.")
+        if self.type == SignalType.CONSTANT:
+            raise ValueError("Constant signal cannot be driven.")
+
         self._drivers[self._SINGLE_DRIVER_NAME] = other
         if len(self) == 0:
             self.set_width(len(other))
@@ -405,10 +424,12 @@ class Input(Signal):
     def __init__(
             self,
             name: str, width: int, signed: bool = False,
+            owner_instance: Optional["Instance"] = None,
             **kwargs
     ):
         super().__init__(name=name, width=width, signed=signed, **kwargs)
         self._config.signal_type = SignalType.INPUT
+        self._config.owner_instance = owner_instance
         ...
 
     def build(self):
@@ -428,7 +449,7 @@ class Input(Signal):
         port_decl = self.signal_decl().rstrip(";")
         return f"input  {port_decl}"
 
-    def copy(self, owned_by: Optional["Instance"] = None) -> "Input":
+    def copy(self, owner_instance: Optional["Instance"] = None) -> "Input":
         """
         Copy the input signal. Driver is discarded.
         :return: A new input signal with the same configuration.
@@ -437,7 +458,7 @@ class Input(Signal):
             name=self.name,
             width=len(self),
             signed=self.signed,
-            owned_by=owned_by,
+            owner_instance=owner_instance,
         )
         return new_input
 
@@ -452,10 +473,12 @@ class Output(Signal):
     def __init__(
             self,
             name: str, width: int, signed: bool = False,
+            owner_instance: Optional["Instance"] = None,
             **kwargs
     ):
         super().__init__(name=name, width=width, signed=signed, **kwargs)
         self._config.signal_type = SignalType.OUTPUT
+        self._config.owner_instance = owner_instance
         ...
 
     def build(self):
@@ -475,7 +498,7 @@ class Output(Signal):
         port_decl = self.signal_decl().rstrip(";")
         return f"output {port_decl}"
 
-    def copy(self, owned_by: Optional["Instance"] = None) -> "Output":
+    def copy(self, owner_instance: Optional["Instance"] = None) -> "Output":
         """
         Copy the output signal. Driver is discarded.
         :return: A new output signal with the same configuration.
@@ -484,7 +507,7 @@ class Output(Signal):
             name=self.name,
             width=len(self),
             signed=self.signed,
-            owned_by=owned_by,
+            owner_instance=owner_instance,
         )
         return new_output
 

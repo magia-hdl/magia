@@ -95,7 +95,7 @@ class Module(Synthesizable):
             name=self.name,
             io=",\n".join(
                 port.elaborate()
-                for port in self.io.inputs() + self.io.outputs()
+                for port in self.io.inputs + self.io.outputs
             ),
         )
 
@@ -121,7 +121,7 @@ class Module(Synthesizable):
                 name=output.name,
                 driver=output.driver().name,
             )
-            for output in self.io.outputs()
+            for output in self.io.outputs
         )
 
         mod_end = "endmodule"
@@ -144,7 +144,7 @@ class Module(Synthesizable):
         traced_inst: list[Instance] = []
         sig_to_be_traced: dict[int, Signal] = {}
 
-        for output in self.io.outputs():
+        for output in self.io.outputs:
             sig_to_be_traced |= {
                 id(sig): sig
                 for sig in output.drivers
@@ -155,7 +155,7 @@ class Module(Synthesizable):
 
                 # Tracing Instances with Output connected
                 if signal.type == SignalType.OUTPUT:
-                    inst: Optional[Instance] = signal.owned_by
+                    inst: Optional[Instance] = signal.owner_instance
                     if inst is not None:
                         if id(inst) not in traced_inst_id:
                             traced_inst_id.add(id(inst))
@@ -285,7 +285,7 @@ class Instance(Synthesizable):
             module=module,
             name=name,
         )
-        self._io = IOBundle(owned_by=self)
+        self._io = IOBundle(owner_instance=self)
         self.outputs = SignalDict()
         self.inputs = SignalDict()
 
@@ -346,12 +346,12 @@ class Instance(Synthesizable):
         inst_name = self.name
 
         io_list = []
-        for port in self._io.inputs():
+        for port in self._io.inputs:
             io_list.append(self._IO_TEMPLATE.substitute(
                 port_name=port.name,
                 signal_name=port.driver().name,
             ))
-        for port in self._io.outputs():
+        for port in self._io.outputs:
             io_list.append(self._IO_TEMPLATE.substitute(
                 port_name=port.name,
                 signal_name=self.outputs[port.name].name,
