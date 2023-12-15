@@ -21,7 +21,7 @@ jobs:
     - name: Install dependencies
       run: |
         python3 -m pip install --upgrade pip poetry
-        poetry install
+        poetry install --with=dev
     - name: Run Pytest
       run: |
         pytest tests
