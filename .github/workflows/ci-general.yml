@@ -26,6 +26,8 @@ jobs:
         python3 -m pip install --upgrade pip poetry
         poetry install --no-interaction  --with=dev
     - name: Run Pytest
+      env:
+        pytest_github_report: true
       run: |
         . $(poetry env info --path)/bin/activate
         pytest tests
