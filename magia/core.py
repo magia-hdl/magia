@@ -907,7 +907,7 @@ class Register(Operation):
             connections["reset_value"] = sv_constant(
                 self._reg_config.reset_value, len(self), self._config.signed
             )
-        if self._reg_config.async_reset_value:
+        if self._reg_config.async_reset:
             connections["async_reset"] = self._drivers["async_reset"].name
             connections["async_reset_value"] = sv_constant(
                 self._reg_config.async_reset_value, len(self), self._config.signed
