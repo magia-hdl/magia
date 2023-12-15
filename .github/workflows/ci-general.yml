@@ -28,6 +28,7 @@ jobs:
     - name: Run Pytest
       env:
         pytest_github_report: true
+        pytest_verbosity: 2
       run: |
         . $(poetry env info --path)/bin/activate
         pytest tests
