@@ -336,8 +336,17 @@ class Signal(Synthesizable):
 
     def __getitem__(self, item) -> "Signal":
         """ The Slicing Operator """
+        # Return the concatenation of the sliced signals
+        # If multiple slices are provided.
         if isinstance(item, Iterable):
-            raise ValueError("Multiple Slicing is not supported.")
+            sliced = [self[i] for i in item]
+            concat = None
+            for s in sliced:
+                if concat is None:
+                    concat = s
+                else:
+                    concat @= s
+            return concat
 
         if isinstance(item, int):
             item = slice(item, item, None)
@@ -346,6 +355,9 @@ class Signal(Synthesizable):
 
         if not isinstance(item, slice):
             raise TypeError(f"Cannot perform operation on {type(item)}")
+        if item.step is not None:
+            raise ValueError("Slice step is not implement.")
+
         return Operation.create(OPType.SLICE, self, item)
 
     def __contains__(self, item) -> "Signal":
