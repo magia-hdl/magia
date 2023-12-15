@@ -1,5 +1,3 @@
-from tempfile import NamedTemporaryFile
-
 import pytest
 from cocotb.runner import get_runner
 
@@ -10,20 +8,13 @@ from magia.clock import clock
 class TestSmokeCompile:
     TOP = "TopModule"
 
-    def compile(self, module: Module):
-        sv_code = Module.elaborate_all(module)
-        sv_code = "\n".join(sv_code.values())
-
-        with NamedTemporaryFile(mode="w", suffix=".sv") as f:
-            print(sv_code)
-            f.write(sv_code)
-            f.flush()
-            runner = get_runner("verilator")
-            runner.build(
-                verilog_sources=[f.name],
-                hdl_toplevel=self.TOP,
-                always=True,
-            )
+    def compile(self, sv_file: str):
+        runner = get_runner("verilator")
+        runner.build(
+            verilog_sources=[sv_file],
+            hdl_toplevel=self.TOP,
+            always=True,
+        )
 
     @pytest.mark.parametrize("width", [8, 12, 16])
     def test_comb_operators(self, width):
@@ -67,7 +58,10 @@ class TestSmokeCompile:
                 accumulator ^= self.io.a
                 self.io.q_accumulated <<= accumulator
 
-        self.compile(TopModule(width=width, name=self.TOP))
+        with pytest.elaborate_to_file(
+                TopModule(width=width, name=self.TOP)
+        ) as filename:
+            self.compile(filename)
 
     @pytest.mark.parametrize("width", [8, 12, 16])
     def test_comb_registers(self, width):
@@ -117,4 +111,7 @@ class TestSmokeCompile:
                     self.io += Output(f"q_{i}", width)
                     self.io[f"q_{i}"] <<= reg
 
-        self.compile(TopModule(width=width, name=self.TOP))
+        with pytest.elaborate_to_file(
+                TopModule(width=width, name=self.TOP)
+        ) as filename:
+            self.compile(filename)
