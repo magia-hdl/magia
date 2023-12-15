@@ -21,6 +21,7 @@ def elaborate_to_file(module: Module) -> str:
 
 sys.modules['pytest'].elaborate_to_file = elaborate_to_file
 
+
 @pytest.fixture(scope="function")
 def temp_build_dir():
     with TemporaryDirectory() as tmpdir:

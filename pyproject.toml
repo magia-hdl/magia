@@ -4,6 +4,9 @@
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
+[tool.ruff]
+line-length = 120
+
 [tool.poetry]
 name = "syn-magia"
 version = "0.0a"
@@ -13,7 +16,7 @@ authors = ["khwong-c64 <kin.hin.wong.c@gmail.com>"]
 license = "LICENSE"
 
 packages = [
-    { include = "magia"},
+    { include = "magia" },
 ]
 
 classifiers = [
@@ -33,6 +36,6 @@ cocotb-test = "*"
 pytest = "*"
 pytest-xdist = "*"
 pytest-github-report = "*"
-
+ruff = "*"
 [project.urls]
 Repository = "https://github.com/khwong-c/syn-magia"

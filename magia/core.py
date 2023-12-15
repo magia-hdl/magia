@@ -624,8 +624,8 @@ class Operation(Signal):
         OPType.GT: lambda x, y: 1,
         OPType.GE: lambda x, y: 1,
 
-        OPType.LSHIFT:  lambda x, s: len(x),
-        OPType.RSHIFT:  lambda x, s: len(x),
+        OPType.LSHIFT: lambda x, s: len(x),
+        OPType.RSHIFT: lambda x, s: len(x),
 
         OPType.ANY: lambda x, y: 1,
         OPType.ALL: lambda x, y: 1,
