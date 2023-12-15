@@ -1,4 +1,4 @@
-name: Running Pytest
+name: General CI Build and Test
 
 on: [push]
 
