@@ -28,11 +28,11 @@ class SignalBundle:
         if isinstance(other, Signal):
             other = [other]
         for signal in other:
-            if signal.name in self.signal_alias:
-                raise KeyError(f"Signal {signal.name} is already defined.")
+            if signal.alias in self.signal_alias:
+                raise KeyError(f"Signal {signal.alias} is already defined.")
             if isinstance(signal, Input) or isinstance(signal, Output) or isinstance(signal, Constant):
                 raise TypeError(f"Signal Type {signal.type} is forbidden in SignalBundle.")
-            self._signals[signal.name] = signal.copy()
+            self._signals[signal.alias] = signal.copy(parent_bundle=self)
         return self
 
     def __getattr__(self, name: str) -> Signal:

@@ -103,6 +103,18 @@ class Signal(Synthesizable):
 
     @property
     def name(self) -> str:
+        """
+        Full name of a signal, used for elaboration.
+        """
+        if self._config.parent_bundle is not None:
+            return f"bundle_{id(self._config.parent_bundle)}_{self._config.name}"
+        return self._config.name
+
+    @property
+    def alias(self) -> str:
+        """
+        Alias of the signal, is used to identify the signal in a bundle
+        """
         return self._config.name
 
     @property
@@ -136,6 +148,7 @@ class Signal(Synthesizable):
         It is applicable to input / output signals only.
         """
         return self._config.owner_instance
+
     ...
 
     def set_width(self, width: int):
@@ -160,7 +173,7 @@ class Signal(Synthesizable):
         return self._SIGNAL_DECL_TEMPLATE.substitute(
             signed="signed" if self.signed else "",
             width=f"[{width - 1}:0]" if (width := len(self)) > 1 else "",
-            name=self._config.name,
+            name=self.name,
         )
 
     def elaborate(self) -> str:
@@ -176,15 +189,16 @@ class Signal(Synthesizable):
         else:
             return signal_decl
 
-    def copy(self, **kwargs) -> "Signal":
+    def copy(self, parent_bundle: Optional["SignalBundle"] = None, **kwargs) -> "Signal":
         """
         Copy the signal. Driver is discarded.
         :return: A new signal with the same configuration.
         """
         new_signal = Signal(
-            name=self.name,
+            name=self.alias,
             width=len(self),
             signed=self.signed,
+            parent_bundle=parent_bundle,
         )
         return new_signal
 
@@ -432,6 +446,13 @@ class Input(Signal):
         self._config.owner_instance = owner_instance
         ...
 
+    @property
+    def name(self) -> str:
+        """
+        Name of I/O is the same with the alias, even they are within an IOBundle
+        """
+        return self._config.name
+
     def build(self):
         """
         I/O ports must have name and width well-defined by designers.
@@ -481,6 +502,13 @@ class Output(Signal):
         self._config.owner_instance = owner_instance
         ...
 
+    @property
+    def name(self) -> str:
+        """
+        Name of I/O is the same with the alias, even they are within an IOBundle
+        """
+        return self._config.name
+
     def build(self):
         """
         I/O ports must have name and width well-defined by designers.
@@ -498,7 +526,7 @@ class Output(Signal):
         port_decl = self.signal_decl().rstrip(";")
         return f"output {port_decl}"
 
-    def copy(self, owner_instance: Optional["Instance"] = None) -> "Output":
+    def copy(self, owner_instance: Optional["Instance"] = None, **kwargs) -> "Output":
         """
         Copy the output signal. Driver is discarded.
         :return: A new output signal with the same configuration.

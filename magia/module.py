@@ -89,7 +89,13 @@ class Module(Synthesizable):
 
         :return: The SystemVerilog code for the module, and the list of submodules of the instance in the module.
         """
-        # self.build()
+        undriven_outputs = [
+            output.name
+            for output in self.io.outputs
+            if output.driver() is None
+        ]
+        if undriven_outputs:
+            raise ValueError("Output not driven", undriven_outputs)
 
         mod_decl = self._MOD_DECL_TEMPLATE.substitute(
             name=self.name,
