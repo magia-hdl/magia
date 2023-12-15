@@ -31,6 +31,7 @@ python = "^3.9"
 cocotb = "*"
 cocotb-test = "*"
 pytest = "*"
+pytest-github-report = "*"
 
 [project.urls]
 Repository = "https://github.com/khwong-c/syn-magia"

@@ -1,0 +1,33 @@
+name: General CI Build and Test
+
+on: [push]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    container:
+      image: verilator/verilator:v5.018
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Print Verilator version
+      run: |
+        verilator --version
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.10"
+    - name: Install dependencies
+      run: |
+        python3 -m pip install --upgrade pip poetry
+        poetry install --no-interaction  --with=dev
+    - name: Run Pytest
+      env:
+        pytest_github_report: true
+      run: |
+        . $(poetry env info --path)/bin/activate
+        pytest tests
