@@ -8,16 +8,17 @@ from magia.clock import clock
 class TestSmokeCompile:
     TOP = "TopModule"
 
-    def compile(self, sv_file: str):
+    def compile(self, sv_file: str, build_dir):
         runner = get_runner("verilator")
         runner.build(
             verilog_sources=[sv_file],
             hdl_toplevel=self.TOP,
             always=True,
+            build_dir=build_dir,  # temp build directory
         )
 
     @pytest.mark.parametrize("width", [8, 12, 16])
-    def test_comb_operators(self, width):
+    def test_comb_operators(self, width, temp_build_dir):
         class TopModule(Module):
             def __init__(self, width, **kwargs):
                 super().__init__(**kwargs)
@@ -61,10 +62,10 @@ class TestSmokeCompile:
         with pytest.elaborate_to_file(
                 TopModule(width=width, name=self.TOP)
         ) as filename:
-            self.compile(filename)
+            self.compile(filename, temp_build_dir)
 
     @pytest.mark.parametrize("width", [8, 12, 16])
-    def test_comb_registers(self, width):
+    def test_comb_registers(self, width, temp_build_dir):
         class TopModule(Module):
             def __init__(self, width, **kwargs):
                 super().__init__(**kwargs)
@@ -114,4 +115,4 @@ class TestSmokeCompile:
         with pytest.elaborate_to_file(
                 TopModule(width=width, name=self.TOP)
         ) as filename:
-            self.compile(filename)
+            self.compile(filename, temp_build_dir)

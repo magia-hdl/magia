@@ -66,7 +66,7 @@ async def constant_test(dut):
 class TestSvConstant:
     TOP = "AssignmentModule"
 
-    def test_sv_constant_integers(self):
+    def test_sv_constant_integers(self, temp_build_dir):
         with pytest.elaborate_to_file(
                 AssignmentModule(test_constants, name=self.TOP)
         ) as filename:
@@ -77,4 +77,6 @@ class TestSvConstant:
                 python_search=[str(Path(__name__).parent.absolute())],  # python search path
                 module=Path(__name__).name,  # name of cocotb test module
                 testcase="constant_test",  # name of test function
+                sim_build=temp_build_dir,  # temp build directory
+                work_dir=temp_build_dir,  # simulation  directory
             )

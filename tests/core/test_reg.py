@@ -16,6 +16,7 @@ cocotb_test_prefix = "coco_"
 RESET_VALUE = 0xFF
 ASYNC_RESET_VALUE = 0xEE
 
+
 @cocotb.test()
 async def reg_feature_test(dut, enable, reset, async_reset):
     """ Test that d propagates to q """
@@ -79,7 +80,7 @@ reg_test_opts_val = [
 ]
 reg_test_pytest_param = ",".join(reg_test_opts + ["cocotb_testcase"])
 reg_test_pytest_param_val = [
-    val + (f"{cocotb_test_prefix}reg_feature_test_{i+1:03d}",)
+    val + (f"{cocotb_test_prefix}reg_feature_test_{i + 1:03d}",)
     for i, val in enumerate(reg_test_opts_val)
 ]
 
@@ -121,7 +122,7 @@ class TestRegisters:
             return 8
 
     @pytest.mark.parametrize(reg_test_pytest_param, reg_test_pytest_param_val)
-    def test_register_features(self, enable, reset, async_reset, cocotb_testcase):
+    def test_register_features(self, enable, reset, async_reset, cocotb_testcase, temp_build_dir):
         with pytest.elaborate_to_file(
                 self.ParamRegister(enable, reset, async_reset, name=self.TOP)
         ) as filename:
@@ -131,5 +132,7 @@ class TestRegisters:
                 toplevel=self.TOP,  # top level HDL
                 python_search=[str(Path(__name__).parent.absolute())],  # python search path
                 module=Path(__name__).name,  # name of cocotb test module
-                testcase=cocotb_testcase
+                testcase=cocotb_testcase,  # name of test function
+                sim_build=temp_build_dir,  # temp build directory
+                work_dir=temp_build_dir,  # simulation  directory
             )
