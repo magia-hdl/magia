@@ -30,6 +30,8 @@ test_constants = [
     (0x0F, 64, True),
     (-10, 3, True),
 ]
+test_constants += [(i, 5, True) for i in range(-16, 16)]
+test_constants += [(i, 5, False) for i in range(0, 32)]
 
 
 class AssignmentModule(Module):
