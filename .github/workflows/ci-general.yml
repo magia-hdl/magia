@@ -31,4 +31,4 @@ jobs:
         pytest_verbosity: 2
       run: |
         . $(poetry env info --path)/bin/activate
-        pytest tests
+        pytest -n auto tests
