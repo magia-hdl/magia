@@ -9,7 +9,7 @@ from magia import Constant, Module, Output
 cocotb_test_prefix = "coco_"
 
 test_constants = [
-    # (value, width, signed)
+    # Format: (value, width, signed) # noqa: ERA001
     (0, 8, False),
     (0, 8, True),
     (0xFF, 8, False),

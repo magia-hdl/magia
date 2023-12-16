@@ -2,7 +2,6 @@ import pytest
 from cocotb.runner import get_runner
 
 from magia import Input, Module, Output
-from magia.clock import clock
 
 
 class TestSmokeCompile:

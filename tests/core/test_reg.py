@@ -101,7 +101,7 @@ async def reg_multi_reg_test(dut):
     tx_record = []
     rx_record = []
 
-    for i in range(data_len):
+    for _ in range(data_len):
         # Assign a random value to d
         val = random.randint(0, 0xFF)
         tx_record.append(val)
