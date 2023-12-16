@@ -12,7 +12,7 @@ from .util import sv_constant
 
 @dataclass
 class SignalConfig:
-    name: Optional[str] = None
+    alias_name: Optional[str] = None
     width: int = 0
     signed: bool = False
     signal_type: SignalType = SignalType.WIRE
@@ -93,7 +93,7 @@ class Signal(Synthesizable):
 
         super().__init__(**kwargs)
         self._config = SignalConfig(
-            name=name,
+            alias_name=name,
             width=width,
             signed=signed,
             parent_bundle=parent_bundle,
@@ -106,18 +106,18 @@ class Signal(Synthesizable):
         Full name of a signal, used for elaboration.
         """
         if self._config.parent_bundle is not None:
-            return f"bundle_{id(self._config.parent_bundle)}_{self._config.name}"
-        return self._config.name
+            return f"bundle_{id(self._config.parent_bundle)}_{self._config.alias_name}"
+        return self._config.alias_name
 
     @property
     def alias(self) -> str:
         """
         Alias of the signal, is used to identify the signal in a bundle
         """
-        return self._config.name
+        return self._config.alias_name
 
     @property
-    def type_(self) -> SignalType:
+    def type(self) -> SignalType:
         return self._config.signal_type
 
     @property
@@ -157,7 +157,7 @@ class Signal(Synthesizable):
         self._config.signed = signed
 
     def set_name(self, name: str):
-        self._config.name = name
+        self._config.alias_name = name
 
     def signal_decl(self) -> str:
         """
@@ -179,7 +179,7 @@ class Signal(Synthesizable):
         signal_decl = self.signal_decl()
 
         # Ignore assignment signal if it is driven by an output of a module instance
-        if self._drivers[self._SINGLE_DRIVER_NAME].type_ != SignalType.OUTPUT:
+        if self._drivers[self._SINGLE_DRIVER_NAME].type != SignalType.OUTPUT:
             assignment = self._SIGNAL_ASSIGN_TEMPLATE.substitute(
                 name=self.name,
                 driver=self._drivers[self._SINGLE_DRIVER_NAME].name,
@@ -190,6 +190,7 @@ class Signal(Synthesizable):
     def copy(self, parent_bundle: Optional["SignalBundle"] = None, **kwargs) -> "Signal":
         """
         Copy the signal. Driver is discarded.
+        Signal can only be copied to a SignalBundle, not an IOBundle.
         :return: A new signal with the same configuration.
         """
         return Signal(
@@ -209,15 +210,15 @@ class Signal(Synthesizable):
             raise TypeError(f"Cannot assign {type(other)} to drive {type(self)}")
         if self._drivers.get(self._SINGLE_DRIVER_NAME) is not None:
             raise ValueError(f"Multiple driver on Signal {self.name}.")
-        if self.type_ == SignalType.OUTPUT and self.owner_instance is not None:
+        if self.type == SignalType.OUTPUT and self.owner_instance is not None:
             raise ValueError("Cannot drive output of a module instance.")
-        if other.type_ == SignalType.INPUT and other.owner_instance is not None:
+        if other.type == SignalType.INPUT and other.owner_instance is not None:
             raise ValueError("Input of a module instance cannot drive other signal.")
-        if self.type_ == SignalType.INPUT and self.owner_instance is None:
+        if self.type == SignalType.INPUT and self.owner_instance is None:
             raise ValueError("Cannot drive the Input of a module type.")
-        if other.type_ == SignalType.OUTPUT and other.owner_instance is None:
+        if other.type == SignalType.OUTPUT and other.owner_instance is None:
             raise ValueError("Output of a module type cannot drive other signal.")
-        if self.type_ == SignalType.CONSTANT:
+        if self.type == SignalType.CONSTANT:
             raise ValueError("Constant signal cannot be driven.")
 
         self._drivers[self._SINGLE_DRIVER_NAME] = other
@@ -414,27 +415,27 @@ class SignalDict(UserDict):
     They are read only after being assigned.
     """
 
-    def __getattr__(self, item):
-        if item.startswith("_"):
-            return super().__getattribute__(item)
-        if item not in self.data:
-            raise KeyError(f"Signal {item} is not defined.")
-        return self.data[item]
+    def __getattr__(self, alias):
+        if alias.startswith("_"):
+            return super().__getattribute__(alias)
+        if alias not in self.data:
+            raise KeyError(f"Signal {alias} is not defined.")
+        return self.data[alias]
 
-    def __getitem__(self, item):
-        if item not in self.data:
-            raise KeyError(f"Signal {item} is not defined.")
-        return self.data[item]
+    def __getitem__(self, alias):
+        if alias not in self.data:
+            raise KeyError(f"Signal {alias} is not defined.")
+        return self.data[alias]
 
-    def __setitem__(self, key, value):
-        cur = self.data.get(key)
+    def __setitem__(self, alias, value):
+        cur = self.data.get(alias)
         if not isinstance(value, Signal) and value is not None:
-            raise KeyError(f"Object {key} is not a Signal.")
+            raise KeyError(f"Object {alias} is not a Signal.")
         if cur is not None and value is not cur:
-            raise KeyError(f"Signal {key} is read only. Are you trying to connect it with <<= Operator?")
+            raise KeyError(f"Signal {alias} is read only. Are you trying to connect it with <<= Operator?")
 
         if value is not None:
-            self.data[key] = value
+            self.data[alias] = value
 
 
 class Input(Signal):
@@ -450,6 +451,14 @@ class Input(Signal):
             owner_instance: Optional["Instance"] = None,
             **kwargs
     ):
+        """
+        I/O ports must have name and width well-defined by designers.
+        """
+        if name is None:
+            raise ValueError("Input name is not set")
+        if width == 0:
+            raise ValueError("Input width is not set")
+
         super().__init__(name=name, width=width, signed=signed, **kwargs)
         self._config.signal_type = SignalType.INPUT
         self._config.owner_instance = owner_instance
@@ -460,16 +469,7 @@ class Input(Signal):
         """
         Name of I/O is the same with the alias, even they are within an IOBundle
         """
-        return self._config.name
-
-    def build(self):
-        """
-        I/O ports must have name and width well-defined by designers.
-        """
-        if self.name is None:
-            raise ValueError("Input name is not set")
-        if len(self) == 0:
-            raise ValueError("Input width is not set")
+        return self._config.alias_name
 
     def elaborate(self) -> str:
         """
@@ -482,6 +482,7 @@ class Input(Signal):
     def copy(self, owner_instance: Optional["Instance"] = None) -> "Input":
         """
         Copy the input signal. Driver is discarded.
+        I/O port can only be assigned to an instance, not a SignalBundle / IOBundle.
         :return: A new input signal with the same configuration.
         """
         return Input(
@@ -505,6 +506,13 @@ class Output(Signal):
             owner_instance: Optional["Instance"] = None,
             **kwargs
     ):
+        """
+        I/O ports must have name and width well-defined by designers.
+        """
+        if name is None:
+            raise ValueError("Output name is not set")
+        if width == 0:
+            raise ValueError("Output width is not set")
         super().__init__(name=name, width=width, signed=signed, **kwargs)
         self._config.signal_type = SignalType.OUTPUT
         self._config.owner_instance = owner_instance
@@ -515,16 +523,7 @@ class Output(Signal):
         """
         Name of I/O is the same with the alias, even they are within an IOBundle
         """
-        return self._config.name
-
-    def build(self):
-        """
-        I/O ports must have name and width well-defined by designers.
-        """
-        if self.name is None:
-            raise ValueError("Input name is not set")
-        if len(self) == 0:
-            raise ValueError("Input width is not set")
+        return self._config.alias_name
 
     def elaborate(self) -> str:
         """
@@ -537,6 +536,7 @@ class Output(Signal):
     def copy(self, owner_instance: Optional["Instance"] = None, **kwargs) -> "Output":
         """
         Copy the output signal. Driver is discarded.
+        I/O port can only be assigned to an instance, not a SignalBundle / IOBundle.
         :return: A new output signal with the same configuration.
         """
         return Output(

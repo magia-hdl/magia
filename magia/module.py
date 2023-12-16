@@ -156,7 +156,7 @@ class Module(Synthesizable):
             for signal_id, signal in sig_to_be_traced.items():
 
                 # Tracing Instances with Output connected
-                if signal.type_ == SignalType.OUTPUT:
+                if signal.type == SignalType.OUTPUT:
                     inst: Optional[Instance] = signal.owner_instance
                     if inst is not None and id(inst) not in traced_inst_id:
                         traced_inst_id.add(id(inst))
@@ -171,13 +171,13 @@ class Module(Synthesizable):
                             if (id_sig := id(sig)) not in traced_sig_id
                         }
 
-                elif signal.type_ != SignalType.INPUT and signal_id not in traced_sig_id:
+                elif signal.type != SignalType.INPUT and signal_id not in traced_sig_id:
                     traced_sig_id.add(signal_id)
                     traced_signal.append(signal)
                     next_trace |= {
                         id_sig: sig
                         for sig in signal.drivers
-                        if sig.type_ in (SignalType.WIRE, SignalType.CONSTANT, SignalType.OUTPUT)
+                        if sig.type in (SignalType.WIRE, SignalType.CONSTANT, SignalType.OUTPUT)
                            and (id_sig := id(sig)) not in traced_sig_id
                     }
             sig_to_be_traced = next_trace
@@ -304,9 +304,9 @@ class Instance(Synthesizable):
 
         if io is not None:
             for name, signal in io.items():
-                if self._io[name].type_ == SignalType.INPUT:
+                if self._io[name].type == SignalType.INPUT:
                     self.inputs[name] <<= signal
-                if self._io[name].type_ == SignalType.OUTPUT:
+                if self._io[name].type == SignalType.OUTPUT:
                     signal <<= self.outputs[name]
 
     @property
@@ -329,12 +329,12 @@ class Instance(Synthesizable):
         errors = []
         for signal in self.inputs.values():
             if signal.driver() is None:
-                errors.append(ValueError(f"Input {signal.name} is not connected."))
+                errors.append(ValueError(f"Input {signal.alias_name} is not connected."))
         return errors
 
     def build(self):
         for port, signal in self.outputs.items():
-            if signal.name is None:
+            if signal.alias_name is None:
                 signal.set_name(f"{self._inst_config.name}_output_{port}")
 
     def elaborate(self) -> str:

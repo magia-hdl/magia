@@ -7,7 +7,7 @@ build-backend = "poetry.core.masonry.api"
 [tool.ruff]
 line-length = 120
 select = ["F","E","W","I001","U","N","S","B","A","C4","T10","ISC","ICN","T20","Q","RET","SIM","TID","ERA"]
-ignore = ["F821"]
+ignore = ["F821", "A003"]
 
 [tool.poetry]
 name = "syn-magia"
