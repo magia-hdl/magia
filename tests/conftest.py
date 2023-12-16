@@ -19,7 +19,7 @@ def elaborate_to_file(module: Module) -> str:
         yield f.name
 
 
-sys.modules['pytest'].elaborate_to_file = elaborate_to_file
+sys.modules["pytest"].elaborate_to_file = elaborate_to_file
 
 
 @pytest.fixture()

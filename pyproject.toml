@@ -9,6 +9,10 @@ line-length = 120
 select = ["F","E","W","I001","U","N","S","B","A","C4","T10","ISC","ICN","T20","Q","RET","SIM","TID","ERA"]
 ignore = ["F821", "A003"]
 
+[tool.ruff.lint.per-file-ignores]
+
+"tests/**" = ["S101"]
+
 [tool.poetry]
 name = "syn-magia"
 version = "0.1.0-alpha"
