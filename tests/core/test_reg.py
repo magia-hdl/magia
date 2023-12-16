@@ -1,15 +1,14 @@
-import pytest
 import random
-import cocotb
-
 from pathlib import Path
 
+import cocotb
+import pytest
 from cocotb.clock import Clock
-from cocotb.triggers import FallingEdge
 from cocotb.regression import TestFactory
+from cocotb.triggers import FallingEdge
 from cocotb_test.simulator import run as sim_run
 
-from magia import Module, Input, Output
+from magia import Input, Module, Output
 from magia.clock import clock as clock_input
 
 cocotb_test_prefix = "coco_"
@@ -62,7 +61,7 @@ async def reg_feature_test(dut, enable, reset, async_reset):
             expected_q = prev_q
 
         await FallingEdge(dut.clk)
-        assert dut.q.value == expected_q, "output q was incorrect on the {}th cycle".format(i)
+        assert dut.q.value == expected_q, f"output q was incorrect on the {i}th cycle"
 
         prev_q = dut.q.value
 

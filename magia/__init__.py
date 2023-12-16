@@ -1,6 +1,6 @@
-from .core import Constant, Signal, Input, Output, Register
-from .bundle import SignalBundle, IOBundle
-from .module import Module, Instance, Blackbox
+from .bundle import IOBundle, SignalBundle
+from .core import Constant, Input, Output, Register, Signal
+from .module import Blackbox, Instance, Module
 
 """
 Basic Signal Objects

@@ -1,13 +1,12 @@
 from collections import UserDict
 from collections.abc import Iterable
-
 from dataclasses import dataclass
 from itertools import count
 from string import Template
 from typing import Optional, Union
 
-from .constants import SignalType, OPType, RegType
 from .clock import get_cur_clock
+from .constants import OPType, RegType, SignalType
 from .util import sv_constant
 
 
@@ -118,7 +117,7 @@ class Signal(Synthesizable):
         return self._config.name
 
     @property
-    def type(self) -> SignalType:
+    def type_(self) -> SignalType:
         return self._config.signal_type
 
     @property
@@ -180,27 +179,25 @@ class Signal(Synthesizable):
         signal_decl = self.signal_decl()
 
         # Ignore assignment signal if it is driven by an output of a module instance
-        if self._drivers[self._SINGLE_DRIVER_NAME].type != SignalType.OUTPUT:
+        if self._drivers[self._SINGLE_DRIVER_NAME].type_ != SignalType.OUTPUT:
             assignment = self._SIGNAL_ASSIGN_TEMPLATE.substitute(
                 name=self.name,
                 driver=self._drivers[self._SINGLE_DRIVER_NAME].name,
             )
             return "\n".join((signal_decl, assignment))
-        else:
-            return signal_decl
+        return signal_decl
 
     def copy(self, parent_bundle: Optional["SignalBundle"] = None, **kwargs) -> "Signal":
         """
         Copy the signal. Driver is discarded.
         :return: A new signal with the same configuration.
         """
-        new_signal = Signal(
+        return Signal(
             name=self.alias,
             width=len(self),
             signed=self.signed,
             parent_bundle=parent_bundle,
         )
-        return new_signal
 
     def __ilshift__(self, other):
         """
@@ -212,15 +209,15 @@ class Signal(Synthesizable):
             raise TypeError(f"Cannot assign {type(other)} to drive {type(self)}")
         if self._drivers.get(self._SINGLE_DRIVER_NAME) is not None:
             raise ValueError(f"Multiple driver on Signal {self.name}.")
-        if self.type == SignalType.OUTPUT and self.owner_instance is not None:
+        if self.type_ == SignalType.OUTPUT and self.owner_instance is not None:
             raise ValueError("Cannot drive output of a module instance.")
-        if other.type == SignalType.INPUT and other.owner_instance is not None:
+        if other.type_ == SignalType.INPUT and other.owner_instance is not None:
             raise ValueError("Input of a module instance cannot drive other signal.")
-        if self.type == SignalType.INPUT and self.owner_instance is None:
+        if self.type_ == SignalType.INPUT and self.owner_instance is None:
             raise ValueError("Cannot drive the Input of a module type.")
-        if other.type == SignalType.OUTPUT and other.owner_instance is None:
+        if other.type_ == SignalType.OUTPUT and other.owner_instance is None:
             raise ValueError("Output of a module type cannot drive other signal.")
-        if self.type == SignalType.CONSTANT:
+        if self.type_ == SignalType.CONSTANT:
             raise ValueError("Constant signal cannot be driven.")
 
         self._drivers[self._SINGLE_DRIVER_NAME] = other
@@ -487,13 +484,12 @@ class Input(Signal):
         Copy the input signal. Driver is discarded.
         :return: A new input signal with the same configuration.
         """
-        new_input = Input(
+        return Input(
             name=self.name,
             width=len(self),
             signed=self.signed,
             owner_instance=owner_instance,
         )
-        return new_input
 
 
 class Output(Signal):
@@ -543,13 +539,12 @@ class Output(Signal):
         Copy the output signal. Driver is discarded.
         :return: A new output signal with the same configuration.
         """
-        new_output = Output(
+        return Output(
             name=self.name,
             width=len(self),
             signed=self.signed,
             owner_instance=owner_instance,
         )
-        return new_output
 
 
 class Constant(Signal):
@@ -673,10 +668,10 @@ class Operation(Signal):
         signal_decl = self.signal_decl()
         op_impl = ""
         if self._op_config.op_type in self._OP_IMPL_TEMPLATE:
-            impl_params = dict(
-                output=self.name,
-                a=self._drivers["a"].name,
-            )
+            impl_params = {
+                "output": self.name,
+                "a": self._drivers["a"].name,
+            }
 
             if self._drivers.get("b") is not None:
                 impl_params["b"] = self._drivers["b"].name
@@ -710,7 +705,7 @@ class Operation(Signal):
             if not isinstance(y, int):
                 raise TypeError("Shifting Operator only support constant shifting with integer.")
         else:
-            if isinstance(y, int) or isinstance(y, bytes):
+            if isinstance(y, (int, bytes)):
                 y = Constant(y, len(x), x.signed)
             if not isinstance(y, Signal) and y is not None:
                 raise TypeError(f"Cannot perform operation on {type(y)}")

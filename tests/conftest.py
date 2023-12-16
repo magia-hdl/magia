@@ -1,9 +1,9 @@
-import pytest
 import sys
-
 from contextlib import contextmanager
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
+
+import pytest
 
 from magia import Module
 
@@ -22,7 +22,7 @@ def elaborate_to_file(module: Module) -> str:
 sys.modules['pytest'].elaborate_to_file = elaborate_to_file
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture()
 def temp_build_dir():
     with TemporaryDirectory() as tmpdir:
         yield str(Path(tmpdir).absolute())

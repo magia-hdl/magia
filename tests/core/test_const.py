@@ -1,10 +1,10 @@
-import cocotb.clock
-import pytest
-
-from cocotb_test.simulator import run as sim_run
 from pathlib import Path
 
-from magia import Module, Output, Constant
+import cocotb.clock
+import pytest
+from cocotb_test.simulator import run as sim_run
+
+from magia import Constant, Module, Output
 
 cocotb_test_prefix = "coco_"
 

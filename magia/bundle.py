@@ -1,7 +1,7 @@
 from typing import Optional, Union
 
 from .constants import SignalType
-from .core import Input, Output, Signal, SignalDict, Constant
+from .core import Constant, Input, Output, Signal, SignalDict
 
 
 class SignalBundle:
@@ -30,8 +30,8 @@ class SignalBundle:
         for signal in other:
             if signal.alias in self.signal_alias:
                 raise KeyError(f"Signal {signal.alias} is already defined.")
-            if isinstance(signal, Input) or isinstance(signal, Output) or isinstance(signal, Constant):
-                raise TypeError(f"Signal Type {signal.type} is forbidden in SignalBundle.")
+            if isinstance(signal, (Input, Output, Constant)):
+                raise TypeError(f"Signal Type {signal.type_} is forbidden in SignalBundle.")
             self._signals[signal.alias] = signal.copy(parent_bundle=self)
         return self
 
@@ -47,7 +47,7 @@ class SignalBundle:
         Avoid IO Bundle to be modified by mistake.
         """
         if name.startswith("_"):
-            return super().__setattr__(name, value)
+            super().__setattr__(name, value)
         if isinstance(value, Signal):
             self.__setitem__(name, value)
         else:
@@ -103,19 +103,19 @@ class IOBundle:
     def __iadd__(self, other: Union["IOBundle", list[Union[Input, Output]], Input, Output]) -> "IOBundle":
         if isinstance(other, IOBundle):
             other = other.inputs + other.outputs
-        if isinstance(other, Input) or isinstance(other, Output):
+        if isinstance(other, (Input, Output)):
             other = [other]
 
         for port in other:
             if port.name in self.input_names + self.output_names:
                 raise KeyError(f"Port {port.name} is already defined.")
 
-            if port.type == SignalType.INPUT:
+            if port.type_ == SignalType.INPUT:
                 self._input_names.append(port.name)
-            elif port.type == SignalType.OUTPUT:
+            elif port.type_ == SignalType.OUTPUT:
                 self._output_names.append(port.name)
             else:
-                raise TypeError(f"Signal Type {port.type} is forbidden in IOBundle.")
+                raise TypeError(f"Signal Type {port.type_} is forbidden in IOBundle.")
 
             self._signals[port.name] = port.copy(owner_instance=self.owner_instance)
 
@@ -130,7 +130,7 @@ class IOBundle:
 
     def __setattr__(self, name: str, value: Union[Input, Output]):
         if name.startswith("_"):
-            return super().__setattr__(name, value)
+            super().__setattr__(name, value)
         if isinstance(value, Signal):
             self.__setitem__(name, value)
         else:
@@ -146,14 +146,14 @@ class IOBundle:
     def inputs(self) -> list[Signal]:
         return [
             signal for signal in self._signals.values()
-            if signal.type == SignalType.INPUT
+            if signal.type_ == SignalType.INPUT
         ]
 
     @property
     def outputs(self) -> list[Signal]:
         return [
             signal for signal in self._signals.values()
-            if signal.type == SignalType.OUTPUT
+            if signal.type_ == SignalType.OUTPUT
         ]
 
     @property
@@ -181,7 +181,7 @@ class IOBundle:
                 new_port_type = {
                     SignalType.INPUT: Output,
                     SignalType.OUTPUT: Input,
-                }[port.type]
+                }[port.type_]
                 new_port = new_port_type(name=port.name, width=len(port), signed=port.signed)
                 new_bundle += new_port
         return new_bundle
@@ -204,7 +204,7 @@ class IOBundle:
             new_port_type = {
                 SignalType.INPUT: Input,
                 SignalType.OUTPUT: Output,
-            }[port.type]
+            }[port.type_]
             new_port = new_port_type(name=f"{prefix}{port.name}{suffix}", width=len(port), signed=port.signed)
             new_bundle += new_port
         return new_bundle

@@ -1,14 +1,14 @@
 import pytest
 from cocotb.runner import get_runner
 
-from magia import Module, Input, Output
+from magia import Input, Module, Output
 from magia.clock import clock
 
 
 class TestSmokeCompile:
     TOP = "TopModule"
 
-    def compile(self, sv_file: str, build_dir):
+    def compile_sv(self, sv_file: str, build_dir):
         runner = get_runner("verilator")
         runner.build(
             verilog_sources=[sv_file],
@@ -62,7 +62,7 @@ class TestSmokeCompile:
         with pytest.elaborate_to_file(
                 TopModule(width=width, name=self.TOP)
         ) as filename:
-            self.compile(filename, temp_build_dir)
+            self.compile_sv(filename, temp_build_dir)
 
     @pytest.mark.parametrize("width", [8, 12, 16])
     def test_comb_registers(self, width, temp_build_dir):
@@ -115,4 +115,4 @@ class TestSmokeCompile:
         with pytest.elaborate_to_file(
                 TopModule(width=width, name=self.TOP)
         ) as filename:
-            self.compile(filename, temp_build_dir)
+            self.compile_sv(filename, temp_build_dir)

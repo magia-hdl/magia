@@ -5,8 +5,8 @@ from itertools import count
 from string import Template
 from typing import Optional
 
-from .core import Synthesizable, Signal, SignalType, SignalDict
 from .bundle import IOBundle
+from .core import Signal, SignalDict, SignalType, Synthesizable
 
 
 @dataclass
@@ -61,6 +61,7 @@ class Module(Synthesizable):
         self._signals: dict[str, Signal] = {}
         self._instance_counter = count(0)
 
+        self._mod_doc: Optional[str] = None
         ...
 
     def __setitem__(self, key, value: Signal):
@@ -107,9 +108,7 @@ class Module(Synthesizable):
 
         signals, insts = self.trace()
 
-        mod_doc = ""
-        if hasattr(self, "_mod_doc"):
-            mod_doc = self._mod_doc
+        mod_doc = "" if self._mod_doc is None else self._mod_doc
 
         mod_impl = [
             inst.elaborate()
@@ -133,10 +132,7 @@ class Module(Synthesizable):
         mod_end = "endmodule"
 
         sv_code = "\n".join((mod_decl, mod_doc, mod_impl, mod_output_assignment, mod_end))
-        submodules = set(
-            inst.module
-            for inst in insts
-        )
+        submodules = {inst.module for inst in insts}
 
         return sv_code, submodules
 
@@ -160,29 +156,28 @@ class Module(Synthesizable):
             for signal_id, signal in sig_to_be_traced.items():
 
                 # Tracing Instances with Output connected
-                if signal.type == SignalType.OUTPUT:
+                if signal.type_ == SignalType.OUTPUT:
                     inst: Optional[Instance] = signal.owner_instance
-                    if inst is not None:
-                        if id(inst) not in traced_inst_id:
-                            traced_inst_id.add(id(inst))
-                            traced_inst.append(inst)
+                    if inst is not None and id(inst) not in traced_inst_id:
+                        traced_inst_id.add(id(inst))
+                        traced_inst.append(inst)
 
-                            # The Input port of the instance is skipped
-                            # We will go directly to the driver as it must be driven by another signal.
-                            input_drivers = [i.driver() for i in inst.inputs.values()]
-                            next_trace |= {
-                                id_sig: sig
-                                for sig in input_drivers
-                                if (id_sig := id(sig)) not in traced_sig_id
-                            }
+                        # The Input port of the instance is skipped
+                        # We will go directly to the driver as it must be driven by another signal.
+                        input_drivers = [i.driver() for i in inst.inputs.values()]
+                        next_trace |= {
+                            id_sig: sig
+                            for sig in input_drivers
+                            if (id_sig := id(sig)) not in traced_sig_id
+                        }
 
-                elif signal.type != SignalType.INPUT and signal_id not in traced_sig_id:
+                elif signal.type_ != SignalType.INPUT and signal_id not in traced_sig_id:
                     traced_sig_id.add(signal_id)
                     traced_signal.append(signal)
                     next_trace |= {
                         id_sig: sig
                         for sig in signal.drivers
-                        if sig.type in (SignalType.WIRE, SignalType.CONSTANT, SignalType.OUTPUT)
+                        if sig.type_ in (SignalType.WIRE, SignalType.CONSTANT, SignalType.OUTPUT)
                            and (id_sig := id(sig)) not in traced_sig_id
                     }
             sig_to_be_traced = next_trace
@@ -245,7 +240,7 @@ class Module(Synthesizable):
             doc += f"{k}: {v}\n"
         doc = f"/*\n{doc}*/\n"
 
-        setattr(self, "_mod_doc", doc)
+        self._mod_doc = doc
         return doc
 
     @staticmethod
@@ -309,9 +304,9 @@ class Instance(Synthesizable):
 
         if io is not None:
             for name, signal in io.items():
-                if self._io[name].type == SignalType.INPUT:
+                if self._io[name].type_ == SignalType.INPUT:
                     self.inputs[name] <<= signal
-                if self._io[name].type == SignalType.OUTPUT:
+                if self._io[name].type_ == SignalType.OUTPUT:
                     signal <<= self.outputs[name]
 
     @property
