@@ -406,6 +406,22 @@ class Signal(Synthesizable):
         register <<= self
         return register
 
+    def when(
+            self,
+            condition: "Signal",
+            else_: Optional["Signal"] = None,
+    ) -> "When":
+        """
+        Create a `Self if Condition else Else_` statement, similar to the ternary operator in C / Python.
+        E.g. `gated = data.when(enable)`, `default_2 = data.when(enable, 2)`
+        """
+        if else_ is None:
+            else_ = 0
+        return When(
+            condition=condition,
+            if_true=self,
+            if_false=else_,
+        )
 
 class SignalDict(UserDict):
     """
@@ -689,7 +705,7 @@ class Operation(Signal):
         return "\n".join((signal_decl, op_impl))
 
     @staticmethod
-    def create(op_type: OPType, x: "Signal", y: Optional[Union["Signal", slice, int, bytes]]) -> "Operation":
+    def create(op_type: OPType, x: Signal, y: Optional[Union[Signal, slice, int, bytes]]) -> "Operation":
         """
         Factory method to create common operation with single / two arguments.
         """
@@ -746,6 +762,43 @@ class Operation(Signal):
             slice_ = slice(slice_.start, slice_.stop + len(driver), None)
 
         return slice_
+
+
+class When(Operation):
+    """
+    Representing an if-else statement.
+    """
+    _IF_ELSE_TEMPLATE = Template(
+        "always_comb\n"
+        "  if ($condition) $output = $if_true;\n"
+        "  else $output = $if_false;"
+    )
+
+    def __init__(self, condition: Signal, if_true: Signal, if_false: Optional[Union[Signal, int, bytes]], **kwargs):
+        super().__init__(width=len(if_true), signed=if_true.signed, **kwargs)
+
+        if if_false is None:
+            if_false = 0
+        if isinstance(if_false, (int, bytes)):
+            if_false = Constant(if_false, len(if_true), if_true.signed)
+
+        if len(condition) != 1:
+            raise ValueError("Condition has to be a single bit signal.")
+
+        self._drivers["condition"] = condition
+        self._drivers[self._SINGLE_DRIVER_NAME] = if_true
+        self._drivers["d_false"] = if_false
+        self._op_config.op_type = OPType.WHEN
+
+    def elaborate(self) -> str:
+        signal_decl = self.signal_decl()
+        if_else = self._IF_ELSE_TEMPLATE.substitute(
+            output=self.net_name,
+            condition=self._drivers["condition"].net_name,
+            if_true=self._drivers[self._SINGLE_DRIVER_NAME].net_name,
+            if_false=self._drivers["d_false"].net_name,
+        )
+        return "\n".join((signal_decl, if_else))
 
 
 class Register(Operation):
