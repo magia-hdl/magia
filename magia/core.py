@@ -12,7 +12,7 @@ from .util import sv_constant
 
 @dataclass
 class SignalConfig:
-    alias_name: Optional[str] = None
+    name: Optional[str] = None
     width: int = 0
     signed: bool = False
     signal_type: SignalType = SignalType.WIRE
@@ -53,7 +53,7 @@ class Synthesizable:
     def __init__(self, **kwargs):
         ...
 
-    def build(self):
+    def _fix_output_name(self):
         """
         Phase of defining the implementation details of a synthesizable object.
         e.g. resolving signal names, etc.
@@ -93,7 +93,7 @@ class Signal(Synthesizable):
 
         super().__init__(**kwargs)
         self._config = SignalConfig(
-            alias_name=name,
+            name=name,
             width=width,
             signed=signed,
             parent_bundle=parent_bundle,
@@ -101,20 +101,20 @@ class Signal(Synthesizable):
         self._drivers = SignalDict()
 
     @property
-    def name(self) -> str:
+    def net_name(self) -> str:
         """
         Full name of a signal, used for elaboration.
         """
         if self._config.parent_bundle is not None:
-            return f"bundle_{id(self._config.parent_bundle)}_{self._config.alias_name}"
-        return self._config.alias_name
+            return f"bundle_{id(self._config.parent_bundle)}_{self.name}"
+        return self.name
 
     @property
-    def alias(self) -> str:
+    def name(self) -> str:
         """
-        Alias of the signal, is used to identify the signal in a bundle
+        Short name of the signal, is used to identify the signal in a bundle / SignalDict
         """
-        return self._config.alias_name
+        return self._config.name
 
     @property
     def type(self) -> SignalType:
@@ -148,8 +148,6 @@ class Signal(Synthesizable):
         """
         return self._config.owner_instance
 
-    ...
-
     def set_width(self, width: int):
         self._config.width = width
 
@@ -157,14 +155,14 @@ class Signal(Synthesizable):
         self._config.signed = signed
 
     def set_name(self, name: str):
-        self._config.alias_name = name
+        self._config.name = name
 
     def signal_decl(self) -> str:
         """
         Declare the signal in the module implementation.
         :return: logic (signed) [...]SIGNAL_NAME
         """
-        if self.name is None:
+        if self.net_name is None:
             raise ValueError("Signal name is not set")
         if len(self) == 0:
             raise ValueError("Signal width is not set and cannot be inferred")
@@ -172,7 +170,7 @@ class Signal(Synthesizable):
         return self._SIGNAL_DECL_TEMPLATE.substitute(
             signed="signed" if self.signed else "",
             width=f"[{width - 1}:0]" if (width := len(self)) > 1 else "",
-            name=self.name,
+            name=self.net_name,
         )
 
     def elaborate(self) -> str:
@@ -181,8 +179,8 @@ class Signal(Synthesizable):
         # Ignore assignment signal if it is driven by an output of a module instance
         if self._drivers[self._SINGLE_DRIVER_NAME].type != SignalType.OUTPUT:
             assignment = self._SIGNAL_ASSIGN_TEMPLATE.substitute(
-                name=self.name,
-                driver=self._drivers[self._SINGLE_DRIVER_NAME].name,
+                name=self.net_name,
+                driver=self._drivers[self._SINGLE_DRIVER_NAME].net_name,
             )
             return "\n".join((signal_decl, assignment))
         return signal_decl
@@ -194,7 +192,7 @@ class Signal(Synthesizable):
         :return: A new signal with the same configuration.
         """
         return Signal(
-            name=self.alias,
+            name=self.name,
             width=len(self),
             signed=self.signed,
             parent_bundle=parent_bundle,
@@ -411,7 +409,7 @@ class Signal(Synthesizable):
 
 class SignalDict(UserDict):
     """
-    Signal Dict contains a dictionary of signals keyed by their name.
+    Signal Dict contains a dictionary of signals keyed by their name / specific alias.
     They are read only after being assigned.
     """
 
@@ -465,11 +463,11 @@ class Input(Signal):
         ...
 
     @property
-    def name(self) -> str:
+    def net_name(self) -> str:
         """
-        Name of I/O is the same with the alias, even they are within an IOBundle
+        Net Name of I/O must be the same with the name, even they are within an IOBundle
         """
-        return self._config.alias_name
+        return self.name
 
     def elaborate(self) -> str:
         """
@@ -519,11 +517,11 @@ class Output(Signal):
         ...
 
     @property
-    def name(self) -> str:
+    def net_name(self) -> str:
         """
-        Name of I/O is the same with the alias, even they are within an IOBundle
+        Net Name of I/O must be the same with the name, even they are within an IOBundle
         """
-        return self._config.alias_name
+        return self.name
 
     def elaborate(self) -> str:
         """
@@ -569,7 +567,7 @@ class Constant(Signal):
     def elaborate(self) -> str:
         signal_decl = self.signal_decl()
         assignment = self._SIGNAL_ASSIGN_TEMPLATE.substitute(
-            name=self.name,
+            name=self.net_name,
             driver=sv_constant(self.value, len(self), self.signed),
         )
         return "\n".join((signal_decl, assignment))
@@ -669,12 +667,12 @@ class Operation(Signal):
         op_impl = ""
         if self._op_config.op_type in self._OP_IMPL_TEMPLATE:
             impl_params = {
-                "output": self.name,
-                "a": self._drivers["a"].name,
+                "output": self.net_name,
+                "a": self._drivers["a"].net_name,
             }
 
             if self._drivers.get("b") is not None:
-                impl_params["b"] = self._drivers["b"].name
+                impl_params["b"] = self._drivers["b"].net_name
 
             # Slicing Operator
             if self._op_config.slicing is not None:
@@ -875,7 +873,7 @@ class Register(Operation):
     def elaborate(self) -> str:
         errors = self.validate()
         if errors:
-            raise ValueError(f"Register {self.name} is not valid.", errors)
+            raise ValueError(f"Register {self.net_name} is not valid.", errors)
 
         reg_decl = self.signal_decl()
 
@@ -891,19 +889,19 @@ class Register(Operation):
         }[(self._reg_config.enable, self._reg_config.reset, self._reg_config.async_reset)]
 
         connections = {
-            "output": self.name,
-            "driver": self._drivers[Signal._SINGLE_DRIVER_NAME].name,
-            "clk": self._drivers["clk"].name,
+            "output": self.net_name,
+            "driver": self._drivers[Signal._SINGLE_DRIVER_NAME].net_name,
+            "clk": self._drivers["clk"].net_name,
         }
         if self._reg_config.enable:
-            connections["enable"] = self._drivers["enable"].name
+            connections["enable"] = self._drivers["enable"].net_name
         if self._reg_config.reset:
-            connections["reset"] = self._drivers["reset"].name
+            connections["reset"] = self._drivers["reset"].net_name
             connections["reset_value"] = sv_constant(
                 self._reg_config.reset_value, len(self), self._config.signed
             )
         if self._reg_config.async_reset:
-            connections["async_reset"] = self._drivers["async_reset"].name
+            connections["async_reset"] = self._drivers["async_reset"].net_name
             connections["async_reset_value"] = sv_constant(
                 self._reg_config.async_reset_value, len(self), self._config.signed
             )

@@ -77,7 +77,7 @@ class Module(Synthesizable):
             raise KeyError(f"Signal {item} is not defined.")
         return signal
 
-    def build(self):
+    def _fix_output_name(self):
         ...
 
     def validate(self) -> bool:
@@ -91,7 +91,7 @@ class Module(Synthesizable):
         :return: The SystemVerilog code for the module, and the list of submodules of the instance in the module.
         """
         undriven_outputs = [
-            output.name
+            output.net_name
             for output in self.io.outputs
             if output.driver() is None
         ]
@@ -123,8 +123,8 @@ class Module(Synthesizable):
 
         mod_output_assignment = "\n".join(
             Signal._SIGNAL_ASSIGN_TEMPLATE.substitute(
-                name=output.name,
-                driver=output.driver().name,
+                name=output.net_name,
+                driver=output.driver().net_name,
             )
             for output in self.io.outputs
         )
@@ -186,7 +186,7 @@ class Module(Synthesizable):
         traced_inst.reverse()
 
         # Check if we have name conflict on the signals and instances
-        sig_name_counter = Counter(sig.name for sig in traced_signal)
+        sig_name_counter = Counter(sig.net_name for sig in traced_signal)
         inst_name_counter = Counter(inst.name for inst in traced_inst)
         sig_conflicts = [name for name, cnt in sig_name_counter.items() if cnt > 1]
         inst_conflicts = [name for name, cnt in inst_name_counter.items() if cnt > 1]
@@ -329,16 +329,16 @@ class Instance(Synthesizable):
         errors = []
         for signal in self.inputs.values():
             if signal.driver() is None:
-                errors.append(ValueError(f"Input {signal.alias_name} is not connected."))
+                errors.append(ValueError(f"Input {signal.name} is not connected."))
         return errors
 
-    def build(self):
+    def _fix_output_name(self):
         for port, signal in self.outputs.items():
-            if signal.alias_name is None:
+            if signal.name is None:
                 signal.set_name(f"{self._inst_config.name}_output_{port}")
 
     def elaborate(self) -> str:
-        self.build()
+        self._fix_output_name()
         errors = self.validate()
         if errors:
             raise ValueError(f"Instance {self.name} is not valid.", errors)
@@ -349,13 +349,13 @@ class Instance(Synthesizable):
         io_list = []
         for port in self._io.inputs:
             io_list.append(self._IO_TEMPLATE.substitute(
-                port_name=port.name,
-                signal_name=port.driver().name,
+                port_name=port.net_name,
+                signal_name=port.driver().net_name,
             ))
         for port in self._io.outputs:
             io_list.append(self._IO_TEMPLATE.substitute(
-                port_name=port.name,
-                signal_name=self.outputs[port.name].name,
+                port_name=port.net_name,
+                signal_name=self.outputs[port.net_name].net_name,
             ))
 
         io_list = ",\n".join(io_list)
