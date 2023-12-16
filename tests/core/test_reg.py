@@ -88,6 +88,36 @@ tf_reg_test.add_option(reg_test_opts, reg_test_opts_val)
 tf_reg_test.generate_tests(prefix=cocotb_test_prefix)
 
 
+@cocotb.test()
+async def reg_multi_reg_test(dut):
+    """ Test that d propagates to q """
+
+    clock = Clock(dut.clk, 10, units="ns")
+    cocotb.start_soon(clock.start())
+
+    data_len = 50
+    reg_stages = 3
+
+    tx_record = []
+    rx_record = []
+
+    for i in range(data_len):
+        # Assign a random value to d
+        val = random.randint(0, 0xFF)
+        tx_record.append(val)
+
+        dut.d.value = val
+
+        await FallingEdge(dut.clk)
+        rx_record.append(dut.q.value)
+
+    tx_record = tx_record[:-reg_stages]
+    rx_record = rx_record[reg_stages-1:]
+
+    for i in range(len(tx_record)):
+        assert tx_record[i] == rx_record[i], f"output q was incorrect on the {i}th cycle"
+
+
 class TestRegisters:
     TOP = "TopModule"
 
@@ -120,6 +150,20 @@ class TestRegisters:
         def width(self):
             return 8
 
+    class MultiStageRegister(Module):
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            self.io += Input("clk", 1)
+            self.io += Input("d", self.width)
+            self.io += Output("q", self.width)
+
+            with clock_input(self.io.clk):
+                self.io.q <<= self.io.d.reg().reg().reg()
+
+        @property
+        def width(self):
+            return 8
+
     @pytest.mark.parametrize(reg_test_pytest_param, reg_test_pytest_param_val)
     def test_register_features(self, enable, reset, async_reset, cocotb_testcase, temp_build_dir):
         with pytest.elaborate_to_file(
@@ -132,6 +176,21 @@ class TestRegisters:
                 python_search=[str(Path(__name__).parent.absolute())],  # python search path
                 module=Path(__name__).name,  # name of cocotb test module
                 testcase=cocotb_testcase,  # name of test function
+                sim_build=temp_build_dir,  # temp build directory
+                work_dir=temp_build_dir,  # simulation  directory
+            )
+
+    def test_register_multi_stage(self, temp_build_dir):
+        with pytest.elaborate_to_file(
+                self.MultiStageRegister(name=self.TOP)
+        ) as filename:
+            sim_run(
+                simulator="verilator",  # simulator
+                verilog_sources=[filename],  # sources
+                toplevel=self.TOP,  # top level HDL
+                python_search=[str(Path(__name__).parent.absolute())],  # python search path
+                module=Path(__name__).name,  # name of cocotb test module
+                testcase="reg_multi_reg_test",  # name of test function
                 sim_build=temp_build_dir,  # temp build directory
                 work_dir=temp_build_dir,  # simulation  directory
             )
