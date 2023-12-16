@@ -6,17 +6,17 @@ Magia generates Synthesizable SystemVerilog in pythonic syntax.
 It is a Domain Specific Language build on top Python. 
 **BUT NOT** a High Level Synthesis (HLS) framework, which compile arbitrary Python code into HDL.
 
-## Examples
+## Installation
 
-```python
-...
+```bash
+pip install syn-magia --pre
 ```
 
-Refer the [Syntax Documentation](docs/syntax.md) for more details.  
-
-## Code Generation
+## Examples
 
 Magia generates Synthesizable SystemVerilog code with the following command:
+
+Refer the [Syntax Documentation](docs/syntax.md) for more details.
 
 ```python
 from magia import Module

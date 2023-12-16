@@ -11,7 +11,7 @@ ignore = ["F821"]
 
 [tool.poetry]
 name = "syn-magia"
-version = "0.0a"
+version = "0.1.0-alpha"
 description = "..."
 readme = "README.md"
 authors = ["khwong-c64 <kin.hin.wong.c@gmail.com>"]
