@@ -249,7 +249,7 @@ class Module(Synthesizable):
         Elaborate all modules in the list.
         Each module will be elaborated only once and return the SystemVerilog code, plus a list of submodules
         Duplicated submodules will not be elaborated again.
-        The elaboration is done recursively, untill all submodules are elaborated.
+        The elaboration is done recursively, until all submodules are elaborated.
 
         :param modules: The modules to be elaborated.
         :return: A dictionary of the SystemVerilog code for each module.
