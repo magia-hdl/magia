@@ -34,6 +34,13 @@ jobs:
     - name: Install dependencies
       run: |
         poetry install --no-interaction  --with=dev
+    
+    - name: Setup Credential
+      env:
+        PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
+      run: |
+       poetry config pypi-token.pypi "$PYPI_TOKEN" 
+      
     - name: Publish to PyPi
       run: |
         poetry build
