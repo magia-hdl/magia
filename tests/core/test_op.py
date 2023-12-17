@@ -100,3 +100,35 @@ class TestOperations:
                 sim_build=temp_build_dir,  # temp build directory
                 work_dir=temp_build_dir,  # simulation  directory
             )
+
+    @pytest.mark.parametrize("width, cases, expected_default", [
+        (4, 4, True),
+        (4, 10, True),
+        (4, 16, False),
+        (8, 8, True),
+        (8, 16, True),
+        (8, 256, False),
+        (10, 16, True),
+        (10, 1024, False),
+    ])
+    def test_case_default_unique_detection(self, width, cases, expected_default):
+        class CaseModule(Module):
+            def __init__(self, width, cases, **kwargs):
+                super().__init__(**kwargs)
+
+                self.io += Input("a", width)
+
+                cases = {i: i + 1 for i in range(cases)}
+                case_logic = self.io.a.case(cases)
+                self.io += Output("q", len(case_logic))
+                self.io.q <<= case_logic
+
+        result = Module.elaborate_all(CaseModule(width=width, cases=cases))
+        sv_code = next(iter(result.values()))
+        if expected_default:
+            # Expect default case to be generated
+            assert "default:" in sv_code
+            assert f"'hX" in sv_code
+        else:
+            # All cases exists, no default case and unique case is apply-able
+            assert "unique case" in sv_code

@@ -32,7 +32,12 @@ class OperationConfig:
     op_type: OPType
     slicing: Optional[slice] = None
     shifting: Optional[int] = None
-    ...
+
+
+@dataclass
+class CaseConfig:
+    unique: bool = False
+    default: Optional["Signal"] = None
 
 
 @dataclass
@@ -426,6 +431,16 @@ class Signal(Synthesizable):
             if_false=else_,
         )
 
+    def case(self, cases: dict[int, Union["Signal", int]], default: Optional["Signal"] = None) -> "Case":
+        """
+        Create a `case` statement.
+        """
+        return Case(
+            selector=self,
+            cases=cases,
+            default=default,
+        )
+
 
 class SignalDict(UserDict):
     """
@@ -803,6 +818,122 @@ class When(Operation):
             if_false=self._drivers["d_false"].net_name,
         )
         return "\n".join((signal_decl, if_else))
+
+
+class Case(Operation):
+    """
+    Representing a case statement.
+
+    The selector is a signal, and the cases is a dictionary of selector value and driver.
+    Selector can only be an unsigned signal, and the key of the cases can only be int.
+    All drivers must have the same width.
+    If all drivers are int, Inference the width of the output signal.
+
+    The Case Operation requires all the width of the input signals are defined,
+    before the creation of the Operation.
+    """
+    _CASE_TEMPLATE = Template(
+        "always_comb\n"
+        "  $unique case ($selector)\n"
+        "$cases"
+        "  endcase"
+    )
+    _CASE_ITEM_TEMPLATE = Template(
+        "    $selector_value: $output = $driver;"
+    )
+    _DEFAULT_DRIVER_NAME = "default"
+
+    def __init__(
+            self, selector: Signal, cases: dict[Union[int], Union[Signal, int]],
+            default: Optional[Union[Signal, int]] = None,
+            **kwargs
+    ):
+        # Validate input before calling super().__init__()
+        if selector.signed:
+            raise ValueError("Selector cannot be signed.")
+        if any(not isinstance(k, int) for k in cases):
+            raise ValueError("Selector value can only be int.")
+        if any(k >= 2 ** len(selector) for k in cases):
+            raise ValueError("Selector value is out of range.")
+
+        # Inference the width of the output signal
+        output_signals = list(cases.values()) + [] if default is None else [default]
+        if any(isinstance(v, Signal) for v in output_signals):
+            signal_width = {len(sig) for sig in output_signals if isinstance(sig, Signal)}
+            signal_signed = {sig.signed for sig in output_signals if isinstance(sig, Signal)}
+            if len(signal_width) != 1:
+                raise ValueError("All drivers must have the same width.")
+            if len(signal_signed) != 1:
+                raise ValueError("All drivers must have the same signedness.")
+            output_width = next(iter(signal_width))
+            output_signed = next(iter(signal_signed))
+
+            if output_width == 0:
+                raise ValueError("Width of the output signal cannot be inferred.")
+        else:
+            # All drivers are int
+            output_width = max(max(v.bit_length() for v in output_signals), 1)
+            output_signed = any(v < 0 for v in output_signals)
+
+        super().__init__(width=output_width, signed=output_signed, **kwargs)
+
+        # Make a shallow copy of the cases
+        self._cases = dict(cases.items())
+
+        self._op_config.op_type = OPType.CASE
+        self._case_config = CaseConfig(
+            unique=len(cases) == 2 ** len(selector),
+            default=default,
+        )
+
+        # Assign the Drivers
+        self._drivers["selector"] = selector
+        for sel_value, driver in self._cases.items():
+            driver_name = self._driver_name(sel_value)
+            if isinstance(driver, Signal):
+                self._drivers[driver_name] = driver
+            else:
+                self._drivers[driver_name] = Constant(driver, len(self), self.signed)
+        if isinstance(default, Signal):
+            self._drivers[self._DEFAULT_DRIVER_NAME] = default
+
+    @staticmethod
+    def _driver_name(case: int) -> str:
+        return f"case_{case}"
+
+    def elaborate(self) -> str:
+        def driver_value(sig_or_const: Optional[Union[Signal, int]]) -> str:
+            if isinstance(sig_or_const, Signal):
+                return sig_or_const.net_name
+            return sv_constant(sig_or_const, len(self), self.signed)
+
+        signal_decl = self.signal_decl()
+        case_table = []
+
+        for selector_value, driver in self._cases.items():
+            case_table.append(
+                self._CASE_ITEM_TEMPLATE.substitute(
+                    selector_value=sv_constant(selector_value, len(self._drivers["selector"]), False),
+                    output=self.net_name,
+                    driver=driver_value(driver)
+                )
+            )
+
+        if not self._case_config.unique:
+            case_table.append(
+                self._CASE_ITEM_TEMPLATE.substitute(
+                    selector_value="default",
+                    output=self.net_name,
+                    driver=driver_value(self._case_config.default),
+                )
+            )
+
+        case_impl = self._CASE_TEMPLATE.substitute(
+            selector=self._drivers["selector"].net_name,
+            cases="\n".join(case_table),
+            unique="unique" if self._case_config.unique else "",
+        )
+        return "\n".join((signal_decl, case_impl))
 
 
 class Register(Operation):
