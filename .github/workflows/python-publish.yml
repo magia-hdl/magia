@@ -21,9 +21,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
-    - name: Publish to PyPi
-      uses: coveooss/pypi-publish-with-poetry@v1.0.0
+    - name: Checkout Source
+      uses: actions/checkout@v4
+    - name: Set up Poetry
+      uses: actions/setup-python@v5
       with:
-        project-name: my-project-name
-        pypi-token: ${{ secrets.PYPI_TOKEN }}
+        python-version: "3.10"
+        cache: 'poetry'
+        cache-dependency-path: poetry.lock
+    - name: Install dependencies
+      run: |
+        poetry install --no-interaction  --with=dev
+    - name: Publish to PyPi
+      run: |
+        poetry build
+        poetry publish
