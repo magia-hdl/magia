@@ -150,12 +150,15 @@ class Signal(Synthesizable):
 
     def set_width(self, width: int):
         self._config.width = width
+        return self
 
     def set_signed(self, signed: bool):
         self._config.signed = signed
+        return self
 
     def set_name(self, name: str):
         self._config.name = name
+        return self
 
     def signal_decl(self) -> str:
         """
@@ -422,6 +425,7 @@ class Signal(Synthesizable):
             if_true=self,
             if_false=else_,
         )
+
 
 class SignalDict(UserDict):
     """
