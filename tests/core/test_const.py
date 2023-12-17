@@ -5,6 +5,7 @@ import pytest
 from cocotb_test.simulator import run as sim_run
 
 from magia import Constant, Module, Output
+from magia.util import sv_constant
 
 cocotb_test_prefix = "coco_"
 
@@ -82,3 +83,16 @@ class TestSvConstant:
                 sim_build=temp_build_dir,  # temp build directory
                 work_dir=temp_build_dir,  # simulation  directory
             )
+
+    @pytest.mark.parametrize("width, signed, expected", [
+        (8, False, "8'hX"),
+        (8, True, "8'shX"),
+        (16, False, "16'hX"),
+        (16, True, "16'shX"),
+        (32, False, "32'hX"),
+        (32, True, "32'shX"),
+        (64, False, "64'hX"),
+        (64, True, "64'shX"),
+    ])
+    def test_sv_constant_unknown(self, width, signed, expected):
+        assert sv_constant(None, width, signed) == expected
