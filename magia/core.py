@@ -835,7 +835,7 @@ class Case(Operation):
     _CASE_TEMPLATE = Template(
         "always_comb\n"
         "  $unique case ($selector)\n"
-        "$cases"
+        "$cases\n"
         "  endcase"
     )
     _CASE_ITEM_TEMPLATE = Template(

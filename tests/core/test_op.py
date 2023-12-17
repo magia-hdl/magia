@@ -4,9 +4,12 @@ from pathlib import Path
 import cocotb
 import cocotb.clock
 import pytest
+from cocotb.regression import TestFactory
 from cocotb_test.simulator import run as sim_run
 
 from magia import Input, Module, Output
+
+cocotb_test_prefix = "coco_"
 
 
 @cocotb.test()
@@ -45,6 +48,45 @@ async def when_as_mux_comp(dut):
             assert dut.q.value == a
         else:
             assert dut.q.value == 0xF
+
+
+@cocotb.test()
+async def case_as_mux(dut, selector, selection: dict[int, int]):
+    """ Test if the `case` operator works as a mux """
+    for _ in range(50):
+
+        sel = random.randint(0, 2**selector - 1)
+        dut.sel.value = sel
+        for i in range(2**selector):
+            getattr(dut, f"d_{i}").value = random.randint(1, 0xFF)
+
+        await cocotb.clock.Timer(1, units="ns")
+
+        if sel in selection:
+            assert dut.q.value == getattr(dut, f"d_{selection[sel]}").value
+        else:
+            for i in range(2 ** selector):
+                assert dut.q.value != getattr(dut, f"d_{i}").value
+
+
+case_as_mux_test_opts = ["selector", "selection"]
+case_as_mux_test_opts_val: list = [
+    (1, {1: 0}),
+    (1, {0: 0, 1: 1}),
+    (2, {0: 0, 3: 2}),
+    (2, {0: 0, 1: 1, 3: 2}),
+    (2, {0: 0, 1: 1, 2: 2, 3: 3}),
+    (3, {0: 0, 4: 1}),
+    (3, {i: i for i in range(8)}),
+]
+case_as_mux_pytest_param = ",".join(case_as_mux_test_opts + ["cocotb_testcase"])
+case_as_mux_pytest_param_val = [
+    val + (f"{cocotb_test_prefix}case_as_mux_{i + 1:03d}",)
+    for i, val in enumerate(case_as_mux_test_opts_val)
+]
+tf_reg_test = TestFactory(test_function=case_as_mux)
+tf_reg_test.add_option(case_as_mux_test_opts, case_as_mux_test_opts_val)
+tf_reg_test.generate_tests(prefix=cocotb_test_prefix)
 
 
 class TestOperations:
@@ -128,7 +170,37 @@ class TestOperations:
         if expected_default:
             # Expect default case to be generated
             assert "default:" in sv_code
-            assert f"'hX" in sv_code
+            assert "'hX" in sv_code
         else:
-            # All cases exists, no default case and unique case is apply-able
+            # All cases exist, no default case and unique case is apply-able
             assert "unique case" in sv_code
+
+    @pytest.mark.parametrize(case_as_mux_pytest_param, case_as_mux_pytest_param_val)
+    def test_case_as_mux(self, selector, selection, cocotb_testcase, temp_build_dir):
+        class CaseMux(Module):
+            def __init__(self, selector, selection, **kwargs):
+                super().__init__(**kwargs)
+
+                self.io += Input("sel", selector)
+                for i in range(2 ** selector):
+                    self.io += Input(f"d_{i}", 8)
+                self.io += Output("q", 8)
+
+                self.io.q <<= self.io.sel.case(cases={
+                    case: self.io[f"d_{select}"]
+                    for case, select in selection.items()
+                }, default=None)
+
+        with pytest.elaborate_to_file(
+                CaseMux(selector, selection, name=self.TOP)
+        ) as filename:
+            sim_run(
+                simulator="verilator",  # simulator
+                verilog_sources=[filename],  # sources
+                toplevel=self.TOP,  # top level HDL
+                python_search=[str(Path(__name__).parent.absolute())],  # python search path
+                module=Path(__name__).name,  # name of cocotb test module
+                testcase=cocotb_testcase,  # name of test function
+                sim_build=temp_build_dir,  # temp build directory
+                work_dir=temp_build_dir,  # simulation  directory
+            )
