@@ -268,7 +268,7 @@ class IOBundle:
         The bundle can be connected to the instance of the module and other destinations.
         """
         new_bundle = SignalBundle()
-        for port in self.signals:
+        for port in self._signals.values():
             new_bundle += Signal(name=port.name, width=len(port), signed=port.signed)
         return new_bundle
 
