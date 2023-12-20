@@ -43,6 +43,7 @@ class OPType(IntEnum):
     CASE = auto()
     MUX = auto()
 
+
 class RegType(IntEnum):
     DFF = auto()
     DFF_EN = auto()
