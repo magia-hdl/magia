@@ -104,6 +104,10 @@ class SignalBundleView:
 
 
 class SignalBundle(SignalBundleView):
+    def __init__(self, name: Optional[str] = None, **kwargs):
+        super().__init__(**kwargs)
+        self._name = name
+
     def __add__(self, other: Union["SignalBundle", list[Signal], Signal]) -> "SignalBundle":
         new_bundle = SignalBundle()
         new_bundle += self
@@ -111,12 +115,10 @@ class SignalBundle(SignalBundleView):
         return new_bundle
 
     def __iadd__(self, other: Union["SignalBundle", list[Signal], Signal]) -> "SignalBundle":
-
-        if isinstance(other, SignalBundleView):
-            raise TypeError("Cannot add SignalBundleView to SignalBundle.")
-
         if isinstance(other, SignalBundle):
             other = other.signals
+        if isinstance(other, SignalBundleView):
+            raise TypeError("Cannot add SignalBundleView to SignalBundle.")
         if isinstance(other, Signal):
             other = [other]
         for signal in other:
@@ -146,6 +148,10 @@ class SignalBundle(SignalBundleView):
         new_bundle = SignalBundleView()
         new_bundle += self
         return new_bundle
+
+    @property
+    def name(self) -> Optional[str]:
+        return self._name
 
 
 class IOBundle:
@@ -262,12 +268,12 @@ class IOBundle:
                 new_bundle += new_port
         return new_bundle
 
-    def signal_bundle(self) -> SignalBundle:
+    def signal_bundle(self, name: Optional[str] = None) -> SignalBundle:
         """
         Return a SignalBundle that turns all the ports into normal signals
         The bundle can be connected to the instance of the module and other destinations.
         """
-        new_bundle = SignalBundle()
+        new_bundle = SignalBundle(name)
         for port in self._signals.values():
             new_bundle += Signal(name=port.name, width=len(port), signed=port.signed)
         return new_bundle

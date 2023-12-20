@@ -111,6 +111,8 @@ class Signal(Synthesizable):
         Full name of a signal, used for elaboration.
         """
         if self._config.parent_bundle is not None:
+            if self._config.parent_bundle.name is not None:
+                return f"bundle_{self._config.parent_bundle.name}_{self.name}"
             return f"bundle_{id(self._config.parent_bundle)}_{self.name}"
         return self.name
 

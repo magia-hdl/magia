@@ -5,8 +5,12 @@ from itertools import count
 from string import Template
 from typing import Optional
 
-from .bundle import IOBundle
+from .bundle import IOBundle, SignalBundleView
 from .core import Signal, SignalDict, SignalType, Synthesizable
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -324,6 +328,20 @@ class Instance(Synthesizable):
     @property
     def module(self) -> Module:
         return self._inst_config.module
+
+    def __ilshift__(self, other: SignalBundleView):
+        """
+        Connect signals in the bundle to the instance I/O ports.
+        """
+        if not isinstance(other, SignalBundleView):
+            raise TypeError(f"Cannot connect {type(other)} to {type(self)}")
+        for port_name, signal in other.items():
+            if port_name in self.inputs:
+                self.inputs[port_name] <<= signal
+            elif port_name in self.outputs:
+                signal <<= self.outputs[port_name]
+            else:
+                logger.warning(f"Port {port_name} is not defined in {self.name}.")
 
     def validate(self) -> list[Exception]:
         errors = []
