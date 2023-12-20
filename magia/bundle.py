@@ -62,6 +62,15 @@ class SignalBundleView:
     def __setitem__(self, key, value):
         self._signals[key] = value
 
+    def items(self):
+        return self._signals.items()
+
+    def values(self):
+        return self._signals.values()
+
+    def __iter__(self):
+        return self._signals.__iter__()
+
     def with_alias(self, prefix: str = "", suffix: str = "") -> "SignalBundleView":
         """
         Create a new SignalBundleView with a renamed alias.
