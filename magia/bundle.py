@@ -324,7 +324,7 @@ class IOBundle:
             new_bundle += Signal(name=port.name, width=len(port), signed=port.signed)
         return new_bundle
 
-    def with_name(self, prefix: str = "", suffix: str = "") -> "IOBundle":
+    def with_name(self, prefix: str = "", suffix: str = "", upper_case=False) -> "IOBundle":
         """
         Create a new IOBundle with the name of each port prefixed with `prefix` and suffixed with `suffix`.
         """
@@ -334,6 +334,9 @@ class IOBundle:
                 SignalType.INPUT: Input,
                 SignalType.OUTPUT: Output,
             }[port.type]
-            new_port = new_port_type(name=f"{prefix}{port.name}{suffix}", width=len(port), signed=port.signed)
+            new_name = f"{prefix}{port.name}{suffix}"
+            if upper_case:
+                new_name = new_name.upper()
+            new_port = new_port_type(name=new_name, width=len(port), signed=port.signed)
             new_bundle += new_port
         return new_bundle
