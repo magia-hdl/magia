@@ -889,7 +889,7 @@ class Case(Operation):
         )
 
         # Assign the Drivers
-        self._drivers["selector"] = selector
+        self._drivers[self._SINGLE_DRIVER_NAME] = selector
         for sel_value, driver in self._cases.items():
             driver_name = self._driver_name(sel_value)
             if isinstance(driver, Signal):
@@ -915,7 +915,10 @@ class Case(Operation):
         for selector_value, driver in self._cases.items():
             case_table.append(
                 self._CASE_ITEM_TEMPLATE.substitute(
-                    selector_value=sv_constant(selector_value, len(self._drivers["selector"]), False),
+                    selector_value=sv_constant(
+                        selector_value,
+                        len(self._drivers[self._SINGLE_DRIVER_NAME]), False
+                    ),
                     output=self.net_name,
                     driver=driver_value(driver)
                 )
@@ -931,7 +934,7 @@ class Case(Operation):
             )
 
         case_impl = self._CASE_TEMPLATE.substitute(
-            selector=self._drivers["selector"].net_name,
+            selector=self._drivers[self._SINGLE_DRIVER_NAME].net_name,
             cases="\n".join(case_table),
             unique="unique" if self._case_config.unique else "",
         )
