@@ -8,6 +8,25 @@ logger = logging.getLogger(__name__)
 
 
 class SignalBundleView:
+    """
+    SignalBundleView is a collection of signals, which is a view of the original SignalBundle.
+    It can be considered as a bus or a group of wires.
+
+    SignalBundleView will not change the parent of the signals contained in it.
+    The signals contained is exactly the same as the original one.
+    The way to access the signals is the same as SignalBundle.
+
+    Adding signals to a SignalBundleView is allowed.
+    It will be added as is, without any modification or copy.
+
+    Part of the signals can be selected by `select` and `exclude`.
+    It creates a new view from the current one.
+
+    Alias of the signals can be changed by `with_alias`.
+    It creates a new view from the current one, with the alias of the signals changed.
+    The signals contained in the new bundle is the same as the original one.
+    """
+
     def __init__(self, **kwargs):
         self._signals = SignalDict()
 
@@ -118,6 +137,19 @@ class SignalBundleView:
 
 
 class SignalBundle(SignalBundleView):
+    """
+    SignalBundle is a collection of signals.
+    It can be considered as a bus or a group of wires.
+
+    SignalBundle is the parent of the signals contained in it.
+    The signals contained in the bundle can be accessed:
+    bundle.signal_alias / bundle[signal_alias]
+
+    New signal can be added to the bundle by:
+    bundle += signal / bundle += [signal1, signal2, ...] / bundle += other_bundle
+    Signal added to the bundle is a copy of the original and must have a unique name.
+    """
+
     def __init__(self, name: Optional[str] = None, **kwargs):
         super().__init__(**kwargs)
         self._name = name
