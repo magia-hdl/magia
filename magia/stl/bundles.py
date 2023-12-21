@@ -36,6 +36,72 @@ class StdIO:
 
 
 
+class AXI4Lite:
+    """
+    Define a AXI4-Lite interface factory.
+    The factory specializes parameters for the AXI4-Lite interface.
+    Using `master` or `slave` will return an IOBundle with the appropriate signal names and directions
+    """
+
+    def __init__(
+            self,
+            addr_width: int = 32,
+            data_width: int = 32,
+            **kwargs
+    ):
+        self.addr_width = addr_width
+        self.data_width = data_width
+
+    def _main_interface(self, **kwargs) -> IOBundle:
+        specs = {
+            "aw": {
+                "awaddr": self.addr_width,
+                "awprot": 3,
+            },
+            "w": {
+                "wdata": self.data_width,
+                "wstrb": self.data_width // 8,
+            },
+            "b": {
+                "bresp": 2,
+            },
+            "ar": {
+                "araddr": self.addr_width,
+                "arprot": 3,
+            },
+            "r": {
+                "rdata": self.data_width,
+                "rresp": 2,
+            },
+        }
+
+        # Add Optional Signals
+
+        channels = {
+            # Write Ops
+            "aw": StdIO.decoupled_multi("aw", specs["aw"], sep=""),
+            "w": StdIO.decoupled_multi("w", specs["w"], sep=""),
+            "b": StdIO.decoupled_multi("b", specs["b"], sep="").flip(),
+            # Read Ops
+            "ar": StdIO.decoupled_multi("ar", specs["ar"], sep=""),
+            "r": StdIO.decoupled_multi("r", specs["r"], sep="").flip(),
+        }
+
+        new_bundle = IOBundle()
+        new_bundle += Input("aclk", 1)
+        new_bundle += Input("aresetn", 1)
+
+        for channel in channels.values():
+            new_bundle += channel
+
+        return new_bundle.with_name(prefix="axi_")
+
+    def master(self, **kwargs) -> IOBundle:
+        return self._main_interface(**kwargs)
+
+    def slave(self, **kwargs) -> IOBundle:
+        slave_bundle = self._main_interface(**kwargs)
+        return slave_bundle.flip(ignore=["aclk, aresetn"])
 
 
 class AXI4Stream:
