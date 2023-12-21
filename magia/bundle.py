@@ -1,7 +1,10 @@
+import logging
 from typing import Optional, Union
 
 from .constants import SignalType
 from .core import Constant, Input, Output, Signal, SignalDict
+
+logger = logging.getLogger(__name__)
 
 
 class SignalBundleView:
@@ -70,6 +73,17 @@ class SignalBundleView:
 
     def __iter__(self):
         return self._signals.__iter__()
+
+    def __ilshift__(self, other: "SignalBundleView"):
+        if not isinstance(other, SignalBundleView):
+            raise TypeError("Cannot add SignalBundleView to SignalBundleView.")
+        for signal_alias, signal in other.items():
+            if signal_alias not in self.signal_alias:
+                logger.warning(f"Signal {signal_alias} is not defined.")
+            elif self[signal_alias].driver() is None:
+                self[signal_alias] <<= signal
+            else:
+                signal <<= self[signal_alias]
 
     def with_alias(self, prefix: str = "", suffix: str = "") -> "SignalBundleView":
         """
