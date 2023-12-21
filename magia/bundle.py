@@ -302,7 +302,7 @@ class IOBundle:
         if ignore is None:
             ignore = ["clk", "rst_n", "reset"]
         new_bundle = IOBundle()
-        for port in self.signals:
+        for port in self._signals.values():
             if port.name in ignore:
                 new_bundle += port
             else:
@@ -329,7 +329,7 @@ class IOBundle:
         Create a new IOBundle with the name of each port prefixed with `prefix` and suffixed with `suffix`.
         """
         new_bundle = IOBundle()
-        for port in self.signals:
+        for port in self._signals.values():
             new_port_type = {
                 SignalType.INPUT: Input,
                 SignalType.OUTPUT: Output,
