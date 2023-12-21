@@ -433,7 +433,7 @@ class Signal(Synthesizable):
             if_false=else_,
         )
 
-    def case(self, cases: dict[int, Union["Signal", int]], default: Optional["Signal"] = None) -> "Case":
+    def case(self, cases: dict[int, Union["Signal", int]], default: Optional[Union["Signal", int]] = None,) -> "Case":
         """
         Create a `case` statement.
         """
@@ -859,7 +859,7 @@ class Case(Operation):
             raise ValueError("Selector value is out of range.")
 
         # Inference the width of the output signal
-        output_signals = list(cases.values()) + [] if default is None else [default]
+        output_signals = list(cases.values()) + ([] if default is None else [default])
         if any(isinstance(v, Signal) for v in output_signals):
             signal_width = {len(sig) for sig in output_signals if isinstance(sig, Signal)}
             signal_signed = {sig.signed for sig in output_signals if isinstance(sig, Signal)}
