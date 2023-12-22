@@ -68,19 +68,6 @@ class Module(Synthesizable):
         self._mod_doc: Optional[str] = None
         ...
 
-    def __setitem__(self, key, value: Signal):
-        if key in self._signals and value is not None:
-            raise KeyError(f"Signal {key} is already defined.")
-        if value is not None:
-            value.set_name(key)
-            self._signals[key] = value
-
-    def __getitem__(self, item: str) -> Signal:
-        signal = self._signals.get(item)
-        if signal is None:
-            raise KeyError(f"Signal {item} is not defined.")
-        return signal
-
     def _fix_output_name(self):
         ...
 
