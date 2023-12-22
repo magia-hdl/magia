@@ -84,8 +84,29 @@ class Module(Synthesizable):
     def _fix_output_name(self):
         ...
 
-    def validate(self) -> bool:
-        ...
+    def validate(self) -> list[Exception]:
+        undriven_outputs = [
+            output.net_name
+            for output in self.io.outputs
+            if output.driver() is None
+        ]
+        if undriven_outputs:
+            return [
+                ValueError("Output not driven", output)
+                for output in undriven_outputs
+            ]
+        return []
+
+    def mod_declaration(self) -> str:
+        mod_decl = self._MOD_DECL_TEMPLATE.substitute(
+            name=self.name,
+            io=",\n".join(
+                port.elaborate()
+                for port in self.io.inputs + self.io.outputs
+            ),
+        )
+        mod_doc = "" if self._mod_doc is None else self._mod_doc
+        return "\n".join((mod_decl, mod_doc))
 
     def elaborate(self) -> tuple[str, set["Module"]]:
         """
@@ -94,25 +115,13 @@ class Module(Synthesizable):
 
         :return: The SystemVerilog code for the module, and the list of submodules of the instance in the module.
         """
-        undriven_outputs = [
-            output.net_name
-            for output in self.io.outputs
-            if output.driver() is None
-        ]
-        if undriven_outputs:
-            raise ValueError("Output not driven", undriven_outputs)
+        violations = self.validate()
+        if violations:
+            raise ValueError(f"Module {self.name} is not valid.", violations)
 
-        mod_decl = self._MOD_DECL_TEMPLATE.substitute(
-            name=self.name,
-            io=",\n".join(
-                port.elaborate()
-                for port in self.io.inputs + self.io.outputs
-            ),
-        )
+        mod_decl = self.mod_declaration()
 
         signals, insts = self.trace()
-
-        mod_doc = "" if self._mod_doc is None else self._mod_doc
 
         mod_impl = [
             inst.elaborate()
@@ -135,7 +144,7 @@ class Module(Synthesizable):
 
         mod_end = "endmodule"
 
-        sv_code = "\n".join((mod_decl, mod_doc, mod_impl, mod_output_assignment, mod_end))
+        sv_code = "\n".join((mod_decl, mod_impl, mod_output_assignment, mod_end))
         submodules = {inst.module for inst in insts}
 
         return sv_code, submodules
@@ -181,7 +190,7 @@ class Module(Synthesizable):
                     next_trace |= {
                         id_sig: sig
                         for sig in signal.drivers
-                        if sig.type in (SignalType.WIRE, SignalType.CONSTANT, SignalType.OUTPUT)
+                        if sig.type not in (SignalType.INPUT,)
                            and (id_sig := id(sig)) not in traced_sig_id
                     }
             sig_to_be_traced = next_trace
@@ -396,5 +405,5 @@ class Blackbox(Module):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def elaborate(self) -> str:
+    def elaborate(self) -> tuple[str, set[Module]]:
         raise NotImplementedError("Blackbox module must implement elaborate() method.")
