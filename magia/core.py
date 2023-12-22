@@ -398,7 +398,8 @@ class Signal(Synthesizable):
             reset: Optional["Signal"] = None,
             async_reset: Optional["Signal"] = None,
             reset_value: Optional[Union[bytes, int]] = None,
-            async_reset_value: Optional[Union[bytes, int]] = None
+            async_reset_value: Optional[Union[bytes, int]] = None,
+            name: Optional[str] = None,
     ) -> "Register":
         """
         Create a register from the signal.
@@ -412,6 +413,7 @@ class Signal(Synthesizable):
             async_reset_value=async_reset_value,
             clk=clk,
             signed=self.signed,
+            name=name,
         )
         register <<= self
         return register
