@@ -23,7 +23,7 @@ class StdIO:
     @classmethod
     def decoupled_multi(cls, bundle_name: str, data_spec: dict[str, Union[tuple[int, bool], int]], sep="_") -> IOBundle:
         new_bundle = cls.valid_multi(bundle_name, data_spec, sep)
-        new_bundle += Input(f"{bundle_name}ready", 1)
+        new_bundle += Input(f"{bundle_name}{sep}ready", 1)
         return new_bundle
 
     @classmethod
