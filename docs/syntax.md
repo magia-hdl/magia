@@ -123,23 +123,22 @@ class MyModule(Module):
 | `@` , `@=`                 | Concatenation                                                               |
 | `[y:x]`                    | Slicing (`[:]` and `[...]` represents the whole signal)                     |
 |                            | Beware of endianness when slicing                                           |
-| `0 / False in Signal`      | Check if any bits in the signal is 0                                        |
-| `1 / True in Signal`       | Check if any bits in the signal is 1                                        |
 | `signal.reg()`             | Register a signal                                                           |
 | `signal.when(cond, else_)` | Gate the signal with a condition. Equivalent to `signal if cond else else_` |
 | `signal.case(cases)`       | Using the signal as a switch. Equivalent to `cases[signal]`                 |
+| `signal.any()`             | Check if any bit in the signal is 1                                         |
+| `signal.all()`             | Check if all bits in the signal are 1                                       |
 | `len(signal)`              | Get the width of a signal in Python                                         |
 
 ### Exceptions:
 
-| Statements                      | Description                                                                                    |
-|---------------------------------|------------------------------------------------------------------------------------------------|
-| `<<=`                           | **Connect signals. This is not a Left Shift**                                                  |
-| `>>=`                           | This is not implemented.                                                                       |
-| `//`, `/`, `%`                  | Division related operator are not implemented.                                                 |
-| `if signal: ...`                | Signal is an object, which is always `True`. Doesn't work with Python Expectation.             |
-| `[0, 1, True, False] in Signal` | This operator returns `Signal` **but not boolean.** Don't use it with `if True in signal: ...` |
-| `<=, <, >=, >`                  | These operators return `Signal` **but not boolean.** Don't use it with `if signal < 10: ...`   |
+| Statements       | Description                                                                                  |
+|------------------|----------------------------------------------------------------------------------------------|
+| `<<=`            | **Connect signals. This is not a Left Shift**                                                |
+| `>>=`            | This is not implemented.                                                                     |
+| `//`, `/`, `%`   | Division related operator are not implemented.                                               |
+| `if signal: ...` | Signal is an object, which is always `True`. Doesn't work with Python Expectation.           |
+| `<=, <, >=, >`   | These operators return `Signal` **but not boolean.** Don't use it with `if signal < 10: ...` |
 
 ## Creating a Register
 

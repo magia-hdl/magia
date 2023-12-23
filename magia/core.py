@@ -366,17 +366,6 @@ class Signal(Synthesizable):
 
         return Operation.create(OPType.SLICE, self, item)
 
-    def __contains__(self, item) -> "Signal":
-        """
-        Special operation for the `in` keyword, which check if there is any bit set to 1/0 in the Signal.
-        This DOES NOT RETURN BOOLEAN.
-        """
-        if item == 1 or item is True:
-            return Operation.create(OPType.ANY, self, None)
-        if item == 0 or item is False:
-            return ~Operation.create(OPType.ALL, self, None)
-        raise ValueError(f"`in` operator only supports 0/1/True/False. Got {item}.")
-
     def __matmul__(self, other) -> "Signal":
         """
         Special operation for the `@` operator, which is the concatenation operator.
@@ -435,7 +424,7 @@ class Signal(Synthesizable):
             if_false=else_,
         )
 
-    def case(self, cases: dict[int, Union["Signal", int]], default: Optional[Union["Signal", int]] = None,) -> "Case":
+    def case(self, cases: dict[int, Union["Signal", int]], default: Optional[Union["Signal", int]] = None, ) -> "Case":
         """
         Create a `case` statement.
         """
@@ -444,6 +433,18 @@ class Signal(Synthesizable):
             cases=cases,
             default=default,
         )
+
+    def any(self) -> "Signal":
+        """
+        Create an `any` statement.
+        """
+        return Operation.create(OPType.ANY, self, None)
+
+    def all(self) -> "Signal":
+        """
+        Create an `all` statement.
+        """
+        return Operation.create(OPType.ALL, self, None)
 
 
 class SignalDict(UserDict):
