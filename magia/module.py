@@ -1,14 +1,14 @@
 import inspect
+import logging
 from collections import Counter
 from dataclasses import dataclass
 from itertools import count
 from string import Template
-from typing import Optional
+from typing import Optional, Union
 
 from .bundle import IOBundle, SignalBundleView
 from .core import Signal, SignalDict, SignalType, Synthesizable
-
-import logging
+from .memory import Memory, MemorySignal
 
 logger = logging.getLogger(__name__)
 
@@ -136,13 +136,13 @@ class Module(Synthesizable):
 
         return sv_code, submodules
 
-    def trace(self) -> tuple[list[Signal], list["Instance"]]:
+    def trace(self) -> tuple[list[Union[Signal, Memory]], list["Instance"]]:
         """
         Trace nets and instances from output ports
         """
         traced_sig_id: set[int] = set()
         traced_inst_id: set[int] = set()
-        traced_signal: list[Signal] = []
+        traced_signal: list[Union[Signal, Memory]] = []
         traced_inst: list[Instance] = []
         sig_to_be_traced: dict[int, Signal] = {}
 
@@ -170,16 +170,29 @@ class Module(Synthesizable):
                             for sig in input_drivers
                             if (id_sig := id(sig)) not in traced_sig_id
                         }
-
                 elif signal.type != SignalType.INPUT and signal_id not in traced_sig_id:
                     traced_sig_id.add(signal_id)
                     traced_signal.append(signal)
+
                     next_trace |= {
                         id_sig: sig
                         for sig in signal.drivers
                         if sig.type not in (SignalType.INPUT,)
                            and (id_sig := id(sig)) not in traced_sig_id
                     }
+
+                    if signal.type == SignalType.MEMORY:
+                        signal: MemorySignal
+                        if id(signal.memory) not in traced_sig_id:
+                            traced_sig_id.add(id(signal.memory))
+                            traced_signal.append(signal.memory)
+
+                            next_trace |= {
+                                id_sig: sig
+                                for sig in signal.memory.drivers
+                                if (id_sig := id(sig)) not in traced_sig_id
+                            }
+
             sig_to_be_traced = next_trace
 
         traced_signal.reverse()

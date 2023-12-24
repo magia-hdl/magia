@@ -8,6 +8,7 @@ class SignalType(Enum):
     WIRE = 0
     INPUT = 1
     OUTPUT = 2
+    MEMORY = 3
     CONSTANT = 4
 
 

@@ -65,6 +65,28 @@ class Synthesizable:
         """
         return
 
+    @property
+    def net_name(self) -> str:
+        """
+        Full name of a signal, used for elaboration.
+        """
+        raise NotImplementedError
+
+    @property
+    def name(self) -> str:
+        """
+        Short name of the signal, is used to identify the signal in a bundle / SignalDict
+        """
+        raise NotImplementedError
+
+    @property
+    def drivers(self) -> list["Signal"]:
+        """
+        Get the drivers of a Synthesizable object.
+        :return: The driver signals.
+        """
+        raise NotImplementedError
+
     def elaborate(self) -> str:
         """
         Elaborate the object into SystemVerilog code.
@@ -79,7 +101,7 @@ class Signal(Synthesizable):
     The general signal class. It has drivers, which is another signal.
     It can also drive other signals / module instances.
     """
-    _SINGLE_DRIVER_NAME: str = "d"
+    SINGLE_DRIVER_NAME: str = "d"
     _SIGNAL_DECL_TEMPLATE = Template("logic $signed $width $name;")
     _SIGNAL_CONNECT_TEMPLATE = Template("always_comb\n  $name = $driver;")
     _SIGNAL_ASSIGN_TEMPLATE = Template("assign $name = $driver;")
@@ -131,7 +153,7 @@ class Signal(Synthesizable):
     def signed(self) -> bool:
         return self._config.signed
 
-    def driver(self, driver_name: str = _SINGLE_DRIVER_NAME) -> Optional["Signal"]:
+    def driver(self, driver_name: str = SINGLE_DRIVER_NAME) -> Optional["Signal"]:
         """
         Get the driver of the signal.
         :param driver_name: The name of the driver. Default to the single driver.
@@ -187,10 +209,10 @@ class Signal(Synthesizable):
         signal_decl = self.signal_decl()
 
         # Ignore assignment signal if it is driven by an output of a module instance
-        if self._drivers[self._SINGLE_DRIVER_NAME].type != SignalType.OUTPUT:
+        if self.driver().type != SignalType.OUTPUT:
             assignment = self._SIGNAL_ASSIGN_TEMPLATE.substitute(
                 name=self.net_name,
-                driver=self._drivers[self._SINGLE_DRIVER_NAME].net_name,
+                driver=self.driver().net_name,
             )
             return "\n".join((signal_decl, assignment))
         return signal_decl
@@ -214,9 +236,11 @@ class Signal(Synthesizable):
         :param other: Driving Signal
         :return: Original Signal
         """
+        if isinstance(other, (int, bytes)):
+            other = Constant(other, len(self), self.signed)
         if not isinstance(other, Signal):
             raise TypeError(f"Cannot assign {type(other)} to drive {type(self)}")
-        if self._drivers.get(self._SINGLE_DRIVER_NAME) is not None:
+        if self._drivers.get(self.SINGLE_DRIVER_NAME) is not None:
             raise ValueError(f"Multiple driver on Signal {self.name}.")
         if self.type == SignalType.OUTPUT and self.owner_instance is not None:
             raise ValueError("Cannot drive output of a module instance.")
@@ -229,7 +253,7 @@ class Signal(Synthesizable):
         if self.type == SignalType.CONSTANT:
             raise ValueError("Constant signal cannot be driven.")
 
-        self._drivers[self._SINGLE_DRIVER_NAME] = other
+        self._drivers[self.SINGLE_DRIVER_NAME] = other
         if len(self) == 0:
             self.set_width(len(other))
         elif len(other) == 0:
@@ -810,7 +834,7 @@ class When(Operation):
             raise ValueError("Condition has to be a single bit signal.")
 
         self._drivers["condition"] = condition
-        self._drivers[self._SINGLE_DRIVER_NAME] = if_true
+        self._drivers[self.SINGLE_DRIVER_NAME] = if_true
         self._drivers["d_false"] = if_false
         self._op_config.op_type = OPType.WHEN
 
@@ -819,7 +843,7 @@ class When(Operation):
         if_else = self._IF_ELSE_TEMPLATE.substitute(
             output=self.net_name,
             condition=self._drivers["condition"].net_name,
-            if_true=self._drivers[self._SINGLE_DRIVER_NAME].net_name,
+            if_true=self._drivers[self.SINGLE_DRIVER_NAME].net_name,
             if_false=self._drivers["d_false"].net_name,
         )
         return "\n".join((signal_decl, if_else))
@@ -892,13 +916,13 @@ class Case(Operation):
         )
 
         # Assign the Drivers
-        self._drivers[self._SINGLE_DRIVER_NAME] = selector
+        self._drivers[self.SINGLE_DRIVER_NAME] = selector
         for sel_value, driver in self._cases.items():
             driver_name = self._driver_name(sel_value)
             if isinstance(driver, Signal):
                 self._drivers[driver_name] = driver
-            else:
-                self._drivers[driver_name] = Constant(driver, len(self), self.signed)
+            # else:
+            #     self._drivers[driver_name] = Constant(driver, len(self), self.signed)
         if isinstance(default, Signal):
             self._drivers[self._DEFAULT_DRIVER_NAME] = default
 
@@ -916,14 +940,15 @@ class Case(Operation):
         case_table = []
 
         for selector_value, driver in self._cases.items():
+            driver = driver.net_name if isinstance(driver, Signal) else sv_constant(driver, len(self), self.signed)
             case_table.append(
                 self._CASE_ITEM_TEMPLATE.substitute(
                     selector_value=sv_constant(
                         selector_value,
-                        len(self._drivers[self._SINGLE_DRIVER_NAME]), False
+                        len(self._drivers[self.SINGLE_DRIVER_NAME]), False
                     ),
                     output=self.net_name,
-                    driver=driver_value(driver)
+                    driver=driver,
                 )
             )
 
@@ -937,7 +962,7 @@ class Case(Operation):
             )
 
         case_impl = self._CASE_TEMPLATE.substitute(
-            selector=self._drivers[self._SINGLE_DRIVER_NAME].net_name,
+            selector=self._drivers[self.SINGLE_DRIVER_NAME].net_name,
             cases="\n".join(case_table),
             unique="unique" if self._case_config.unique else "",
         )
@@ -1027,7 +1052,7 @@ class Register(Operation):
             raise ValueError("Register requires a clock signal.")
 
         self._drivers["clk"] = clk
-        self._drivers[Signal._SINGLE_DRIVER_NAME] = None
+        self._drivers[Signal.SINGLE_DRIVER_NAME] = None
 
         if self._reg_config.enable:
             self._drivers["enable"] = enable
@@ -1043,7 +1068,7 @@ class Register(Operation):
         if len(self._drivers["clk"]) != 1:
             errors.append(ValueError("Clock has to be a single bit."))
 
-        if self._drivers[Signal._SINGLE_DRIVER_NAME] is None:
+        if self._drivers[Signal.SINGLE_DRIVER_NAME] is None:
             errors.append(ValueError("Register requires a driver."))
 
         if self._reg_config.enable:
@@ -1086,7 +1111,7 @@ class Register(Operation):
 
         connections = {
             "output": self.net_name,
-            "driver": self._drivers[Signal._SINGLE_DRIVER_NAME].net_name,
+            "driver": self._drivers[Signal.SINGLE_DRIVER_NAME].net_name,
             "clk": self._drivers["clk"].net_name,
         }
         if self._reg_config.enable:
