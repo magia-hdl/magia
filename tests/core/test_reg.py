@@ -9,7 +9,6 @@ from cocotb.triggers import FallingEdge
 from cocotb_test.simulator import run as sim_run
 
 from magia import Input, Module, Output
-from magia.clock import clock as clock_input
 
 cocotb_test_prefix = "coco_"
 RESET_VALUE = 0xFF
@@ -137,14 +136,14 @@ class TestRegisters:
             self.io += Output("q", self.width)
 
             reg_spec = {
+                "clk": self.io.clk,
                 "enable": self.io.en if enable else None,
                 "reset": self.io.reset if reset else None,
                 "async_reset": self.io.rst_n if async_reset else None,
                 "reset_value": RESET_VALUE,
                 "async_reset_value": ASYNC_RESET_VALUE,
             }
-            with clock_input(self.io.clk):
-                self.io.q <<= self.io.d.reg(**reg_spec)
+            self.io.q <<= self.io.d.reg(**reg_spec)
 
         @property
         def width(self):
@@ -157,8 +156,11 @@ class TestRegisters:
             self.io += Input("d", self.width)
             self.io += Output("q", self.width)
 
-            with clock_input(self.io.clk):
-                self.io.q <<= self.io.d.reg().reg().reg()
+            self.io.q <<= (self.io.d
+                           .reg(self.io.clk)
+                           .reg(self.io.clk)
+                           .reg(self.io.clk)
+                           )
 
         @property
         def width(self):

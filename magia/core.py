@@ -6,7 +6,6 @@ from math import ceil
 from string import Template
 from typing import Optional, Union
 
-from .clock import get_cur_clock
 from .constants import OPType, RegType, SignalType
 
 

@@ -144,7 +144,6 @@ class MyModule(Module):
 
 ```python
 from magia import Input, Output, Module, Signal
-from magia.clock import clock
 
 
 class MyModule(Module):
@@ -159,11 +158,6 @@ class MyModule(Module):
 
         # Define a register
         self.io.q <<= self.io.d.reg(clk=self.io.clk)
-
-        # Make use of clock domain
-        # TODO: not yet done with module instance
-        with clock(self.io.clk):
-            self.io.q <<= self.io.d.reg()
 ```
 
 ## Instantiate a Module
