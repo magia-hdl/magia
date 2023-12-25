@@ -2,12 +2,12 @@ from collections import UserDict
 from collections.abc import Iterable
 from dataclasses import dataclass
 from itertools import count
+from math import ceil
 from string import Template
 from typing import Optional, Union
 
 from .clock import get_cur_clock
 from .constants import OPType, RegType, SignalType
-from .util import sv_constant
 
 
 @dataclass
@@ -632,9 +632,27 @@ class Constant(Signal):
         signal_decl = self.signal_decl()
         assignment = self._SIGNAL_ASSIGN_TEMPLATE.substitute(
             name=self.net_name,
-            driver=sv_constant(self.value, len(self), self.signed),
+            driver=self.sv_constant(self.value, len(self), self.signed),
         )
         return "\n".join((signal_decl, assignment))
+
+    @staticmethod
+    def sv_constant(value: Optional[Union[int, bytes]], width: int, signed: bool = False) -> str:
+        """
+        Convert a Python integer or bytes object to a SystemVerilog constant expression.
+        If value is None, return "X", the SystemVerilog constant for an unknown value.
+        """
+        byte_cnt = ceil(width / 8)
+        if value is not None:
+            if isinstance(value, int):
+                value = value.to_bytes(byte_cnt, byteorder="big", signed=signed)
+            byte_mask = (2 ** width - 1).to_bytes(byte_cnt, byteorder="big")
+            value = bytes([x & y for x, y in zip(value, byte_mask)])
+            value = value.hex()[-(ceil(width / 4)):].upper()
+        else:
+            value = "X"
+        sign = "s" if signed else ""
+        return f"{width}'{sign}h{value}"
 
 
 class Operation(Signal):
@@ -934,16 +952,16 @@ class Case(Operation):
         def driver_value(sig_or_const: Optional[Union[Signal, int]]) -> str:
             if isinstance(sig_or_const, Signal):
                 return sig_or_const.net_name
-            return sv_constant(sig_or_const, len(self), self.signed)
+            return Constant.sv_constant(sig_or_const, len(self), self.signed)
 
         signal_decl = self.signal_decl()
         case_table = []
 
         for selector_value, driver in self._cases.items():
-            driver = driver.net_name if isinstance(driver, Signal) else sv_constant(driver, len(self), self.signed)
+            driver = driver.net_name if isinstance(driver, Signal) else Constant.sv_constant(driver, len(self), self.signed)
             case_table.append(
                 self._CASE_ITEM_TEMPLATE.substitute(
-                    selector_value=sv_constant(
+                    selector_value=Constant.sv_constant(
                         selector_value,
                         len(self._drivers[self.SINGLE_DRIVER_NAME]), False
                     ),
@@ -1118,12 +1136,12 @@ class Register(Operation):
             connections["enable"] = self._drivers["enable"].net_name
         if self._reg_config.reset:
             connections["reset"] = self._drivers["reset"].net_name
-            connections["reset_value"] = sv_constant(
+            connections["reset_value"] = Constant.sv_constant(
                 self._reg_config.reset_value, len(self), self._config.signed
             )
         if self._reg_config.async_reset:
             connections["async_reset"] = self._drivers["async_reset"].net_name
-            connections["async_reset_value"] = sv_constant(
+            connections["async_reset_value"] = Constant.sv_constant(
                 self._reg_config.async_reset_value, len(self), self._config.signed
             )
 

@@ -5,7 +5,6 @@ import pytest
 from cocotb_test.simulator import run as sim_run
 
 from magia import Constant, Module, Output
-from magia.util import sv_constant
 
 cocotb_test_prefix = "coco_"
 
@@ -95,4 +94,4 @@ class TestSvConstant:
         (64, True, "64'shX"),
     ])
     def test_sv_constant_unknown(self, width, signed, expected):
-        assert sv_constant(None, width, signed) == expected
+        assert Constant.sv_constant(None, width, signed) == expected
