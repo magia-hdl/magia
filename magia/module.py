@@ -17,7 +17,6 @@ logger = logging.getLogger(__name__)
 class ModuleConfig:
     module_class: type
     name: Optional[str] = None
-    ...
 
 
 @dataclass
@@ -66,10 +65,6 @@ class Module(Synthesizable):
         self._instance_counter = count(0)
 
         self._mod_doc: Optional[str] = None
-        ...
-
-    def _fix_output_name(self):
-        ...
 
     def validate(self) -> list[Exception]:
         undriven_outputs = [
@@ -218,13 +213,11 @@ class Module(Synthesizable):
         Create an instance of the module
         :return: The created instance
         """
-        inst = Instance(
+        return Instance(
             module=self,
             name=name,
             io=io,
         )
-        ...
-        return inst
 
     @property
     def name(self) -> str:

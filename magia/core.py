@@ -23,7 +23,6 @@ class SignalConfig:
     # The signal bundle that owns this signal
     # Applicable to signals only
     parent_bundle: Optional["SignalBundle"] = None
-    ...
 
 
 @dataclass
@@ -56,13 +55,6 @@ class Synthesizable:
 
     def __init__(self, **kwargs):
         ...
-
-    def _fix_output_name(self):
-        """
-        Phase of defining the implementation details of a synthesizable object.
-        e.g. resolving signal names, etc.
-        """
-        return
 
     @property
     def net_name(self) -> str:
@@ -523,7 +515,6 @@ class Input(Signal):
         super().__init__(name=name, width=width, signed=signed, **kwargs)
         self._config.signal_type = SignalType.INPUT
         self._config.owner_instance = owner_instance
-        ...
 
     @property
     def net_name(self) -> str:
@@ -577,7 +568,6 @@ class Output(Signal):
         super().__init__(name=name, width=width, signed=signed, **kwargs)
         self._config.signal_type = SignalType.OUTPUT
         self._config.owner_instance = owner_instance
-        ...
 
     @property
     def net_name(self) -> str:
@@ -734,10 +724,10 @@ class Operation(Signal):
     }
     _OP_BLOCK_TEMPLATE = Template("always_comb\n  $op_impl")
 
-    def __init__(self, width: int, signed: bool = False, **kwargs):
+    def __init__(self, width: int, op_type: OPType, signed: bool = False, **kwargs):
         super().__init__(width=width, signed=signed, **kwargs)
         self._op_config = OperationConfig(
-            ...
+            op_type=op_type,
         )
 
     def elaborate(self) -> str:
@@ -800,11 +790,12 @@ class Operation(Signal):
         new_op = Operation(
             width=Operation._OP_WIDTH_INFERENCE[op_type](x, y),
             signed=Operation._OP_SIGN_INFERENCE[op_type](x, y),
+            op_type=op_type,
         )
         new_op._drivers["a"] = x
         if isinstance(y, Signal):
             new_op._drivers["b"] = y
-        new_op._op_config.op_type = op_type
+
         if op_type == OPType.SLICE:
             new_op._op_config.slicing = y
         if op_type == OPType.LSHIFT or op_type == OPType.RSHIFT:
@@ -840,7 +831,7 @@ class When(Operation):
     )
 
     def __init__(self, condition: Signal, if_true: Signal, if_false: Optional[Union[Signal, int, bytes]], **kwargs):
-        super().__init__(width=len(if_true), signed=if_true.signed, **kwargs)
+        super().__init__(op_type=OPType.WHEN, width=len(if_true), signed=if_true.signed, **kwargs)
 
         if if_false is None:
             if_false = 0
@@ -853,7 +844,6 @@ class When(Operation):
         self._drivers["condition"] = condition
         self._drivers[self.SINGLE_DRIVER_NAME] = if_true
         self._drivers["d_false"] = if_false
-        self._op_config.op_type = OPType.WHEN
 
     def elaborate(self) -> str:
         signal_decl = self.signal_decl()
@@ -921,12 +911,10 @@ class Case(Operation):
             output_width = max(max(v.bit_length() for v in output_signals), 1)
             output_signed = any(v < 0 for v in output_signals)
 
-        super().__init__(width=output_width, signed=output_signed, **kwargs)
+        super().__init__(op_type=OPType.CASE, width=output_width, signed=output_signed, **kwargs)
 
         # Make a shallow copy of the cases
         self._cases = dict(cases.items())
-
-        self._op_config.op_type = OPType.CASE
         self._case_config = CaseConfig(
             unique=len(cases) == 2 ** len(selector),
             default=default,
@@ -1048,8 +1036,7 @@ class Register(Operation):
         if name is None:
             name = f"reg_{next(self._new_reg_counter)}"
 
-        super().__init__(width=width, name=name, **kwargs)
-        self._config.op_type = OPType.REG
+        super().__init__(op_type=OPType.REG, width=width, name=name, **kwargs)
 
         self._reg_config = RegisterConfig(
             enable=enable is not None,
@@ -1063,8 +1050,6 @@ class Register(Operation):
         if self._reg_config.async_reset_value is None:
             self._reg_config.async_reset_value = 0
 
-        if clk is None:
-            clk = get_cur_clock()
         if clk is None:
             raise ValueError("Register requires a clock signal.")
 
