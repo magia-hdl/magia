@@ -8,7 +8,7 @@ from cocotb.triggers import FallingEdge
 from cocotb_test.simulator import run as sim_run
 
 from magia import Input, Module
-from magia.std.bundles import StdIO
+from std_wip.bundles import StdIO
 
 
 @cocotb.test()
