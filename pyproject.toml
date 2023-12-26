@@ -6,7 +6,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.ruff]
 line-length = 120
-select = ["F","E","W","I001","U","N","S","B","A","C4","T10","ISC","ICN","T20","Q","RET","SIM","TID","ERA"]
+select = ["F", "E", "W", "I001", "U", "N", "S", "B", "A", "C4", "T10", "ISC", "ICN", "T20", "Q", "RET", "SIM", "TID", "ERA"]
 ignore = ["F821", "A003"]
 
 [tool.ruff.lint.per-file-ignores]
@@ -31,7 +31,11 @@ classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3"
 ]
-keywords = []
+keywords = [
+    "Verilog HDL", "SystemVerilog",
+    "Synthesizable", "RTL", "HDL", "Hardware Description Language",
+    "Code Generation", "FPGA", "ASIC", "EDA", "RTL Design"
+]
 
 [tool.poetry.dependencies]
 python = "^3.9"
