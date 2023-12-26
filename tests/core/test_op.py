@@ -55,9 +55,9 @@ async def case_as_mux(dut, selector, selection: dict[int, int]):
     """ Test if the `case` operator works as a mux """
     for _ in range(50):
 
-        sel = random.randint(0, 2**selector - 1)
+        sel = random.randint(0, 2 ** selector - 1)
         dut.sel.value = sel
-        for i in range(2**selector):
+        for i in range(2 ** selector):
             getattr(dut, f"d_{i}").value = random.randint(1, 0xFF)
 
         await cocotb.clock.Timer(1, units="ns")
@@ -67,6 +67,19 @@ async def case_as_mux(dut, selector, selection: dict[int, int]):
         else:
             for i in range(2 ** selector):
                 assert dut.q.value != getattr(dut, f"d_{i}").value
+
+
+@cocotb.test()
+async def case_as_lut(dut):
+    """ Test if the `case` operator works as a LUT """
+    for i in range(256 * 4):
+        a = random.randint(0, 255)
+        dut.a.value = a
+
+        await cocotb.clock.Timer(1, units="ns")
+        ref_out = getattr(dut, f"lut_{a}")
+
+        assert dut.q.value == ref_out, f"Expected {ref_out}, got {dut.q.value} on Entry {i}."
 
 
 case_as_mux_test_opts = ["selector", "selection"]
@@ -201,6 +214,38 @@ class TestOperations:
                 python_search=[str(Path(__name__).parent.absolute())],  # python search path
                 module=Path(__name__).name,  # name of cocotb test module
                 testcase=cocotb_testcase,  # name of test function
+                sim_build=temp_build_dir,  # temp build directory
+                work_dir=temp_build_dir,  # simulation  directory
+            )
+
+    def test_case_as_lut(self, temp_build_dir):
+        class CaseLut(Module):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+
+                self.io += Input("a", 8)
+                self.io += Output("q", 16)
+
+                case_as_lut_table = {i: random.randint(0, 0xFFFF) for i in range(256)}
+                self.io += [
+                    Output(f"lut_{i}", 16)
+                    for i in case_as_lut_table
+                ]
+
+                self.io.q <<= self.io.a.case(cases=case_as_lut_table, default=None)
+                for i in case_as_lut_table:
+                    self.io[f"lut_{i}"] <<= case_as_lut_table[i]
+
+        with pytest.elaborate_to_file(
+                CaseLut(name=self.TOP)
+        ) as filename:
+            sim_run(
+                simulator="verilator",  # simulator
+                verilog_sources=[filename],  # sources
+                toplevel=self.TOP,  # top level HDL
+                python_search=[str(Path(__name__).parent.absolute())],  # python search path
+                module=Path(__name__).name,  # name of cocotb test module
+                testcase="case_as_lut",  # name of test function
                 sim_build=temp_build_dir,  # temp build directory
                 work_dir=temp_build_dir,  # simulation  directory
             )
