@@ -180,6 +180,48 @@ class Signal(Synthesizable):
         self._config.name = name
         return self
 
+    def with_signed(self, signed: bool) -> "Signal":
+        """
+        Create a new signal with the same configuration, but with a different signedness.
+        Connect the original signal to the new signal.
+
+        New Signal is not added to the parent bundle.
+
+        :return: A new signal with the same configuration.
+        """
+        signal = Signal(
+            width=len(self),
+            signed=signed,
+            name=self.name,
+            parent_bundle=None,
+        )
+        signal <<= self
+        return signal
+
+    def with_width(self, width: int) -> "Signal":
+        """
+        Create a new signal with the same configuration, but with a different width.
+        Connect the original signal to the new signal.
+
+        New Signal is not added to the parent bundle.
+
+        :return: A new signal with the new configuration.
+        """
+        if width == len(self):
+            signal = self.copy(
+                parent_bundle=None,
+            )
+            signal <<= self
+            return signal
+        if width < len(self):
+            return self[width-1:]
+
+        # Perform sign extension / padding according to the signedness of the signal
+        padding_size = (width - len(self))
+        if self.signed:
+            return self[(-1,) * padding_size, :]
+        return Constant(0, padding_size) @ self
+
     def signal_decl(self) -> str:
         """
         Declare the signal in the module implementation.
