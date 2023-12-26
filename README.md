@@ -95,25 +95,25 @@ async def test_smoke(dut):
     ...
 
 
-# Elaborate SystemVerilog code to a file
-result = Module.elaborate_all(TopLevel(width=16, name=TOP_LEVEL_NAME))
-Path(OUTPUT_FILE).write_text("\n".join(result.values()))
+if __name__ == "__main__":
+    # Elaborate SystemVerilog code to a file
+    result = Module.elaborate_all(TopLevel(width=16, name=TOP_LEVEL_NAME))
+    Path(OUTPUT_FILE).write_text("\n".join(result.values()))
 
-runner = get_runner("verilator")
-runner.build(
-    verilog_sources=[OUTPUT_FILE],
-    hdl_toplevel=TOP_LEVEL_NAME,
-    always=True,
-)
-runner.test(
-    hdl_toplevel=TOP_LEVEL_NAME,
-    testcase="test_smoke",
+    runner = get_runner("verilator")
+    runner.build(
+        verilog_sources=[OUTPUT_FILE],
+        hdl_toplevel=TOP_LEVEL_NAME,
+        always=True,
+    )
+    runner.test(
+        hdl_toplevel=TOP_LEVEL_NAME,
+        testcase="test_smoke",
 
-    # Let cocotb locates this file
-    test_dir=Path(__file__).parent.absolute(),
-    test_module=Path(__file__).stem,
-)
-
+        # Let cocotb locates this file
+        test_dir=Path(__file__).parent.absolute(),
+        test_module=Path(__file__).stem,
+    )
 ```
 
 ## Contributing
