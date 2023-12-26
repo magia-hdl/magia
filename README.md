@@ -1,15 +1,29 @@
 # Magia
 
-## Description
+> Asta e magia ea a căntat.
+
+## What is Magia?
+
 Magia generates Synthesizable SystemVerilog in pythonic syntax.
 
-It is a Domain Specific Language build on top Python. 
-**BUT NOT** a High Level Synthesis (HLS) framework, which compile arbitrary Python code into HDL.
+The goal of Magia is
+
+- To provide a simple and intuitive way to generate HDL code.
+- Take advantage of the Python to produce reconfigurable, reusable HDL code.
+
+## What is not Magia?
+
+- Magia **IS NOT** a High Level Synthesis (HLS) framework, which compile arbitrary Python code into HDL.
+- Magia **DOES NOT** support simulation.
+    - Major reason is we have reliable and mature simulation tools like
+        - [cocotb](https://www.cocotb.org/)
+        - [verilator](https://www.veripool.org/verilator/)
+    - We want to focus on the HDL generation part, instead of rebuilding the whole workflow.
 
 ## Installation
 
 ```bash
-pip install syn-magia --pre
+pip install syn-magia
 ```
 
 ## Examples
@@ -19,21 +33,32 @@ Magia generates Synthesizable SystemVerilog code with the following command:
 Refer the [Syntax Documentation](docs/syntax.md) for more details.
 
 ```python
-from magia import Module
+from magia import Module, Input, Output
 
 
 # Define a module
 class TopLevel(Module):
-    def __init__(self, feature, size_, **kwargs):
+    def __init__(self, width, **kwargs):
         super().__init__(**kwargs)
-        ...
+        # Define IO ports
+        self.io += [
+            Input("clk", 1),
+            Input("a", width),
+            Input("b", width),
+            Output("dout", width),
+        ]
+
+        # Implement the logic
+        clk = self.io.clk
+        self.io.dout <<= (self.io.a + self.io.b).reg(clk)
 
 
 # Specialize the module
-top = TopLevel(feature="cached", size_=16, name="TopModule")
+top = TopLevel(width=16, name="TopModule")
 
 # Elaborate SystemVerilog code
-result = Module.elaborate(top)
+# The result is a dictionary of {module_name: sv_code}
+result = Module.elaborate_all(top)
 
 # Obtain SystemVerilog code
 sv_code_of_top = result["TopModule"]
@@ -41,5 +66,70 @@ sv_code_of_top = result["TopModule"]
 # Write SystemVerilog code of all modules to a file
 with open("All.sv", "w") as f:
     f.write("\n".join(result.values()))
+```
+
+### Simulation with cocotb
+
+Although Magia does not support simulation, we can use [cocotb](https://www.cocotb.org/) to simulate the generated code.
+
+Make sure you have installed cocotb and simulator required (e.g. [verilator](https://www.veripool.org/verilator/)).
+
+```python
+import cocotb
+from cocotb.runner import get_runner
+from magia import Module
+from pathlib import Path
+
+TOP_LEVEL_NAME = "TopLevel"
+OUTPUT_FILE = "TopLevel.sv"
+
+
+# Define a module
+class TopLevel(Module):
+    ...
+
+
+# Define your test
+@cocotb.test()
+async def test_smoke(dut):
+    ...
+
+
+# Elaborate SystemVerilog code to a file
+result = Module.elaborate_all(TopLevel(width=16, name=TOP_LEVEL_NAME))
+Path(OUTPUT_FILE).write_text("\n".join(result.values()))
+
+runner = get_runner("verilator")
+runner.build(
+    verilog_sources=[OUTPUT_FILE],
+    hdl_toplevel=TOP_LEVEL_NAME,
+    always=True,
+)
+runner.test(
+    hdl_toplevel=TOP_LEVEL_NAME,
+    testcase="test_smoke",
+
+    # Let cocotb locates this file
+    test_dir=Path(__file__).parent.absolute(),
+    test_module=Path(__file__).stem,
+)
 
 ```
+
+## Contributing
+
+The project is still a personal project, in a very early stage.
+Feel free to open an issue for any bug / feature wishlist.
+
+In case you are interested in this project, contact me via:
+https://github.com/khwong-c
+
+## Reference
+
+There are many attempts to generate HDL code in Python.
+Similar projects are listed below:
+
+- [Amaranth/nMigen](https://github.com/amaranth-lang/amaranth)
+- [PyRTL](https://pyrtl.readthedocs.io/)
+- [MyHDL](http://www.myhdl.org/)
+- [Pyverilog](https://github.com/PyHDI/Pyverilog)
