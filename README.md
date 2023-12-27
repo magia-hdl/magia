@@ -33,7 +33,7 @@ Magia generates Synthesizable SystemVerilog code with the following command:
 Refer the [Syntax Documentation](docs/syntax.md) for more details.
 
 ```python
-from magia import Module, Input, Output
+from magia import Elaborator, Module, Input, Output
 
 
 # Define a module
@@ -57,15 +57,13 @@ class TopLevel(Module):
 top = TopLevel(width=16, name="TopModule")
 
 # Elaborate SystemVerilog code
-# The result is a dictionary of {module_name: sv_code}
-result = Module.elaborate_all(top)
+result = Elaborator.to_string(top)
 
-# Obtain SystemVerilog code
-sv_code_of_top = result["TopModule"]
+# Obtain SystemVerilog code of the top module
+sv_code_of_top = Elaborator.to_dict(top)["TopModule"]
 
-# Write SystemVerilog code of all modules to a file
-with open("All.sv", "w") as f:
-    f.write("\n".join(result.values()))
+# Write SystemVerilog code to a directory
+Elaborator.to_files("/tmp/output_dir", top)
 ```
 
 ### Simulation with cocotb
@@ -77,7 +75,7 @@ Make sure you have installed cocotb and simulator required (e.g. [verilator](htt
 ```python
 import cocotb
 from cocotb.runner import get_runner
-from magia import Module
+from magia import Elaborator, Module
 from pathlib import Path
 
 TOP_LEVEL_NAME = "TopLevel"
@@ -97,8 +95,7 @@ async def test_smoke(dut):
 
 if __name__ == "__main__":
     # Elaborate SystemVerilog code to a file
-    result = Module.elaborate_all(TopLevel(width=16, name=TOP_LEVEL_NAME))
-    Path(OUTPUT_FILE).write_text("\n".join(result.values()))
+    Elaborator.to_file(OUTPUT_FILE, TopLevel(width=16, name=TOP_LEVEL_NAME))
 
     runner = get_runner("verilator")
     runner.build(

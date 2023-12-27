@@ -1,6 +1,6 @@
 from .bundle import IOBundle, SignalBundle
 from .core import Constant, Input, Output, Register, Signal
-from .module import Blackbox, Instance, Module
+from .module import Blackbox, Elaborator, Instance, Module
 
 """
 Basic Signal Objects
@@ -28,4 +28,5 @@ __all__ += [
     "Module",
     "Instance",
     "Blackbox",
+    "Elaborator",
 ]
