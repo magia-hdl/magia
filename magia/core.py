@@ -707,6 +707,8 @@ class Operation(Signal):
 
         OPType.LSHIFT: Template("$output = $a << $b;"),
         OPType.RSHIFT: Template("$output = $a >> $b;"),
+        OPType.ALSHIFT: Template("$output = $a <<< $b;"),
+        OPType.ARSHIFT: Template("$output = $a >>> $b;"),
 
         OPType.ANY: Template("$output = $a != 0;"),
         OPType.ALL: Template("$output = $a == '1;"),
@@ -835,6 +837,18 @@ class Operation(Signal):
         if op_type == OPType.SLICE:
             y = Operation._legalize_slice(x, y)
 
+        if op_type in (OPType.LSHIFT, OPType.RSHIFT, OPType.ALSHIFT, OPType.ARSHIFT):
+            if x.signed:
+                op_type = {
+                    OPType.LSHIFT: OPType.ALSHIFT,
+                    OPType.RSHIFT: OPType.ARSHIFT,
+                }.get(op_type, op_type)
+            else:
+                op_type = {
+                    OPType.ALSHIFT: OPType.LSHIFT,
+                    OPType.ARSHIFT: OPType.RSHIFT,
+                }.get(op_type, op_type)
+
         new_op = Operation(
             width=Operation._OP_WIDTH_INFERENCE[op_type](x, y),
             signed=Operation._OP_SIGN_INFERENCE[op_type](x, y),
@@ -846,7 +860,7 @@ class Operation(Signal):
 
         if op_type == OPType.SLICE:
             new_op._op_config.slicing = y
-        if op_type == OPType.LSHIFT or op_type == OPType.RSHIFT:
+        if op_type in (OPType.LSHIFT, OPType.RSHIFT, OPType.ALSHIFT, OPType.ARSHIFT):
             new_op._op_config.shifting = y
         return new_op
 

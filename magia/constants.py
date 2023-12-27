@@ -26,6 +26,8 @@ class OPType(IntEnum):
     XOR = auto()
     LSHIFT = auto()
     RSHIFT = auto()
+    ALSHIFT = auto()
+    ARSHIFT = auto()
     ADD = auto()
     MINUS = auto()
     MUL = auto()
