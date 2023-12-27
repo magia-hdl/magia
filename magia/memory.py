@@ -267,7 +267,7 @@ class Memory(Synthesizable):
             w_port: int = 0,
             rw_port: int = 0,
             rw_write_through: bool = True,
-            registered_read: bool = False,
+            registered_read: bool = True,
             **kwargs
     ):
         if not r_port and not w_port and not rw_port:

@@ -33,7 +33,7 @@ async def spram_write_through(dut):
 
 
 @cocotb.test()
-async def spram_read_first(dut):
+async def ram_read_first(dut):
     """
     Read first shall return the value of the previous write
     """
@@ -95,6 +95,27 @@ class TestMemory:
                 mem.rw_port().en <<= 1
             self.io.dout <<= mem.rw_port().dout
 
+    class SDPRAM(Module):
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+
+            self.io += [
+                Input("clk", 1),
+                Input("wen", 1),
+                Input("addr", 8),
+                Input("din", 8),
+                Output("dout", 8),
+            ]
+
+            mem = Memory.SDP(self.io.clk, 8, 8, )
+
+            for port in ["addr", "din", "wen"]:
+                mem.write_port()[port] <<= self.io[port]
+
+            mem.read_port().addr <<= self.io.addr
+            mem.read_port().en <<= 1
+            self.io.dout <<= mem.read_port().dout
+
     def test_sp_write_through(self, temp_build_dir):
         ram = self.SPRAM(rw_write_through=True, name=self.TOP)
         with pytest.elaborate_to_file(ram) as filename:
@@ -118,7 +139,7 @@ class TestMemory:
                 toplevel=self.TOP,  # top level HDL
                 python_search=[str(Path(__name__).parent.absolute())],  # python search path
                 module=Path(__name__).name,  # name of cocotb test module
-                testcase="spram_read_first",  # name of test function
+                testcase="ram_read_first",  # name of test function
                 sim_build=temp_build_dir,  # temp build directory
                 work_dir=temp_build_dir,  # simulation  directory
             )
@@ -133,6 +154,20 @@ class TestMemory:
                 python_search=[str(Path(__name__).parent.absolute())],  # python search path
                 module=Path(__name__).name,  # name of cocotb test module
                 testcase="spram_en_over_wen",  # name of test function
+                sim_build=temp_build_dir,  # temp build directory
+                work_dir=temp_build_dir,  # simulation  directory
+            )
+
+    def test_sdp_read_first(self, temp_build_dir):
+        ram = self.SDPRAM(name=self.TOP)
+        with pytest.elaborate_to_file(ram) as filename:
+            sim_run(
+                simulator="verilator",  # simulator
+                verilog_sources=[filename],  # sources
+                toplevel=self.TOP,  # top level HDL
+                python_search=[str(Path(__name__).parent.absolute())],  # python search path
+                module=Path(__name__).name,  # name of cocotb test module
+                testcase="ram_read_first",  # name of test function
                 sim_build=temp_build_dir,  # temp build directory
                 work_dir=temp_build_dir,  # simulation  directory
             )
