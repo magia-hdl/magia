@@ -1,5 +1,6 @@
 from .bundle import IOBundle, SignalBundle
 from .core import Constant, Input, Output, Register, Signal
+from .memory import Memory
 from .module import Blackbox, Elaborator, Instance, Module
 
 """
@@ -29,4 +30,11 @@ __all__ += [
     "Instance",
     "Blackbox",
     "Elaborator",
+]
+
+"""
+Memory
+"""
+__all__ += [
+    "Memory",
 ]
