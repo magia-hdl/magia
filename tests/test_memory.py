@@ -41,11 +41,35 @@ async def spram_read_first(dut):
     assert dut.dout.value == 0xAB, "Failure on write through"
 
 
+@cocotb.test()
+async def spram_en_over_wen(dut):
+    """
+    If en is False, wen shall be ignored
+    """
+    clock = Clock(dut.clk, 10, units="ns")
+    cocotb.start_soon(clock.start())
+
+    await FallingEdge(dut.clk)
+
+    dut.en.value = 1
+    dut.wen.value = 1
+    dut.addr.value = 0x12
+    dut.din.value = 0xAB
+    await FallingEdge(dut.clk)
+    dut.en.value = 0
+    dut.din.value = 0xCD
+    await FallingEdge(dut.clk)
+    dut.en.value = 1
+    dut.wen.value = 0
+    await FallingEdge(dut.clk)
+    assert dut.dout.value == 0xAB, f"Expected 0xAB, got 0x{dut.dout.value.integer:02X}"
+
+
 class TestMemory:
     TOP = "TopModule"
 
     class SPRAM(Module):
-        def __init__(self, rw_write_through, **kwargs):
+        def __init__(self, rw_write_through, en=False, **kwargs):
             super().__init__(**kwargs)
 
             self.io += [
@@ -55,6 +79,8 @@ class TestMemory:
                 Input("din", 8),
                 Output("dout", 8),
             ]
+            if en:
+                self.io += Input("en", 1)
 
             mem = Memory.SP(
                 self.io.clk, 8, 8,
@@ -63,7 +89,10 @@ class TestMemory:
 
             for port in ["addr", "din", "wen"]:
                 mem.rw_port()[port] <<= self.io[port]
-            mem.rw_port().en <<= 1
+            if en:
+                mem.rw_port().en <<= self.io.en
+            else:
+                mem.rw_port().en <<= 1
             self.io.dout <<= mem.rw_port().dout
 
     def test_sp_write_through(self, temp_build_dir):
@@ -90,6 +119,20 @@ class TestMemory:
                 python_search=[str(Path(__name__).parent.absolute())],  # python search path
                 module=Path(__name__).name,  # name of cocotb test module
                 testcase="spram_read_first",  # name of test function
+                sim_build=temp_build_dir,  # temp build directory
+                work_dir=temp_build_dir,  # simulation  directory
+            )
+
+    def test_sp_en_over_wen(self, temp_build_dir):
+        ram = self.SPRAM(rw_write_through=False, en=True, name=self.TOP)
+        with pytest.elaborate_to_file(ram) as filename:
+            sim_run(
+                simulator="verilator",  # simulator
+                verilog_sources=[filename],  # sources
+                toplevel=self.TOP,  # top level HDL
+                python_search=[str(Path(__name__).parent.absolute())],  # python search path
+                module=Path(__name__).name,  # name of cocotb test module
+                testcase="spram_en_over_wen",  # name of test function
                 sim_build=temp_build_dir,  # temp build directory
                 work_dir=temp_build_dir,  # simulation  directory
             )
