@@ -1,4 +1,5 @@
 import random
+from itertools import product
 from pathlib import Path
 
 import cocotb
@@ -11,6 +12,10 @@ from magia import Input, Module, Output
 
 cocotb_test_prefix = "coco_"
 
+
+#############################
+# Test for When and Case operations
+#############################
 
 @cocotb.test()
 async def when_as_mux_test(dut):
@@ -102,7 +107,76 @@ tf_reg_test.add_option(case_as_mux_test_opts, case_as_mux_test_opts_val)
 tf_reg_test.generate_tests(prefix=cocotb_test_prefix)
 
 
-class TestOperations:
+#############################
+# Arithmetic tests
+#############################
+
+def assert_not_extended(a, b, dut):
+    assert dut.qadd.value == (a + b) & 0xFF
+    assert dut.qsub.value == (a - b) & 0xFF
+    assert dut.qmul.value == (a * b) & 0xFF
+    assert dut.qge.value == int(a >= b)
+    assert dut.qgt.value == int(a > b)
+    assert dut.qle.value == int(a <= b)
+    assert dut.qlt.value == int(a < b)
+    assert dut.qeq.value == int(a == b)
+    assert dut.qne.value == int(a != b)
+
+
+@cocotb.test()
+async def unsigned_op(dut):
+    """ Test if the unsigned arithmetic works """
+    for a, b in product(range(256), range(256)):
+        dut.a.value = a
+        dut.b.value = b
+
+        await cocotb.clock.Timer(1, units="ns")
+        assert_not_extended(a, b, dut)
+
+
+@cocotb.test()
+async def signed_op(dut):
+    """ Test if the signed arithmetic works """
+    for a, b in product(range(-128, 128), range(-128, 128)):
+        dut.a.value = a
+        dut.b.value = b
+
+        await cocotb.clock.Timer(1, units="ns")
+        assert_not_extended(a, b, dut)
+
+
+@cocotb.test()
+async def unsigned_op_extended(dut):
+    """ Test if the unsigned arithmetic works """
+    for a, b in product(range(256), range(256)):
+        dut.a.value = a
+        dut.b.value = b
+
+        await cocotb.clock.Timer(1, units="ns")
+        assert dut.qadd.value.integer == a + b
+        assert dut.qsub.value.signed_integer == a - b
+        assert dut.qmul.value.integer == a * b
+
+
+@cocotb.test()
+async def signed_op_extended(dut):
+    """ Test if the signed arithmetic works """
+    for a, b in product(range(-128, 128), range(-128, 128)):
+        dut.a.value = a
+        dut.b.value = b
+
+        await cocotb.clock.Timer(1, units="ns")
+        assert dut.qadd.value.signed_integer == a + b
+        assert dut.qsub.value.signed_integer == a - b
+        assert dut.qmul.value.signed_integer == a * b
+
+
+#############################
+# Pytest testcases
+#############################
+
+
+class TestWhenCase:
     TOP = "TopModule"
 
     def test_when_mux(self, temp_build_dir):
@@ -246,6 +320,150 @@ class TestOperations:
                 python_search=[str(Path(__name__).parent.absolute())],  # python search path
                 module=Path(__name__).name,  # name of cocotb test module
                 testcase="case_as_lut",  # name of test function
+                sim_build=temp_build_dir,  # temp build directory
+                work_dir=temp_build_dir,  # simulation  directory
+            )
+
+
+class TestArithmetic:
+    TOP = "TopModule"
+
+    def test_unsigned(self, temp_build_dir):
+        class Top(Module):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+
+                self.io += Input("a", 8)
+                self.io += Input("b", 8)
+                self.io += Output("qadd", 8)
+                self.io += Output("qsub", 8)
+                self.io += Output("qmul", 8)
+                self.io += Output("qge", 1)
+                self.io += Output("qgt", 1)
+                self.io += Output("qle", 1)
+                self.io += Output("qlt", 1)
+                self.io += Output("qeq", 1)
+                self.io += Output("qne", 1)
+
+                self.io.qadd <<= self.io.a + self.io.b
+                self.io.qsub <<= self.io.a - self.io.b
+                self.io.qmul <<= self.io.a * self.io.b
+                self.io.qge <<= self.io.a >= self.io.b
+                self.io.qgt <<= self.io.a > self.io.b
+                self.io.qle <<= self.io.a <= self.io.b
+                self.io.qlt <<= self.io.a < self.io.b
+                self.io.qeq <<= self.io.a == self.io.b
+                self.io.qne <<= self.io.a != self.io.b
+
+        with pytest.elaborate_to_file(
+                Top(name=self.TOP)
+        ) as filename:
+            sim_run(
+                simulator="verilator",  # simulator
+                verilog_sources=[filename],  # sources
+                toplevel=self.TOP,  # top level HDL
+                python_search=[str(Path(__name__).parent.absolute())],  # python search path
+                module=Path(__name__).name,  # name of cocotb test module
+                testcase="unsigned_op",  # name of test function
+                sim_build=temp_build_dir,  # temp build directory
+                work_dir=temp_build_dir,  # simulation  directory
+            )
+
+    def test_signed(self, temp_build_dir):
+        class Top(Module):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+
+                self.io += Input("a", 8, signed=True)
+                self.io += Input("b", 8, signed=True)
+                self.io += Output("qadd", 8, signed=True)
+                self.io += Output("qsub", 8, signed=True)
+                self.io += Output("qmul", 8, signed=True)
+                self.io += Output("qge", 1)
+                self.io += Output("qgt", 1)
+                self.io += Output("qle", 1)
+                self.io += Output("qlt", 1)
+                self.io += Output("qeq", 1)
+                self.io += Output("qne", 1)
+
+                self.io.qadd <<= self.io.a + self.io.b
+                self.io.qsub <<= self.io.a - self.io.b
+                self.io.qmul <<= self.io.a * self.io.b
+                self.io.qge <<= self.io.a >= self.io.b
+                self.io.qgt <<= self.io.a > self.io.b
+                self.io.qle <<= self.io.a <= self.io.b
+                self.io.qlt <<= self.io.a < self.io.b
+                self.io.qeq <<= self.io.a == self.io.b
+                self.io.qne <<= self.io.a != self.io.b
+
+        with pytest.elaborate_to_file(
+                Top(name=self.TOP)
+        ) as filename:
+            sim_run(
+                simulator="verilator",  # simulator
+                verilog_sources=[filename],  # sources
+                toplevel=self.TOP,  # top level HDL
+                python_search=[str(Path(__name__).parent.absolute())],  # python search path
+                module=Path(__name__).name,  # name of cocotb test module
+                testcase="signed_op",  # name of test function
+                sim_build=temp_build_dir,  # temp build directory
+                work_dir=temp_build_dir,  # simulation  directory
+            )
+
+    def test_unsigned_extended(self, temp_build_dir):
+        class Top(Module):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+
+                self.io += Input("a", 8)
+                self.io += Input("b", 8)
+                self.io += Output("qadd", 9)
+                self.io += Output("qsub", 9)
+                self.io += Output("qmul", 16)
+
+                self.io.qadd <<= (self.io.a + self.io.b).set_width(9)
+                self.io.qsub <<= (self.io.a - self.io.b).set_width(9)
+                self.io.qmul <<= (self.io.a * self.io.b).set_width(16)
+
+        with pytest.elaborate_to_file(
+                Top(name=self.TOP)
+        ) as filename:
+            sim_run(
+                simulator="verilator",  # simulator
+                verilog_sources=[filename],  # sources
+                toplevel=self.TOP,  # top level HDL
+                python_search=[str(Path(__name__).parent.absolute())],  # python search path
+                module=Path(__name__).name,  # name of cocotb test module
+                testcase="unsigned_op_extended",  # name of test function
+                sim_build=temp_build_dir,  # temp build directory
+                work_dir=temp_build_dir,  # simulation  directory
+            )
+
+    def test_signed_extended(self, temp_build_dir):
+        class Top(Module):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+
+                self.io += Input("a", 8, signed=True)
+                self.io += Input("b", 8, signed=True)
+                self.io += Output("qadd", 9, signed=True)
+                self.io += Output("qsub", 9, signed=True)
+                self.io += Output("qmul", 16, signed=True)
+
+                self.io.qadd <<= (self.io.a + self.io.b).set_width(9)
+                self.io.qsub <<= (self.io.a - self.io.b).set_width(9)
+                self.io.qmul <<= (self.io.a * self.io.b).set_width(16)
+
+        with pytest.elaborate_to_file(
+                Top(name=self.TOP)
+        ) as filename:
+            sim_run(
+                simulator="verilator",  # simulator
+                verilog_sources=[filename],  # sources
+                toplevel=self.TOP,  # top level HDL
+                python_search=[str(Path(__name__).parent.absolute())],  # python search path
+                module=Path(__name__).name,  # name of cocotb test module
+                testcase="signed_op_extended",  # name of test function
                 sim_build=temp_build_dir,  # temp build directory
                 work_dir=temp_build_dir,  # simulation  directory
             )
