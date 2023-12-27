@@ -207,36 +207,3 @@ class TopLevel(Module):
         )
 
 ```
-
----
-
-## Elaborate a Module
-
-`Module.elaborate_all` will elaborate all modules in the hierarchy.
-
-- Define a top module
-- Specialize the top module
-- Call `Module.elaborate_all` with the top module constructed
-
-```python
-from magia import Module
-
-
-class SubModule(Module):
-    ...
-
-
-class TopModule(Module):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        SubModule().instance()
-        ...
-
-
-# Elaborate all modules
-elaborate_result = Module.elaborate_all(TopModule(param1=1, param2=2))
-for module_name, sv_code in elaborate_result.items():
-    ...
-```
-
-
