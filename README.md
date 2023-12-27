@@ -113,6 +113,11 @@ if __name__ == "__main__":
     )
 ```
 
+## Documentation
+
+- [Syntax Documentation](docs/syntax.md)
+- [Memory Syntax](docs/memory.md)
+
 ## Contributing
 
 The project is still a personal project, in a very early stage.
