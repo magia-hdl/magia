@@ -214,7 +214,7 @@ class Signal(Synthesizable):
             signal <<= self
             return signal
         if width < len(self):
-            return self[width-1:]
+            return self[width - 1:]
 
         # Perform sign extension / padding according to the signedness of the signal
         padding_size = (width - len(self))
@@ -809,6 +809,11 @@ class Operation(Signal):
         if not isinstance(x, Signal):
             raise TypeError(f"Cannot perform operation on {type(x)}")
 
+        if op_type not in Operation._OP_IMPL_TEMPLATE:
+            raise ValueError(f"Operation {op_type} is not supported.")
+        if op_type not in (OPType.NOT, OPType.ANY, OPType.ALL) and y is None:
+            raise ValueError(f"Operation {op_type} requires two operand.")
+
         if op_type == OPType.SLICE:
             if not isinstance(y, slice):
                 raise TypeError("Slicing Operator requires a slice as 2nd operand.")
@@ -821,10 +826,11 @@ class Operation(Signal):
             if not isinstance(y, Signal) and y is not None:
                 raise TypeError(f"Cannot perform operation on {type(y)}")
 
-        if op_type not in Operation._OP_IMPL_TEMPLATE:
-            raise ValueError(f"Operation {op_type} is not supported.")
-        if op_type not in (OPType.NOT, OPType.ANY, OPType.ALL) and y is None:
-            raise ValueError(f"Operation {op_type} requires two operand.")
+        # Check the Sign of the Operands
+        if op_type in (
+                OPType.ADD, OPType.MINUS, OPType.MUL, OPType.GT, OPType.GE, OPType.LT, OPType.LE
+        ) and isinstance(y, Signal) and x.signed != y.signed:
+            raise ValueError("Operands must have the same signedness.")
 
         if op_type == OPType.SLICE:
             y = Operation._legalize_slice(x, y)
@@ -987,7 +993,8 @@ class Case(Operation):
         case_table = []
 
         for selector_value, driver in self._cases.items():
-            driver = driver.net_name if isinstance(driver, Signal) else Constant.sv_constant(driver, len(self), self.signed)
+            driver = driver.net_name if isinstance(driver, Signal) else Constant.sv_constant(driver, len(self),
+                                                                                             self.signed)
             case_table.append(
                 self._CASE_ITEM_TEMPLATE.substitute(
                     selector_value=Constant.sv_constant(
