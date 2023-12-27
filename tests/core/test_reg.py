@@ -111,7 +111,7 @@ async def reg_multi_reg_test(dut):
         rx_record.append(dut.q.value)
 
     tx_record = tx_record[:-reg_stages]
-    rx_record = rx_record[reg_stages-1:]
+    rx_record = rx_record[reg_stages - 1:]
 
     for i in range(len(tx_record)):
         assert tx_record[i] == rx_record[i], f"output q was incorrect on the {i}th cycle"
@@ -156,11 +156,14 @@ class TestRegisters:
             self.io += Input("d", self.width)
             self.io += Output("q", self.width)
 
-            self.io.q <<= (self.io.d
-                           .reg(self.io.clk)
-                           .reg(self.io.clk)
-                           .reg(self.io.clk)
-                           )
+            clk = self.io.clk
+
+            self.io.q <<= (
+                self.io.d
+                .reg(clk)
+                .reg(clk)
+                .reg(clk)
+            )
 
         @property
         def width(self):
