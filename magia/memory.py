@@ -280,6 +280,8 @@ class Memory(Synthesizable):
             raise ValueError("Memory with Read/Write port cannot have extra write port")
         if not rw_port and w_port and not r_port:
             raise ValueError("Memory with Write port must have at least one read port")
+        if rw_port and not registered_read:
+            raise ValueError("Memory with Read/Write port must have registered read port")
 
         memory_size = 1 << address_width
         if name is None:
@@ -304,13 +306,13 @@ class Memory(Synthesizable):
     def port_count(self) -> tuple[int, int, int]:
         return len(self._read_ports), len(self._write_ports), len(self._rw_ports)
 
-    def read_port(self, index: int) -> MemReadPort:
+    def read_port(self, index: int = 0) -> MemReadPort:
         return self._read_ports[index]
 
-    def write_port(self, index: int) -> MemWritePort:
+    def write_port(self, index: int = 0) -> MemWritePort:
         return self._write_ports[index]
 
-    def rw_port(self, index: int) -> MemRWPort:
+    def rw_port(self, index: int = 0) -> MemRWPort:
         return self._rw_ports[index]
 
     @property
@@ -371,11 +373,11 @@ class Memory(Synthesizable):
         """
         Create a True Dual Port memory.
         """
-        return cls(clk, address_width, data_width, rw_port=2, **kwargs)
+        return cls(clk, address_width, data_width, rw_port=2, registered_read=True, **kwargs)
 
     @classmethod
     def SP(cls, clk: Input, address_width: int, data_width: int, **kwargs) -> "Memory":
         """
         Create a Single Port memory.
         """
-        return cls(clk, address_width, data_width, rw_port=1, **kwargs)
+        return cls(clk, address_width, data_width, rw_port=1, registered_read=True, **kwargs)
