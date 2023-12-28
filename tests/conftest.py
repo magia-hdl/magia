@@ -5,16 +5,13 @@ from tempfile import NamedTemporaryFile, TemporaryDirectory
 
 import pytest
 
-from magia import Module
+from magia import Elaborator, Module
 
 
 @contextmanager
 def elaborate_to_file(module: Module) -> str:
-    sv_code = Module.elaborate_all(module)
-    sv_code = "\n".join(sv_code.values())
-
     with NamedTemporaryFile(mode="w", suffix=".sv") as f:
-        f.write(sv_code)
+        f.write(Elaborator.to_string(module))
         f.flush()
         yield f.name
 

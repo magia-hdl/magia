@@ -3,10 +3,9 @@ from pathlib import Path
 
 import cocotb
 import pytest
-from cocotb.clock import Clock
 from cocotb_test.simulator import run as sim_run
 
-from magia import Input, Module, Output, Signal
+from magia import Elaborator, Input, Module, Output, Signal
 
 cocotb_test_prefix = "coco_"
 
@@ -47,7 +46,7 @@ class TestSignalManipulate:
 
                 self.io.q <<= d.set_name("next_one")
 
-        result = Module.elaborate_all(Top(name=self.TOP))[self.TOP]
+        result = Elaborator.to_string(Top(name=self.TOP))
         assert "intermediate = a" in result
         assert "next_one = intermediate" in result
 
@@ -92,5 +91,5 @@ class TestSignalManipulate:
 
                 self.io.q <<= (self.io.a + self.io.b).set_width(5).set_signed(True).set_name("next_one")
 
-        result = Module.elaborate_all(Top(name=self.TOP))[self.TOP]
+        result = Elaborator.to_string(Top(name=self.TOP))
         assert "logic signed [4:0] next_one;" in result

@@ -8,7 +8,7 @@ import pytest
 from cocotb.regression import TestFactory
 from cocotb_test.simulator import run as sim_run
 
-from magia import Input, Module, Output
+from magia import Elaborator, Input, Module, Output
 
 cocotb_test_prefix = "coco_"
 
@@ -252,8 +252,7 @@ class TestWhenCase:
                 self.io += Output("q", len(case_logic))
                 self.io.q <<= case_logic
 
-        result = Module.elaborate_all(CaseModule(width=width, cases=cases))
-        sv_code = next(iter(result.values()))
+        sv_code = Elaborator.to_string(CaseModule(width=width, cases=cases))
         if expected_default:
             # Expect default case to be generated
             assert "default:" in sv_code

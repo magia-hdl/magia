@@ -252,16 +252,6 @@ class Module(Synthesizable):
         self._mod_doc = doc
         return doc
 
-    @staticmethod
-    def elaborate_all(*modules: "Module") -> dict[str, str]:
-        """
-        Elaborate all modules in the list.
-
-        :param modules: The modules to be elaborated.
-        :return: A dictionary of the SystemVerilog code for each module.
-        """
-        return Elaborator.to_dict(*modules)
-
 
 class Instance(Synthesizable):
     """

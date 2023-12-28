@@ -36,7 +36,7 @@ class TestModSpecialize:
                     "q": self.io.q3,
                 })
 
-        result = Module.elaborate_all(TopModule(name="top_module"))
+        result = Elaborator.to_dict(TopModule(name="top_module"))
         assert len(result) == 4, f"Expected 4 modules: Top + 3 SubModules, got {len(result)} modules."
 
     def test_reuse_specialized_module(self):
@@ -72,7 +72,7 @@ class TestModSpecialize:
                     "q": self.io.q3,
                 })
 
-        result = Module.elaborate_all(TopModule(name="top_module"))
+        result = Elaborator.to_dict(TopModule(name="top_module"))
         assert len(result) == 2, f"Expected 2 modules: Top + 1 SubModules, got {len(result)} modules."
 
 
