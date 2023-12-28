@@ -2,6 +2,7 @@ import random
 from pathlib import Path
 
 import cocotb
+import cocotb.clock
 import pytest
 from cocotb_test.simulator import run as sim_run
 
