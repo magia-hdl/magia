@@ -170,6 +170,23 @@ async def signed_op_extended(dut):
         assert dut.qsub.value.signed_integer == a - b
         assert dut.qmul.value.signed_integer == a * b
 
+@cocotb.test()
+async def bitwise_op(dut):
+    """ Test all bitwise operator """
+    for a, b in product(range(256), range(256)):
+        dut.a.value = a
+        dut.b.value = b
+
+        await cocotb.clock.Timer(1, units="ns")
+        assert dut.bit_or.value.integer == (a | b) & 0xFF        
+        assert dut.bit_and.value.integer == (a & b) & 0xFF        
+        assert dut.bit_xor.value.integer == (a ^ b) & 0xFF
+        
+        assert dut.reduce_or.value.integer == ((a & 0xFF) > 0)
+        assert dut.reduce_and.value.integer == ((a & 0xFF) == 0xFF )
+        assert dut.reduce_xor.value.integer == (((a & 0xFF).bit_count())%2)
+
+
 
 #############################
 # Pytest testcases
@@ -464,6 +481,50 @@ class TestArithmetic:
                 python_search=[str(Path(__name__).parent.absolute())],  # python search path
                 module=Path(__name__).name,  # name of cocotb test module
                 testcase="signed_op_extended",  # name of test function
+                sim_build=temp_build_dir,  # temp build directory
+                work_dir=temp_build_dir,  # simulation  directory
+            )
+
+    def test_bitwise(self, temp_build_dir):
+        class Top(Module):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+
+                self.io += Input("a", 8)
+                self.io += Input("b", 8)
+
+                self.io += Output("bit_or",8)                
+                self.io += Output("bit_and",8)                
+                self.io += Output("bit_xor",8)
+
+                self.io += Output("any",1)
+                self.io += Output("all",1)
+
+                self.io += Output("reduce_or",1)
+                self.io += Output("reduce_and",1)
+                self.io += Output("reduce_xor",1)
+
+                self.io.bit_or <<= self.io.a | self.io.b
+                self.io.bit_and <<= self.io.a & self.io.b
+                self.io.bit_xor <<= self.io.a ^ self.io.b
+
+                self.io.any <<= self.io.a.any()
+                self.io.all <<= self.io.a.all()
+
+                self.io.reduce_or <<= self.io.a.reduce_or()
+                self.io.reduce_and <<= self.io.a.reduce_and()
+                self.io.reduce_xor <<= self.io.a.reduce_xor()
+
+        with pytest.elaborate_to_file(
+                Top(name=self.TOP)
+        ) as filename:
+            sim_run(
+                simulator="verilator",  # simulator
+                verilog_sources=[filename],  # sources
+                toplevel=self.TOP,  # top level HDL
+                python_search=[str(Path(__name__).parent.absolute())],  # python search path
+                module=Path(__name__).name,  # name of cocotb test module
+                testcase="bitwise_op",  # name of test function
                 sim_build=temp_build_dir,  # temp build directory
                 work_dir=temp_build_dir,  # simulation  directory
             )

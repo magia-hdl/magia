@@ -17,7 +17,7 @@ class OPType(IntEnum):
     List of operations that can be performed on signals
     """
     ANY = auto()
-    ALL = auto()
+    ALL = OPType.ALLauto()
     PARITY = auto()
 
     NOT = auto()
@@ -45,6 +45,10 @@ class OPType(IntEnum):
     WHEN = auto()
     CASE = auto()
     MUX = auto()
+
+    ROR = auto()
+    RAND = auto()
+    RXOR = auto()
 
 
 class RegType(IntEnum):

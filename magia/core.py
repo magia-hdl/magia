@@ -502,6 +502,24 @@ class Signal(Synthesizable):
         Create an `all` statement.
         """
         return Operation.create(OPType.ALL, self, None)
+    
+    def reduce_or(self) -> "Signal":
+        """
+        Create `bit reduced or` statment
+        """
+        return Operation.create(OPType.ROR, self, None)
+        
+    def reduce_and(self) -> "Signal":
+        """
+        Create `bit reduced and` statment
+        """
+        return Operation.create(OPType.RAND, self, None)
+
+    def reduce_xor(self) -> "Signal":
+        """
+        Create `bit reduced xor` statment
+        """
+        return Operation.create(OPType.RXOR, self, None)
 
 
 class SignalDict(UserDict):
@@ -716,6 +734,10 @@ class Operation(Signal):
         OPType.CONCAT: Template("$output = {$a, $b};"),
 
         OPType.SLICE: Template("$output = $a[$slice_start:$slice_stop];"),
+       
+        OPType.ROR:  Template("$output = |$a;"),
+        OPType.RAND: Template("$output = &$a;"),
+        OPType.RXOR: Template("$output = ^$a;" ),
     }
     _OP_WIDTH_INFERENCE = {
         OPType.NOT: lambda x, y: len(x),
@@ -741,6 +763,10 @@ class Operation(Signal):
         OPType.CONCAT: lambda x, y: len(x) + len(y),
 
         OPType.SLICE: lambda x, s: abs(s.stop - s.start) + 1,
+
+        OPType.ROR:  lambda x,y : 1,
+        OPType.RAND: lambda x,y : 1,
+        OPType.RXOR: lambda x,y : 1,
     }
     _OP_SIGN_INFERENCE = {
         OPType.NOT: lambda x, y: x.signed,
@@ -765,6 +791,10 @@ class Operation(Signal):
 
         OPType.CONCAT: lambda x, y: x.signed,
         OPType.SLICE: lambda x, s: x.signed,
+        
+        OPType.ROR: lambda x, y: False,        
+        OPType.RAND: lambda x, y: False,
+        OPType.RXOR: lambda x, y: False,
     }
     _OP_BLOCK_TEMPLATE = Template("always_comb\n  $op_impl")
 
@@ -813,7 +843,7 @@ class Operation(Signal):
 
         if op_type not in Operation._OP_IMPL_TEMPLATE:
             raise ValueError(f"Operation {op_type} is not supported.")
-        if op_type not in (OPType.NOT, OPType.ANY, OPType.ALL) and y is None:
+        if op_type not in (OPType.NOT, OPType.ANY, OPType.ALL, OPType.RXOR, OPType.RAND, OPType.ROR) and y is None:
             raise ValueError(f"Operation {op_type} requires two operand.")
 
         if op_type == OPType.SLICE:
