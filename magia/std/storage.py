@@ -6,6 +6,8 @@ from .bundles import StdIO
 class Queue(Module):
     def __init__(self, width, depth, **kwargs):
         super().__init__(**kwargs)
+        self.register_module_doc(locals())
+
         self.width = width
         self.depth = depth
         self.pointer_width = depth
@@ -15,8 +17,6 @@ class Queue(Module):
 
         self.io += StdIO.decoupled("din", width).flip()
         self.io += StdIO.decoupled("dout", width)
-
-        self.register_module_doc(locals())
 
         self.implementation()
 
