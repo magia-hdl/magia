@@ -127,12 +127,26 @@ class Module(Synthesizable):
             for output in self.io.outputs
         )
 
+        extra_code = self.post_elaborate()
+
         mod_end = "endmodule"
 
-        sv_code = "\n".join((mod_decl, mod_impl, mod_output_assignment, mod_end))
+        sv_code = "\n".join((mod_decl, mod_impl, mod_output_assignment, extra_code, mod_end))
         submodules = {inst.module for inst in insts}
 
         return sv_code, submodules
+
+    def post_elaborate(self) -> str:
+        """
+        Override this method to add extra code to the module.
+        The code will be added after the elaboration of the module.
+
+        Adding assertions to the module is a typical use case.
+
+        :return: The extra code to be added to the module.
+        """
+        _ = self  # Stub to avoid IDE/Lint warning
+        return ""
 
     def trace(self) -> tuple[list[Union[Signal, Memory]], list["Instance"]]:
         """
