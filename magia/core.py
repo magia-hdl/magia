@@ -737,7 +737,7 @@ class Operation(Signal):
        
         OPType.ROR:  Template("$output = |$a;"),
         OPType.RAND: Template("$output = &$a;"),
-        OPType.RXOR: Template("$output = ^$a;" ),
+        OPType.RXOR: Template("$output = ^$a;"),
     }
     _OP_WIDTH_INFERENCE = {
         OPType.NOT: lambda x, y: len(x),
