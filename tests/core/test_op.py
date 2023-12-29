@@ -182,9 +182,9 @@ async def bitwise_op(dut):
         assert dut.bit_and.value.integer == (a & b) & 0xFF        
         assert dut.bit_xor.value.integer == (a ^ b) & 0xFF
         
-        assert dut.reduce_or.value.integer == ((a & 0xFF) > 0)
-        assert dut.reduce_and.value.integer == ((a & 0xFF) == 0xFF )
-        assert dut.reduce_xor.value.integer == (((a & 0xFF).bit_count())%2)
+        assert dut.any.value.integer == ((a & 0xFF) > 0)
+        assert dut.all.value.integer == ((a & 0xFF) == 0xFF )
+        assert dut.parity.value.integer == (((a & 0xFF).bit_count())%2)
 
 
 
@@ -499,10 +499,7 @@ class TestArithmetic:
 
                 self.io += Output("any",1)
                 self.io += Output("all",1)
-
-                self.io += Output("reduce_or",1)
-                self.io += Output("reduce_and",1)
-                self.io += Output("reduce_xor",1)
+                self.io += Output("parity",1)
 
                 self.io.bit_or <<= self.io.a | self.io.b
                 self.io.bit_and <<= self.io.a & self.io.b
@@ -510,10 +507,8 @@ class TestArithmetic:
 
                 self.io.any <<= self.io.a.any()
                 self.io.all <<= self.io.a.all()
+                self.io.parity <<= self.io.a.parity()
 
-                self.io.reduce_or <<= self.io.a.reduce_or()
-                self.io.reduce_and <<= self.io.a.reduce_and()
-                self.io.reduce_xor <<= self.io.a.reduce_xor()
 
         with pytest.elaborate_to_file(
                 Top(name=self.TOP)
