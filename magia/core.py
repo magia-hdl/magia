@@ -1000,8 +1000,6 @@ class Case(Operation):
             driver_name = self._driver_name(sel_value)
             if isinstance(driver, Signal):
                 self._drivers[driver_name] = driver
-            # else:
-            #     self._drivers[driver_name] = Constant(driver, len(self), self.signed)
         if isinstance(default, Signal):
             self._drivers[self._DEFAULT_DRIVER_NAME] = default
 

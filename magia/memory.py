@@ -362,21 +362,21 @@ class Memory(Synthesizable):
         return self._config.name
 
     @classmethod
-    def SDP(cls, clk: Input, address_width: int, data_width: int, **kwargs) -> "Memory":
+    def sdp(cls, clk: Input, address_width: int, data_width: int, **kwargs) -> "Memory":
         """
         Create a Simple Dual Port memory.
         """
         return cls(clk, address_width, data_width, r_port=1, w_port=1, **kwargs)
 
     @classmethod
-    def TDP(cls, clk: Input, address_width: int, data_width: int, **kwargs) -> "Memory":
+    def tdp(cls, clk: Input, address_width: int, data_width: int, **kwargs) -> "Memory":
         """
         Create a True Dual Port memory.
         """
         return cls(clk, address_width, data_width, rw_port=2, registered_read=True, **kwargs)
 
     @classmethod
-    def SP(cls, clk: Input, address_width: int, data_width: int, **kwargs) -> "Memory":
+    def sp(cls, clk: Input, address_width: int, data_width: int, **kwargs) -> "Memory":
         """
         Create a Single Port memory.
         """

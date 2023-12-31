@@ -82,7 +82,7 @@ class TestMemory:
             if en:
                 self.io += Input("en", 1)
 
-            mem = Memory.SP(
+            mem = Memory.sp(
                 self.io.clk, 8, 8,
                 rw_write_through=rw_write_through,
             )
@@ -107,7 +107,7 @@ class TestMemory:
                 Output("dout", 8),
             ]
 
-            mem = Memory.SDP(self.io.clk, 8, 8, )
+            mem = Memory.sdp(self.io.clk, 8, 8, )
 
             for port in ["addr", "din", "wen"]:
                 mem.write_port()[port] <<= self.io[port]
