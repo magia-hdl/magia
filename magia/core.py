@@ -502,12 +502,13 @@ class Signal(Synthesizable):
         Create an `all` statement.
         """
         return Operation.create(OPType.ALL, self, None)
-    
+
     def parity(self) -> "Signal":
         """
         Create an `parity` statement.
         """
         return Operation.create(OPType.PARITY, self, None)
+
 
 class SignalDict(UserDict):
     """
@@ -775,7 +776,7 @@ class Operation(Signal):
 
         OPType.CONCAT: lambda x, y: x.signed,
         OPType.SLICE: lambda x, s: x.signed,
-        
+
     }
     _OP_BLOCK_TEMPLATE = Template("always_comb\n  $op_impl")
 

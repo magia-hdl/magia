@@ -170,6 +170,7 @@ async def signed_op_extended(dut):
         assert dut.qsub.value.signed_integer == a - b
         assert dut.qmul.value.signed_integer == a * b
 
+
 @cocotb.test()
 async def bitwise_op(dut):
     """ Test all bitwise operator """
@@ -178,14 +179,13 @@ async def bitwise_op(dut):
         dut.b.value = b
 
         await cocotb.clock.Timer(1, units="ns")
-        assert dut.bit_or.value.integer == (a | b) & 0xFF        
-        assert dut.bit_and.value.integer == (a & b) & 0xFF        
+        assert dut.bit_or.value.integer == (a | b) & 0xFF
+        assert dut.bit_and.value.integer == (a & b) & 0xFF
         assert dut.bit_xor.value.integer == (a ^ b) & 0xFF
-        
-        assert dut.any.value.integer == ((a & 0xFF) > 0)
-        assert dut.all.value.integer == ((a & 0xFF) == 0xFF )
-        assert dut.parity.value.integer == (((a & 0xFF).bit_count())%2)
 
+        assert dut.any.value.integer == ((a & 0xFF) > 0)
+        assert dut.all.value.integer == ((a & 0xFF) == 0xFF)
+        assert dut.parity.value.integer == (((a & 0xFF).bit_count()) % 2)
 
 
 #############################
@@ -492,13 +492,13 @@ class TestArithmetic:
                 self.io += Input("a", 8)
                 self.io += Input("b", 8)
 
-                self.io += Output("bit_or",8)                
-                self.io += Output("bit_and",8)                
-                self.io += Output("bit_xor",8)
+                self.io += Output("bit_or", 8)
+                self.io += Output("bit_and", 8)
+                self.io += Output("bit_xor", 8)
 
-                self.io += Output("any",1)
-                self.io += Output("all",1)
-                self.io += Output("parity",1)
+                self.io += Output("any", 1)
+                self.io += Output("all", 1)
+                self.io += Output("parity", 1)
 
                 self.io.bit_or <<= self.io.a | self.io.b
                 self.io.bit_and <<= self.io.a & self.io.b
@@ -507,7 +507,6 @@ class TestArithmetic:
                 self.io.any <<= self.io.a.any()
                 self.io.all <<= self.io.a.all()
                 self.io.parity <<= self.io.a.parity()
-
 
         with pytest.elaborate_to_file(
                 Top(name=self.TOP)
