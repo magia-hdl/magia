@@ -46,6 +46,10 @@ class OPType(IntEnum):
     CASE = auto()
     MUX = auto()
 
+    ROR = auto()
+    RAND = auto()
+    RXOR = auto()
+
 
 class RegType(IntEnum):
     DFF = auto()

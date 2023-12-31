@@ -502,7 +502,12 @@ class Signal(Synthesizable):
         Create an `all` statement.
         """
         return Operation.create(OPType.ALL, self, None)
-
+    
+    def parity(self) -> "Signal":
+        """
+        Create an `parity` statement.
+        """
+        return Operation.create(OPType.PARITY, self, None)
 
 class SignalDict(UserDict):
     """
@@ -712,10 +717,12 @@ class Operation(Signal):
 
         OPType.ANY: Template("$output = $a != 0;"),
         OPType.ALL: Template("$output = $a == '1;"),
+        OPType.PARITY: Template("$output = ^$a;"),
 
         OPType.CONCAT: Template("$output = {$a, $b};"),
 
         OPType.SLICE: Template("$output = $a[$slice_start:$slice_stop];"),
+
     }
     _OP_WIDTH_INFERENCE = {
         OPType.NOT: lambda x, y: len(x),
@@ -737,10 +744,12 @@ class Operation(Signal):
 
         OPType.ANY: lambda x, y: 1,
         OPType.ALL: lambda x, y: 1,
+        OPType.PARITY: lambda x, y: 1,
 
         OPType.CONCAT: lambda x, y: len(x) + len(y),
 
         OPType.SLICE: lambda x, s: abs(s.stop - s.start) + 1,
+
     }
     _OP_SIGN_INFERENCE = {
         OPType.NOT: lambda x, y: x.signed,
@@ -762,9 +771,11 @@ class Operation(Signal):
 
         OPType.ANY: lambda x, y: False,
         OPType.ALL: lambda x, y: False,
+        OPType.PARITY: lambda x, y: False,
 
         OPType.CONCAT: lambda x, y: x.signed,
         OPType.SLICE: lambda x, s: x.signed,
+        
     }
     _OP_BLOCK_TEMPLATE = Template("always_comb\n  $op_impl")
 
@@ -813,7 +824,7 @@ class Operation(Signal):
 
         if op_type not in Operation._OP_IMPL_TEMPLATE:
             raise ValueError(f"Operation {op_type} is not supported.")
-        if op_type not in (OPType.NOT, OPType.ANY, OPType.ALL) and y is None:
+        if op_type not in (OPType.NOT, OPType.ANY, OPType.ALL, OPType.PARITY) and y is None:
             raise ValueError(f"Operation {op_type} requires two operand.")
 
         if op_type == OPType.SLICE:
