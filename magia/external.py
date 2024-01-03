@@ -86,18 +86,70 @@ class ExternalModule(Blackbox):
         signed = port.signed
 
         # Assume LSB == 0
-        width = self._resolve_port_msb(port_name) + 1
+        width = self._resolve_node(self.ports_from_code[port_name].width.msb) + 1
         return port_class(name=name, width=width, signed=signed)
 
-    def _resolve_port_msb(self, port_name: str):
-        # We need to resolve parameters and operators here
-        if isinstance(self.ports_from_code[port_name].width.msb, ast.IntConst):
-            return int(self.ports_from_code[port_name].width.msb.value)
-        raise NotImplementedError("Port MSB not an integer")
+    def _resolve_node(self, node: ast.Node):
+        # Resolve Constants
+        if isinstance(node, ast.IntConst):
+            return int(node.value)
+        if isinstance(node, ast.FloatConst):
+            return float(node.value)
+
+        # Resolve Parameter Identifier
+        if isinstance(node, ast.Identifier):
+            return self._resolve_param(node.name)
+        # Resolve Variables
+        if isinstance(node, ast.Rvalue):
+            return self._resolve_node(node.var)
+
+        # Resolve Operators
+        if isinstance(node, ast.Operator):
+            # Handle Conditional Operator
+            if isinstance(node, ast.Cond):
+                cond = self._resolve_node(node.cond)
+                true_value = self._resolve_node(node.true_value)
+                false_value = self._resolve_node(node.false_value)
+                return true_value if cond else false_value
+            # Unary Operators
+            if isinstance(node, ast.UnaryOperator):
+                rvalue = self._resolve_node(node.right)
+                node_class = type(node)
+                return {
+                    ast.Uplus: lambda x: x,
+                    ast.Uminus: lambda x: -x,
+                    ast.Unot: lambda x: 0 if x else 1,
+                }[node_class](rvalue)
+            # Other Operators
+            lvalue = self._resolve_node(node.left)
+            rvalue = self._resolve_node(node.right)
+            node_class = type(node)
+            return {
+                ast.Plus: lambda x, y: x + y,
+                ast.Minus: lambda x, y: x - y,
+                ast.Times: lambda x, y: x * y,
+                ast.Divide: lambda x, y: x // y,
+                ast.Mod: lambda x, y: x % y,
+                ast.Power: lambda x, y: x ** y,
+                ast.Sll: lambda x, y: x << y,
+                ast.Srl: lambda x, y: x >> y,
+                ast.Sla: lambda x, y: x << y,
+                ast.Sra: lambda x, y: x >> y,
+                ast.LessThan: lambda x, y: 1 if x < y else 0,
+                ast.LessEq: lambda x, y: 1 if x <= y else 0,
+                ast.GreaterThan: lambda x, y: 1 if x > y else 0,
+                ast.GreaterEq: lambda x, y: 1 if x >= y else 0,
+                ast.Eq: lambda x, y: 1 if x == y else 0,
+                ast.NotEq: lambda x, y: 1 if x != y else 0,
+                ast.Eql: lambda x, y: 1 if x == y else 0,
+                ast.NotEql: lambda x, y: 1 if x != y else 0,
+            }[node_class](lvalue, rvalue)
+
+        raise NotImplementedError(f"Node {node.__class__.__name__} not supported")
 
     def _resolve_param(self, param_name: str):
         # We need to resolve parameters and operators here
-        return self.params[param_name].value.value
+        return self._resolve_node(self.params[param_name].value)
 
     def __class_getitem__(cls, item):
         """
