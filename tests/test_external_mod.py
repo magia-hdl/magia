@@ -19,7 +19,7 @@ class TestExternalModImport:
     """
 
     def test_from_file(self, temp_build_dir):
-        sv_path = Path(temp_build_dir , "TopModule.sv")
+        sv_path = Path(temp_build_dir, "TopModule.sv")
         sv_path.write_text(self.code)
         mod = ExternalModule[sv_path, "TopModule"]()
 
