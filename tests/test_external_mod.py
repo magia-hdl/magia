@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from magia import Elaborator, ExternalModule, Input, Module, Output
 
 
@@ -15,6 +17,17 @@ class TestExternalModImport:
     );
     endmodule
     """
+
+    def test_from_file(self, temp_build_dir):
+        sv_path = Path(temp_build_dir , "TopModule.sv")
+        sv_path.write_text(self.code)
+        mod = ExternalModule[sv_path, "TopModule"]()
+
+        input_list = ["clk", "wen", "addr", "din"]
+        assert len(mod.io.input_names) == len(mod.io.input_names)
+        for name in input_list:
+            assert name in mod.io.input_names
+        assert mod.io.output_names == ["dout"]
 
     def test_io_name(self):
         mod = ExternalModule.from_code(self.code, "TopModule")()
