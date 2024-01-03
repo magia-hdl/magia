@@ -18,7 +18,13 @@ The goal of Magia is
     - Major reason is we have reliable and mature simulation tools like
         - [cocotb](https://www.cocotb.org/)
         - [verilator](https://www.veripool.org/verilator/)
-    - We want to focus on the HDL generation part, instead of rebuilding the whole workflow.
+    - We want to focus on the Design Capturing / HDL generation part, instead of rebuilding the whole workflow.
+
+![Position.drawio.svg](docs/img/Position.drawio.svg)
+
+## Project Roadmap
+
+Please refer to the [Magia Roadmap](docs/roadmap.md).
 
 ## Installation
 
