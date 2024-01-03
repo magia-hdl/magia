@@ -33,14 +33,14 @@ class ExternalModule(Blackbox):
             if key not in self.params_from_code
         }
         super().__init__(**sub_kwargs)
-        self.params_override = {
+        self._params_override = {
             key: ast.Parameter(name=key, value=ast.IntConst(value))
             for key, value in kwargs.items()
             if key in self.params_from_code
         }
-        self.params = {
+        self._params = {
             **self.params_from_code,
-            **self.params_override,
+            **self._params_override,
         }
         for port in self.ports_from_code:
             self.io += self._create_port(port)
@@ -59,7 +59,7 @@ class ExternalModule(Blackbox):
         io_list = ",\n".join(io_list)
 
         param_list = []
-        for param in self.params_override:
+        for param in self._params_override:
             param_list.append(self._PARAM_TEMPLATE.substitute(
                 param_name=param,
                 param_value=self._resolve_param(param),
@@ -74,6 +74,17 @@ class ExternalModule(Blackbox):
 
         sv_code = "\n".join((mod_decl, inst_impl, mod_end))
         return sv_code, set()
+
+    @property
+    def params(self):
+        return {
+            key: self._resolve_param(key)
+            for key in self._params
+        }
+
+    @classmethod
+    def default_params(cls):
+        return cls().params
 
     def _create_port(self, port_name: str):
         port = self.ports_from_code[port_name]
@@ -149,7 +160,7 @@ class ExternalModule(Blackbox):
 
     def _resolve_param(self, param_name: str):
         # We need to resolve parameters and operators here
-        return self._resolve_node(self.params[param_name].value)
+        return self._resolve_node(self._params[param_name].value)
 
     def __class_getitem__(cls, item):
         """
