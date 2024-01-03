@@ -1,3 +1,4 @@
+import re
 from os import PathLike
 from pathlib import Path
 from string import Template
@@ -224,6 +225,14 @@ class ExternalModule(Blackbox):
 
         parser = VerilogCodeParser([], debug=False)
 
+        # Hack: Pyverilog does not support parameter types
+        # e.g. parameter integer WIDTH = 8;
+        # We remove the type from the parameters
+        # We also remove all time type parameters
+        # (The program will fail if a time type parameter is at the end of the parameter list)
+        sv_code = re.sub(r"parameter\s+time\s+.*", "", sv_code)
+        sv_code = re.sub(r"parameter\s+(integer|real|string)\s+", "parameter ", sv_code)
+
         # Hack: Get rid of the icarus verilog dependency
         # We ignore the preprocessor directives and go straight to the parser
         parser.preprocess = lambda: sv_code
@@ -235,7 +244,7 @@ class ExternalModule(Blackbox):
         io_param_result = [
             node
             for node in bfs_over_ast(modules[0], (ast.Input, ast.Output, ast.Parameter))
-            if not isinstance(node, (ast.Localparam, ast.Supply))
+            if not isinstance(node, (ast.Localparam, ast.Supply))  # Exclude Supply, it's a bug in pyverilog
         ]
         params = [node for node in io_param_result if isinstance(node, ast.Parameter)]
         ports = [node for node in io_param_result if not isinstance(node, ast.Parameter)]
