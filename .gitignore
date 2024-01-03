@@ -165,3 +165,5 @@ sim_build/
 
 poetry.lock
 .ruff_cache/
+
+**/parsetab.py

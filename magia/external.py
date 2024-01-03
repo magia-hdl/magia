@@ -104,7 +104,10 @@ class ExternalModule(Blackbox):
         signed = port.signed
 
         # Assume LSB == 0
-        width = self._resolve_node(self.ports_from_code[port_name].width.msb) + 1
+        if not port.width:
+            width = 1
+        else:
+            width = self._resolve_node(self.ports_from_code[port_name].width.msb) + 1
         return port_class(name=name, width=width, signed=signed)
 
     def _resolve_node(self, node: ast.Node):
@@ -239,11 +242,11 @@ class ExternalModule(Blackbox):
 
         if any(port.dimensions for port in ports):
             raise NotImplementedError("Array ports not supported")
-        if any(not port.width for port in ports):
-            raise NotImplementedError("Un-sized ports not supported")
         if any(
-                not isinstance(port.width.lsb, ast.IntConst) or
-                int(port.width.lsb.value) != 0
+                port.width and (
+                        not isinstance(port.width.lsb, ast.IntConst) or
+                        int(port.width.lsb.value) != 0
+                )
                 for port in ports
         ):
             raise NotImplementedError("Ports with non-zero LSB not supported")
