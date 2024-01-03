@@ -34,7 +34,11 @@ class ExternalModule(Blackbox):
         }
         super().__init__(**sub_kwargs)
         self._params_override = {
-            key: ast.Parameter(name=key, value=ast.IntConst(value))
+            key: ast.Parameter(name=key, value={
+                int: ast.IntConst,
+                float: ast.FloatConst,
+                str: ast.StringConst,
+            }[type(value)](value))
             for key, value in kwargs.items()
             if key in self.params_from_code
         }
@@ -60,9 +64,12 @@ class ExternalModule(Blackbox):
 
         param_list = []
         for param in self._params_override:
+            value = self._resolve_param(param)
+            if isinstance(value, str):
+                value = f'"{value}"'
             param_list.append(self._PARAM_TEMPLATE.substitute(
                 param_name=param,
-                param_value=self._resolve_param(param),
+                param_value=value,
             ))
         param_list = ",\n".join(param_list)
 
@@ -106,6 +113,8 @@ class ExternalModule(Blackbox):
             return int(node.value)
         if isinstance(node, ast.FloatConst):
             return float(node.value)
+        if isinstance(node, ast.StringConst):
+            return node.value
 
         # Resolve Parameter Identifier
         if isinstance(node, ast.Identifier):
