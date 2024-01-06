@@ -131,6 +131,9 @@ if __name__ == "__main__":
 The project is still a personal project, in a very early stage.
 Feel free to open an issue for any bug / feature wishlist.
 
+We also have a [Contribution Guideline](docs/CONTRIBUTING.md) and [Code of Conduct](docs/CODE_OF_CONDUCT.md).
+Please take a look before you contribute.
+
 In case you are interested in this project, contact me via:
 https://github.com/khwong-c
 
