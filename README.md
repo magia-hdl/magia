@@ -124,6 +124,7 @@ if __name__ == "__main__":
 - [Syntax Documentation](docs/syntax.md)
 - [Elaborate Designs](docs/elaborate.md)
 - [Memory Syntax](docs/memory.md)
+- [External Module](docs/external_module.md)
 
 ## Contributing
 
