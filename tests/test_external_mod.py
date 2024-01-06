@@ -229,3 +229,33 @@ class TestExternalModSyntax:
         mod = ExternalModule.from_code(code, "Mod1")(BASE=16)
         assert mod.params == {"WIDTH": 32, "BASE": 16}
         assert len(mod.io.dout) == 32
+
+    def test_directive_propagation(self):
+        code = """
+        `define ABC 12+3
+        module Mod1 #(
+            parameter WIDTH = `ABC
+        ) (
+            input clk,
+            input logic [WIDTH-1:0] addr,
+            output logic [WIDTH-1:0] dout
+        );
+        endmodule
+        """
+        mod = ExternalModule.from_code(code, "Mod1")()
+        assert len(mod.io.addr) == 15
+        assert len(mod.io.dout) == 15
+
+    def test_clog2(self):
+        code = """
+        module Mod1 #(
+            parameter MEM_SIZE = 1024
+        ) (
+            input clk,
+            input logic [$clog2(MEM_SIZE)-1:0] addr,
+            output logic [15:0] dout
+        );
+        endmodule
+        """
+        mod = ExternalModule.from_code(code, "Mod1")()
+        assert len(mod.io.addr) == 10

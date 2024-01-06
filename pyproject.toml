@@ -39,7 +39,7 @@ keywords = [
 
 [tool.poetry.dependencies]
 python = "^3.9"
-pyverilog = "~1.3.0"
+hdlConvertor-binary = "~2.3"
 
 [tool.poetry.group.dev.dependencies]
 cocotb = "*"

@@ -1,16 +1,37 @@
-import re
 from os import PathLike
 from pathlib import Path
 from string import Template
 
-import pyverilog.vparser.ast as ast
-from pyverilog.vparser.parser import VerilogCodeParser
+import hdlConvertorAst.hdlAst as ast
+from hdlConvertor import HdlConvertor
+from hdlConvertorAst.language import Language
 
 from .core import Input, Output
 from .module import Blackbox, Module
 
+_ACCEPTABLE_BINARY_OPS = {
+    ast.HdlOpType.SUB,
+    ast.HdlOpType.ADD,
+    ast.HdlOpType.DIV,
+    ast.HdlOpType.MUL,
+    ast.HdlOpType.MOD,
+    ast.HdlOpType.REM,
+    ast.HdlOpType.POW,
+    ast.HdlOpType.SLL,
+    ast.HdlOpType.SRL,
+    ast.HdlOpType.SLA,
+    ast.HdlOpType.SRA,
+    ast.HdlOpType.EQ,
+    ast.HdlOpType.NE,
+    ast.HdlOpType.GT,
+    ast.HdlOpType.GE,
+    ast.HdlOpType.LT,
+    ast.HdlOpType.LE,
+    ast.HdlOpType.DOWNTO,
+}
 
-class ExternalModule(Blackbox):
+
+class ExternalModule(Module):
     """
     Imported SystemVerilog Module
     """
@@ -18,8 +39,8 @@ class ExternalModule(Blackbox):
     _IO_TEMPLATE = Template(".$port_name($port_name)")
     _PARAM_TEMPLATE = Template(".$param_name($param_value)")
 
-    ports_from_code: dict[str, ast.Node] = {}
-    params_from_code: dict[str, ast.Node] = {}
+    ports_from_code: dict[str, ast.iHdlObj] = {}
+    params_from_code: dict[str, ast.iHdlObj] = {}
     ext_module_name: str = ""
 
     def __init__(self, **kwargs):
@@ -35,14 +56,18 @@ class ExternalModule(Blackbox):
         }
         super().__init__(**sub_kwargs)
         self._params_override = {
-            key: ast.Parameter(name=key, value={
-                int: ast.IntConst,
-                float: ast.FloatConst,
-                str: ast.StringConst,
-            }[type(value)](value))
-            for key, value in kwargs.items()
+            key: ast.HdlIdDef()
+            for key in kwargs
             if key in self.params_from_code
         }
+
+        for key, value in self._params_override.items():
+            value.name = key
+            if isinstance(kwargs[key], (str, float)):
+                value.value = kwargs[key]
+            if isinstance(kwargs[key], (str, int)):
+                value.value = ast.HdlValueInt(str(kwargs[key]), None, 10)
+
         self._params = {
             **self.params_from_code,
             **self._params_override,
@@ -96,78 +121,79 @@ class ExternalModule(Blackbox):
 
     def _create_port(self, port_name: str):
         port = self.ports_from_code[port_name]
-
-        port_class = Input
-        if isinstance(port, ast.Output):
-            port_class = Output
+        port_class = {
+            ast.HdlDirection.IN: Input,
+            ast.HdlDirection.OUT: Output,
+            ast.HdlDirection.INOUT: Input,  # Fix this one when we implement inout port support
+        }[port.direction]
 
         name = port.name
-        signed = port.signed
+        signed = False
+        width = 1
 
-        # Assume LSB == 0
-        if not port.width:
-            width = 1
-        else:
-            width = self._resolve_node(self.ports_from_code[port_name].width.msb) + 1
+        # More details from the port declaration
+        if isinstance(port.type, ast.HdlOp) and port.type.fn == ast.HdlOpType.PARAMETRIZATION:
+            # Determine if port is signed
+            _, port_width, port_signed = port.type.ops
+            signed = bool(self._resolve_node(port_signed))
+            width = self._resolve_node(port_width) + 1
+
         return port_class(name=name, width=width, signed=signed)
 
-    def _resolve_node(self, node: ast.Node):
+    def _resolve_node(self, node: ast.iHdlObj):
         # Resolve Constants
-        if isinstance(node, ast.IntConst):
-            return int(node.value)
-        if isinstance(node, ast.FloatConst):
-            return float(node.value)
-        if isinstance(node, ast.StringConst):
-            return node.value
+        if node is None:
+            return 0
+        if isinstance(node, (float, str)):
+            return node
+        if isinstance(node, ast.HdlValueInt):
+            return int(node.val, node.base) if isinstance(node.val, str) else node.val
 
         # Resolve Parameter Identifier
-        if isinstance(node, ast.Identifier):
-            return self._resolve_param(node.name)
-        # Resolve Variables
-        if isinstance(node, ast.Rvalue):
-            return self._resolve_node(node.var)
+        if isinstance(node, ast.HdlValueId):
+            return self._resolve_param(node.val)
 
         # Resolve Operators
-        if isinstance(node, ast.Operator):
-            # Handle Conditional Operator
-            if isinstance(node, ast.Cond):
-                cond = self._resolve_node(node.cond)
-                true_value = self._resolve_node(node.true_value)
-                false_value = self._resolve_node(node.false_value)
-                return true_value if cond else false_value
-            # Unary Operators
-            if isinstance(node, ast.UnaryOperator):
-                rvalue = self._resolve_node(node.right)
-                node_class = type(node)
+        if isinstance(node, ast.HdlOp):
+            if node.fn == ast.HdlOpType.INDEX:
+                raise NotImplementedError("Unpacked Port is not supported")
+            if node.fn == ast.HdlOpType.PARAMETRIZATION:
+                _, width, _ = node.ops
+                return self._resolve_node(width)
+            if node.fn == ast.HdlOpType.CALL:
+                # Only support $clog2
+                if node.ops[0].val == "$clog2":
+                    op = self._resolve_node(node.ops[1])
+                    return max((op-1).bit_length(), 0)
+                raise NotImplementedError(f"Function {node.ops[0].val} not supported")
+            if node.fn == ast.HdlOpType.MINUS_UNARY:
+                return -self._resolve_node(node.ops[0])
+            if node.fn in _ACCEPTABLE_BINARY_OPS:
+                op1, op2 = node.ops
+                op1 = self._resolve_node(op1)
+                op2 = self._resolve_node(op2)
                 return {
-                    ast.Uplus: lambda x: x,
-                    ast.Uminus: lambda x: -x,
-                    ast.Unot: lambda x: 0 if x else 1,
-                }[node_class](rvalue)
-            # Other Operators
-            lvalue = self._resolve_node(node.left)
-            rvalue = self._resolve_node(node.right)
-            node_class = type(node)
-            return {
-                ast.Plus: lambda x, y: x + y,
-                ast.Minus: lambda x, y: x - y,
-                ast.Times: lambda x, y: x * y,
-                ast.Divide: lambda x, y: x // y,
-                ast.Mod: lambda x, y: x % y,
-                ast.Power: lambda x, y: x ** y,
-                ast.Sll: lambda x, y: x << y,
-                ast.Srl: lambda x, y: x >> y,
-                ast.Sla: lambda x, y: x << y,
-                ast.Sra: lambda x, y: x >> y,
-                ast.LessThan: lambda x, y: 1 if x < y else 0,
-                ast.LessEq: lambda x, y: 1 if x <= y else 0,
-                ast.GreaterThan: lambda x, y: 1 if x > y else 0,
-                ast.GreaterEq: lambda x, y: 1 if x >= y else 0,
-                ast.Eq: lambda x, y: 1 if x == y else 0,
-                ast.NotEq: lambda x, y: 1 if x != y else 0,
-                ast.Eql: lambda x, y: 1 if x == y else 0,
-                ast.NotEql: lambda x, y: 1 if x != y else 0,
-            }[node_class](lvalue, rvalue)
+                    ast.HdlOpType.SUB: lambda x, y: x - y,
+                    ast.HdlOpType.ADD: lambda x, y: x + y,
+                    ast.HdlOpType.DIV: lambda x, y: x // y,
+                    ast.HdlOpType.MUL: lambda x, y: x * y,
+                    ast.HdlOpType.MOD: lambda x, y: x % y,
+                    ast.HdlOpType.REM: lambda x, y: x % y,
+                    ast.HdlOpType.POW: lambda x, y: x ** y,
+                    ast.HdlOpType.SLL: lambda x, y: x << y,
+                    ast.HdlOpType.SRL: lambda x, y: x >> y,
+                    ast.HdlOpType.SLA: lambda x, y: x << y,
+                    ast.HdlOpType.SRA: lambda x, y: x >> y,
+                    ast.HdlOpType.EQ: lambda x, y: 1 if x == y else 0,
+                    ast.HdlOpType.NE: lambda x, y: 1 if x != y else 0,
+                    ast.HdlOpType.GT: lambda x, y: 1 if x > y else 0,
+                    ast.HdlOpType.GE: lambda x, y: 1 if x >= y else 0,
+                    ast.HdlOpType.LT: lambda x, y: 1 if x < y else 0,
+                    ast.HdlOpType.LE: lambda x, y: 1 if x <= y else 0,
+                    ast.HdlOpType.DOWNTO: lambda x, y: abs(x - y),
+                }[node.fn](op1, op2)
+
+            raise NotImplementedError(f"Operator {node.fn.name} not supported")
 
         raise NotImplementedError(f"Node {node.__class__.__name__} not supported")
 
@@ -207,66 +233,27 @@ class ExternalModule(Blackbox):
         })
 
     @staticmethod
-    def parse_sv(sv_code: str, top_name: str) -> tuple[dict[str, ast.Node], dict[str, ast.Node]]:
+    def parse_sv(sv_code: str, top_name: str) -> tuple[dict[str, ast.iHdlObj], dict[str, ast.iHdlObj]]:
         """
         Parse SV Code and return a dictionary of ports and parameters
         """
-
-        def bfs_over_ast(ast_root, node_type):
-            search_list = [ast_root]
-            result = []
-            while search_list:
-                node = search_list.pop()
-                if isinstance(node, node_type):
-                    result.append(node)
-                else:
-                    search_list += node.children()
-            return result
-
-        parser = VerilogCodeParser([], debug=False)
-
-        # Hack: Pyverilog does not support parameter types
-        # e.g. parameter integer WIDTH = 8;
-        # We remove the type from the parameters
-        # We also remove all time type parameters
-        # (The program will fail if a time type parameter is at the end of the parameter list)
-        sv_code = re.sub(r"parameter\s+time\s+.*", "", sv_code)
-        sv_code = re.sub(r"parameter\s+(integer|real|string)\s+", "parameter ", sv_code)
-
-        # Hack: Get rid of the icarus verilog dependency
-        # We ignore the preprocessor directives and go straight to the parser
-        parser.preprocess = lambda: sv_code
-        source = parser.parse()
-        modules = [m for m in source.description.definitions if m.name == top_name]
+        parser = HdlConvertor()
+        source = parser.parse_str(sv_code, Language.SYSTEM_VERILOG_2017, [], hierarchyOnly=False, debug=True)
+        modules = [
+            m.dec for m in source.objs
+            if isinstance(m, ast.HdlModuleDef) and m.dec.name == top_name
+        ]
         if not modules:
             raise ValueError(f"Could not find module {top_name} in {sv_code}")
 
-        io_param_result = [
-            node
-            for node in bfs_over_ast(modules[0], (ast.Input, ast.Output, ast.Parameter))
-            if not isinstance(node, (ast.Localparam, ast.Supply))  # Exclude Supply, it's a bug in pyverilog
-        ]
-        params = [node for node in io_param_result if isinstance(node, ast.Parameter)]
-        ports = [node for node in io_param_result if not isinstance(node, ast.Parameter)]
-
-        if any(port.dimensions for port in ports):
-            raise NotImplementedError("Array ports not supported")
-        if any(
-                port.width and (
-                        not isinstance(port.width.lsb, ast.IntConst) or
-                        int(port.width.lsb.value) != 0
-                )
-                for port in ports
-        ):
-            raise NotImplementedError("Ports with non-zero LSB not supported")
-
         port_dict = {
             port.name: port
-            for port in ports
+            for port in modules[0].ports
         }
         params_dict = {
-            param.name: param
-            for param in params
+            p.name: p
+            for p in modules[0].params
+            if not(hasattr(p.type, "val") and p.type.val == "time")
         }
 
         return port_dict, params_dict
