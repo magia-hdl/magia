@@ -157,7 +157,7 @@ files = [
 name = "hdlconvertor-binary"
 version = "2.3"
 description = "VHDL and System Verilog parser written in c++"
-category = "main"
+category = "dev"
 optional = false
 python-versions = "*"
 files = [
@@ -176,7 +176,7 @@ hdlConvertorAst = ">=1.0"
 name = "hdlconvertorast"
 version = "1.2"
 description = "A library of AST nodes for HDL languages (Verilog, VHDL, ...) and transpiler/compiler utilities"
-category = "main"
+category = "dev"
 optional = false
 python-versions = "*"
 files = [
@@ -512,4 +512,4 @@ test = ["packaging", "pytest (>=6.0.1)", "python-dateutil (>=2.8.0,<3.0.0)", "py
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "5c6dbd082bf70a2a556ba6d4c102f39162f9940f4eb456fa0cac2a81603b7295"
+content-hash = "22b3c546efb4cf0bd0672b924d816ea6a48e86b97b32d209c69a226484ccc3a9"
