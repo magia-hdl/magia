@@ -15,7 +15,7 @@ ignore = ["F821", "A003"]
 
 [tool.poetry]
 name = "syn-magia"
-version = "0.2.0"
+version = "0.3.0"
 description = "Magia generates Synthesizable SystemVerilog in pythonic syntax"
 readme = "README.md"
 authors = ["khwong-c64 <kin.hin.wong.c@gmail.com>"]
