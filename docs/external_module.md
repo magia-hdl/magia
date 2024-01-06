@@ -10,6 +10,17 @@ Common Use-cases are importing IP core such as:
 - Processor / Controller Cores.
 - Verification IP such as SVA modules.
 
+## Prerequisite
+
+We need to install [hdlConvertor](https://github.com/Nic30/hdlConvertor) for this feature.
+
+Run the following command to install hdlConvertor, if you are running on Linux X86_64:
+
+```bash
+pip install hdlConvertor-binary
+```
+For other platforms, please refer to the official site of [hdlConvertor](https://github.com/Nic30/hdlConvertor)
+
 ## Examples
 
 ```python
