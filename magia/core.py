@@ -192,7 +192,6 @@ class Signal(Synthesizable):
         signal = Signal(
             width=len(self),
             signed=signed,
-            name=self.name,
             parent_bundle=None,
         )
         signal <<= self
@@ -208,7 +207,9 @@ class Signal(Synthesizable):
         :return: A new signal with the new configuration.
         """
         if width == len(self):
-            signal = self.copy(
+            signal = Signal(
+                width=width,
+                signed=self.signed,
                 parent_bundle=None,
             )
             signal <<= self
@@ -435,6 +436,10 @@ class Signal(Synthesizable):
         return self.__matmul__(other)
 
     def __len__(self):
+        return self.width
+
+    @property
+    def width(self):
         return self._config.width
 
     def reg(
