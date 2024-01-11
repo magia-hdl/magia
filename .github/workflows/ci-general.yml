@@ -43,3 +43,37 @@ jobs:
         pytest_github_report: true
       run: |
         poetry run pytest -n auto tests
+
+
+  Deploy:
+
+    runs-on: ubuntu-latest
+    needs:
+      - RunTests
+    if: ${{ startsWith(github.ref, 'refs/tags/v') && success() }}
+
+    steps:
+    - name: Checkout Source
+      uses: actions/checkout@v4
+    - name: Install poetry
+      run: pipx install poetry
+    - name: Set up Poetry
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.10"
+        cache: 'poetry'
+        cache-dependency-path: poetry.lock
+    - name: Install dependencies
+      run: |
+        poetry install --no-interaction  --with=dev
+
+    - name: Setup Credential
+      env:
+        PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
+      run: |
+       poetry config pypi-token.pypi "$PYPI_TOKEN" 
+
+    - name: Publish to PyPi
+      run: |
+        poetry build
+        poetry publish
