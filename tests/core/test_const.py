@@ -7,8 +7,6 @@ from cocotb_test.simulator import run as sim_run
 import tests.helper as helper
 from magia import Constant, Module, Output
 
-cocotb_test_prefix = "coco_"
-
 test_constants = [
     # Format: (value, width, signed) # noqa: ERA001
     (0, 8, False),

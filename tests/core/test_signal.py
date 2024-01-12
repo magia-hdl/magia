@@ -8,8 +8,6 @@ from cocotb_test.simulator import run as sim_run
 import tests.helper as helper
 from magia import Elaborator, Input, Module, Output, Signal
 
-cocotb_test_prefix = "coco_"
-
 
 @cocotb.test()
 async def adder_test(dut):
