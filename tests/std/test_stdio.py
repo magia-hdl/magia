@@ -2,11 +2,11 @@ import random
 from pathlib import Path
 
 import cocotb
-import pytest
 from cocotb.clock import Clock
 from cocotb.triggers import FallingEdge
 from cocotb_test.simulator import run as sim_run
 
+import tests.helper as helper
 from magia import Input, Module
 from magia.std.bundles import StdIO
 
@@ -58,7 +58,7 @@ class TestStdIOBundle:
                 self.io.dout <<= reg
                 self.io.dout_valid <<= self.io.din_valid
 
-        with pytest.elaborate_to_file(
+        with helper.elaborate_to_file(
                 TopModule(name=self.TOP)
         ) as filename:
             sim_run(

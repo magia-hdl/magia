@@ -4,10 +4,10 @@ from pathlib import Path
 import cocotb
 import pytest
 from cocotb.clock import Clock
-from cocotb.regression import TestFactory
 from cocotb.triggers import FallingEdge
 from cocotb_test.simulator import run as sim_run
 
+import tests.helper as helper
 from magia import Input, Module, Output
 
 cocotb_test_prefix = "coco_"
@@ -65,8 +65,7 @@ async def reg_feature_test(dut, enable, reset, async_reset):
         prev_q = dut.q.value
 
 
-reg_test_opts = ["enable", "reset", "async_reset"]
-reg_test_opts_val = [
+test_gen, reg_test_params, reg_test_values = helper.parameterized_testbench(reg_feature_test, [
     (False, False, False),
     (False, False, True),
     (False, True, False),
@@ -75,16 +74,8 @@ reg_test_opts_val = [
     (True, False, True),
     (True, True, False),
     (True, True, True),
-]
-reg_test_pytest_param = ",".join(reg_test_opts + ["cocotb_testcase"])
-reg_test_pytest_param_val = [
-    val + (f"{cocotb_test_prefix}reg_feature_test_{i + 1:03d}",)
-    for i, val in enumerate(reg_test_opts_val)
-]
-
-tf_reg_test = TestFactory(test_function=reg_feature_test)
-tf_reg_test.add_option(reg_test_opts, reg_test_opts_val)
-tf_reg_test.generate_tests(prefix=cocotb_test_prefix)
+])
+test_gen()
 
 
 @cocotb.test()
@@ -169,9 +160,9 @@ class TestRegisters:
         def width(self):
             return 8
 
-    @pytest.mark.parametrize(reg_test_pytest_param, reg_test_pytest_param_val)
+    @pytest.mark.parametrize(reg_test_params, reg_test_values)
     def test_register_features(self, enable, reset, async_reset, cocotb_testcase, temp_build_dir):
-        with pytest.elaborate_to_file(
+        with helper.elaborate_to_file(
                 self.ParamRegister(enable, reset, async_reset, name=self.TOP)
         ) as filename:
             sim_run(
@@ -186,7 +177,7 @@ class TestRegisters:
             )
 
     def test_register_multi_stage(self, temp_build_dir):
-        with pytest.elaborate_to_file(
+        with helper.elaborate_to_file(
                 self.MultiStageRegister(name=self.TOP)
         ) as filename:
             sim_run(

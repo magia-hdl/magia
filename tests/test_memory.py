@@ -1,11 +1,11 @@
 from pathlib import Path
 
 import cocotb
-import pytest
 from cocotb.clock import Clock
 from cocotb.triggers import FallingEdge
 from cocotb_test.simulator import run as sim_run
 
+import tests.helper as helper
 from magia import Input, Memory, Module, Output
 
 
@@ -118,7 +118,7 @@ class TestMemory:
 
     def test_sp_write_through(self, temp_build_dir):
         ram = self.SPRAM(rw_write_through=True, name=self.TOP)
-        with pytest.elaborate_to_file(ram) as filename:
+        with helper.elaborate_to_file(ram) as filename:
             sim_run(
                 simulator="verilator",  # simulator
                 verilog_sources=[filename],  # sources
@@ -132,7 +132,7 @@ class TestMemory:
 
     def test_sp_read_first(self, temp_build_dir):
         ram = self.SPRAM(rw_write_through=False, name=self.TOP)
-        with pytest.elaborate_to_file(ram) as filename:
+        with helper.elaborate_to_file(ram) as filename:
             sim_run(
                 simulator="verilator",  # simulator
                 verilog_sources=[filename],  # sources
@@ -146,7 +146,7 @@ class TestMemory:
 
     def test_sp_en_over_wen(self, temp_build_dir):
         ram = self.SPRAM(rw_write_through=False, en=True, name=self.TOP)
-        with pytest.elaborate_to_file(ram) as filename:
+        with helper.elaborate_to_file(ram) as filename:
             sim_run(
                 simulator="verilator",  # simulator
                 verilog_sources=[filename],  # sources
@@ -160,7 +160,7 @@ class TestMemory:
 
     def test_sdp_read_first(self, temp_build_dir):
         ram = self.SDPRAM(name=self.TOP)
-        with pytest.elaborate_to_file(ram) as filename:
+        with helper.elaborate_to_file(ram) as filename:
             sim_run(
                 simulator="verilator",  # simulator
                 verilog_sources=[filename],  # sources

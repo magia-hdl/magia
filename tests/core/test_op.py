@@ -5,13 +5,10 @@ from pathlib import Path
 import cocotb
 import cocotb.clock
 import pytest
-from cocotb.regression import TestFactory
 from cocotb_test.simulator import run as sim_run
 
+import tests.helper as helper
 from magia import Elaborator, Input, Module, Output
-
-cocotb_test_prefix = "coco_"
-
 
 #############################
 # Test for When and Case operations
@@ -74,6 +71,20 @@ async def case_as_mux(dut, selector, selection: dict[int, int]):
                 assert dut.q.value != getattr(dut, f"d_{i}").value
 
 
+gen_test, case_as_mux_params, case_as_mux_values = helper.parameterized_testbench(
+    case_as_mux, [
+        (1, {1: 0}),
+        (1, {0: 0, 1: 1}),
+        (2, {0: 0, 3: 2}),
+        (2, {0: 0, 1: 1, 3: 2}),
+        (2, {0: 0, 1: 1, 2: 2, 3: 3}),
+        (3, {0: 0, 4: 1}),
+        (3, {i: i for i in range(8)}),
+    ],
+)
+gen_test()
+
+
 @cocotb.test()
 async def case_as_lut(dut):
     """ Test if the `case` operator works as a LUT """
@@ -85,26 +96,6 @@ async def case_as_lut(dut):
         ref_out = getattr(dut, f"lut_{a}")
 
         assert dut.q.value == ref_out, f"Expected {ref_out}, got {dut.q.value} on Entry {i}."
-
-
-case_as_mux_test_opts = ["selector", "selection"]
-case_as_mux_test_opts_val: list = [
-    (1, {1: 0}),
-    (1, {0: 0, 1: 1}),
-    (2, {0: 0, 3: 2}),
-    (2, {0: 0, 1: 1, 3: 2}),
-    (2, {0: 0, 1: 1, 2: 2, 3: 3}),
-    (3, {0: 0, 4: 1}),
-    (3, {i: i for i in range(8)}),
-]
-case_as_mux_pytest_param = ",".join(case_as_mux_test_opts + ["cocotb_testcase"])
-case_as_mux_pytest_param_val = [
-    val + (f"{cocotb_test_prefix}case_as_mux_{i + 1:03d}",)
-    for i, val in enumerate(case_as_mux_test_opts_val)
-]
-tf_reg_test = TestFactory(test_function=case_as_mux)
-tf_reg_test.add_option(case_as_mux_test_opts, case_as_mux_test_opts_val)
-tf_reg_test.generate_tests(prefix=cocotb_test_prefix)
 
 
 #############################
@@ -208,7 +199,7 @@ class TestWhenCase:
 
                 self.io.q <<= self.io.a.when(self.io.sel, else_=self.io.b)
 
-        with pytest.elaborate_to_file(
+        with helper.elaborate_to_file(
                 SimpleMux(name=self.TOP)
         ) as filename:
             sim_run(
@@ -233,7 +224,7 @@ class TestWhenCase:
 
                 self.io.q <<= self.io.a.when(self.io.a != self.io.b, else_=0xF)
 
-        with pytest.elaborate_to_file(
+        with helper.elaborate_to_file(
                 Comparator(name=self.TOP)
         ) as filename:
             sim_run(
@@ -278,7 +269,7 @@ class TestWhenCase:
             # All cases exist, no default case and unique case is apply-able
             assert "unique case" in sv_code
 
-    @pytest.mark.parametrize(case_as_mux_pytest_param, case_as_mux_pytest_param_val)
+    @pytest.mark.parametrize(case_as_mux_params, case_as_mux_values)
     def test_case_as_mux(self, selector, selection, cocotb_testcase, temp_build_dir):
         class CaseMux(Module):
             def __init__(self, selector, selection, **kwargs):
@@ -294,7 +285,7 @@ class TestWhenCase:
                     for case, select in selection.items()
                 }, default=None)
 
-        with pytest.elaborate_to_file(
+        with helper.elaborate_to_file(
                 CaseMux(selector, selection, name=self.TOP)
         ) as filename:
             sim_run(
@@ -326,7 +317,7 @@ class TestWhenCase:
                 for i in case_as_lut_table:
                     self.io[f"lut_{i}"] <<= case_as_lut_table[i]
 
-        with pytest.elaborate_to_file(
+        with helper.elaborate_to_file(
                 CaseLut(name=self.TOP)
         ) as filename:
             sim_run(
@@ -371,7 +362,7 @@ class TestArithmetic:
                 self.io.qeq <<= self.io.a == self.io.b
                 self.io.qne <<= self.io.a != self.io.b
 
-        with pytest.elaborate_to_file(
+        with helper.elaborate_to_file(
                 Top(name=self.TOP)
         ) as filename:
             sim_run(
@@ -412,7 +403,7 @@ class TestArithmetic:
                 self.io.qeq <<= self.io.a == self.io.b
                 self.io.qne <<= self.io.a != self.io.b
 
-        with pytest.elaborate_to_file(
+        with helper.elaborate_to_file(
                 Top(name=self.TOP)
         ) as filename:
             sim_run(
@@ -441,7 +432,7 @@ class TestArithmetic:
                 self.io.qsub <<= (self.io.a - self.io.b).set_width(9)
                 self.io.qmul <<= (self.io.a * self.io.b).set_width(16)
 
-        with pytest.elaborate_to_file(
+        with helper.elaborate_to_file(
                 Top(name=self.TOP)
         ) as filename:
             sim_run(
@@ -470,7 +461,7 @@ class TestArithmetic:
                 self.io.qsub <<= (self.io.a - self.io.b).set_width(9)
                 self.io.qmul <<= (self.io.a * self.io.b).set_width(16)
 
-        with pytest.elaborate_to_file(
+        with helper.elaborate_to_file(
                 Top(name=self.TOP)
         ) as filename:
             sim_run(
@@ -508,7 +499,7 @@ class TestArithmetic:
                 self.io.all <<= self.io.a.all()
                 self.io.parity <<= self.io.a.parity()
 
-        with pytest.elaborate_to_file(
+        with helper.elaborate_to_file(
                 Top(name=self.TOP)
         ) as filename:
             sim_run(

@@ -4,9 +4,8 @@ import cocotb.clock
 import pytest
 from cocotb_test.simulator import run as sim_run
 
+import tests.helper as helper
 from magia import Constant, Module, Output
-
-cocotb_test_prefix = "coco_"
 
 test_constants = [
     # Format: (value, width, signed) # noqa: ERA001
@@ -69,7 +68,7 @@ class TestSvConstant:
     TOP = "AssignmentModule"
 
     def test_sv_constant_integers(self, temp_build_dir):
-        with pytest.elaborate_to_file(
+        with helper.elaborate_to_file(
                 AssignmentModule(test_constants, name=self.TOP)
         ) as filename:
             sim_run(
