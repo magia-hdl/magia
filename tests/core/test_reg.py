@@ -8,6 +8,7 @@ from cocotb.regression import TestFactory
 from cocotb.triggers import FallingEdge
 from cocotb_test.simulator import run as sim_run
 
+import tests.helper as helper
 from magia import Input, Module, Output
 
 cocotb_test_prefix = "coco_"
@@ -171,7 +172,7 @@ class TestRegisters:
 
     @pytest.mark.parametrize(reg_test_pytest_param, reg_test_pytest_param_val)
     def test_register_features(self, enable, reset, async_reset, cocotb_testcase, temp_build_dir):
-        with pytest.elaborate_to_file(
+        with helper.elaborate_to_file(
                 self.ParamRegister(enable, reset, async_reset, name=self.TOP)
         ) as filename:
             sim_run(
@@ -186,7 +187,7 @@ class TestRegisters:
             )
 
     def test_register_multi_stage(self, temp_build_dir):
-        with pytest.elaborate_to_file(
+        with helper.elaborate_to_file(
                 self.MultiStageRegister(name=self.TOP)
         ) as filename:
             sim_run(

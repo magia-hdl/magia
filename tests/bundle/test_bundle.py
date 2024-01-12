@@ -2,9 +2,9 @@ import random
 from pathlib import Path
 
 import cocotb.clock
-import pytest
 from cocotb_test.simulator import run as sim_run
 
+import tests.helper as helper
 from magia import Input, Module, Output, Signal
 
 
@@ -46,7 +46,7 @@ class TestBundle:
                 bundles[1].d <<= bundles[0].q
                 self.io.q <<= bundles[1].q
 
-        with pytest.elaborate_to_file(
+        with helper.elaborate_to_file(
                 TopModule(name=self.TOP)
         ) as filename:
             sim_run(
@@ -86,7 +86,7 @@ class TestBundle:
                 bundles[1].d <<= bundles[0].q
                 self.io.q <<= bundles[1].q
 
-        with pytest.elaborate_to_file(
+        with helper.elaborate_to_file(
                 TopModule(name=self.TOP)
         ) as filename:
             sim_run(

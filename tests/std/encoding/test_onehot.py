@@ -6,6 +6,7 @@ from cocotb.regression import TestFactory
 from cocotb.triggers import Timer
 from cocotb_test.simulator import run as sim_run
 
+import tests.helper as helper
 from magia import Input, Module, Output
 from magia.std.encoding import binary_to_onehot, onehot_to_binary
 
@@ -88,7 +89,7 @@ class TestOneHot:
 
     @pytest.mark.parametrize(onehot_with_width_pytest_param, onehot_with_width_pytest_param_val)
     def test_width(self, width, cocotb_testcase, temp_build_dir):
-        with pytest.elaborate_to_file(
+        with helper.elaborate_to_file(
                 self.OneHotLoop(width=width, name=self.TOP)
         ) as filename:
             sim_run(
@@ -104,7 +105,7 @@ class TestOneHot:
 
     @pytest.mark.parametrize(onehot_with_max_value_pytest_param, onehot_with_max_value_pytest_param_val)
     def test_max_value(self, max_value, cocotb_testcase, temp_build_dir):
-        with pytest.elaborate_to_file(
+        with helper.elaborate_to_file(
                 self.OneHotLoopWithMax(max_value, name=self.TOP)
         ) as filename:
             sim_run(

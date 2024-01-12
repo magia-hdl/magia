@@ -1,6 +1,7 @@
 import pytest
 from cocotb.runner import get_runner
 
+import tests.helper as helper
 from magia import Input, Module, Output
 
 
@@ -58,7 +59,7 @@ class TestSmokeCompile:
                 accumulator ^= self.io.a
                 self.io.q_accumulated <<= accumulator
 
-        with pytest.elaborate_to_file(
+        with helper.elaborate_to_file(
                 TopModule(width=width, name=self.TOP)
         ) as filename:
             self.compile_sv(filename, temp_build_dir)

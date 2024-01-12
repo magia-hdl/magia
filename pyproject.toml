@@ -51,3 +51,6 @@ hdlConvertor-binary = "~2.3"
 
 [project.urls]
 Repository = "https://github.com/khwong-c/syn-magia"
+
+[tool.pytest.ini_options]
+norecursedirs = "tests/helpers"

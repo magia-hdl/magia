@@ -3,9 +3,9 @@ from pathlib import Path
 
 import cocotb
 import cocotb.clock
-import pytest
 from cocotb_test.simulator import run as sim_run
 
+import tests.helper as helper
 from magia import Elaborator, Input, Module, Output, Signal
 
 cocotb_test_prefix = "coco_"
@@ -66,7 +66,7 @@ class TestSignalManipulate:
                 # A + B usually has width of 4, but we can change it to 5
                 self.io.q <<= (self.io.a + self.io.b).set_width(5)
 
-        with pytest.elaborate_to_file(Top(name=self.TOP)) as filename:
+        with helper.elaborate_to_file(Top(name=self.TOP)) as filename:
             sim_run(
                 simulator="verilator",  # simulator
                 verilog_sources=[filename],  # sources

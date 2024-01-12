@@ -8,6 +8,7 @@ import pytest
 from cocotb.regression import TestFactory
 from cocotb_test.simulator import run as sim_run
 
+import tests.helper as helper
 from magia import Elaborator, Input, Module, Output
 
 cocotb_test_prefix = "coco_"
@@ -208,7 +209,7 @@ class TestWhenCase:
 
                 self.io.q <<= self.io.a.when(self.io.sel, else_=self.io.b)
 
-        with pytest.elaborate_to_file(
+        with helper.elaborate_to_file(
                 SimpleMux(name=self.TOP)
         ) as filename:
             sim_run(
@@ -233,7 +234,7 @@ class TestWhenCase:
 
                 self.io.q <<= self.io.a.when(self.io.a != self.io.b, else_=0xF)
 
-        with pytest.elaborate_to_file(
+        with helper.elaborate_to_file(
                 Comparator(name=self.TOP)
         ) as filename:
             sim_run(
@@ -294,7 +295,7 @@ class TestWhenCase:
                     for case, select in selection.items()
                 }, default=None)
 
-        with pytest.elaborate_to_file(
+        with helper.elaborate_to_file(
                 CaseMux(selector, selection, name=self.TOP)
         ) as filename:
             sim_run(
@@ -326,7 +327,7 @@ class TestWhenCase:
                 for i in case_as_lut_table:
                     self.io[f"lut_{i}"] <<= case_as_lut_table[i]
 
-        with pytest.elaborate_to_file(
+        with helper.elaborate_to_file(
                 CaseLut(name=self.TOP)
         ) as filename:
             sim_run(
@@ -371,7 +372,7 @@ class TestArithmetic:
                 self.io.qeq <<= self.io.a == self.io.b
                 self.io.qne <<= self.io.a != self.io.b
 
-        with pytest.elaborate_to_file(
+        with helper.elaborate_to_file(
                 Top(name=self.TOP)
         ) as filename:
             sim_run(
@@ -412,7 +413,7 @@ class TestArithmetic:
                 self.io.qeq <<= self.io.a == self.io.b
                 self.io.qne <<= self.io.a != self.io.b
 
-        with pytest.elaborate_to_file(
+        with helper.elaborate_to_file(
                 Top(name=self.TOP)
         ) as filename:
             sim_run(
@@ -441,7 +442,7 @@ class TestArithmetic:
                 self.io.qsub <<= (self.io.a - self.io.b).set_width(9)
                 self.io.qmul <<= (self.io.a * self.io.b).set_width(16)
 
-        with pytest.elaborate_to_file(
+        with helper.elaborate_to_file(
                 Top(name=self.TOP)
         ) as filename:
             sim_run(
@@ -470,7 +471,7 @@ class TestArithmetic:
                 self.io.qsub <<= (self.io.a - self.io.b).set_width(9)
                 self.io.qmul <<= (self.io.a * self.io.b).set_width(16)
 
-        with pytest.elaborate_to_file(
+        with helper.elaborate_to_file(
                 Top(name=self.TOP)
         ) as filename:
             sim_run(
@@ -508,7 +509,7 @@ class TestArithmetic:
                 self.io.all <<= self.io.a.all()
                 self.io.parity <<= self.io.a.parity()
 
-        with pytest.elaborate_to_file(
+        with helper.elaborate_to_file(
                 Top(name=self.TOP)
         ) as filename:
             sim_run(
