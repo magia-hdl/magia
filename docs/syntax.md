@@ -101,37 +101,37 @@ class MyModule(Module):
 
 ### Supported Operators
 
-| Operator                   | Description                                                                        |
-|----------------------------|------------------------------------------------------------------------------------|
-| `<<=`                      | *Connect signals. This is not a Left Shift*                                        |
-| `+`, `+=`                  | Addition                                                                           |
-| `-`, `-=`                  | Subtraction                                                                        |
-| `-signal`                  | Negation                                                                           |
-| `*`, `*=`                  | Multiplication                                                                     |
-| `&`, `&=`                  | Bitwise AND                                                                        |
-| `\|` , `\|=`               | Bitwise OR                                                                         |
-| `^`, `^=`                  | Bitwise XOR                                                                        |
-| `~`                        | Bitwise NOT                                                                        |
-| `<<`                       | Left shift (Only on Python Integer, Constant Shift)                                |
-| `>>`                       | Right shift (Only on Python Integer, Constant Shift)                               |
-| `==`                       | Equality                                                                           |
-| `!=`                       | Inequality                                                                         |
-| `<`                        | Less than                                                                          |
-| `<=`                       | Less than or equal                                                                 |
-| `>`                        | Greater than                                                                       |
-| `>=`                       | Greater than or equal                                                              |
-| `@` , `@=`                 | Concatenation                                                                      |
-| `[y:x]`                    | Slicing (`[:]` and `[...]` represents the whole signal)                            |
-|                            | Beware of endianness when slicing                                                  |
-| `signal.reg()`             | Register a signal                                                                  |
-| `signal.when(cond, else_)` | Gate the signal with a condition. Equivalent to `signal if cond else else_`        |
-| `signal.case(cases)`       | Using the signal as a switch. Equivalent to `cases[signal]`                        |
-| `signal.any()`             | Check if any bit in the signal is 1                                                |
-| `signal.all()`             | Check if all bits in the signal are 1                                              |
-| `signal.parity()`          | Compute the parity of the signal (Reduced XOR)                                     |
-| `len(signal)`              | Get the width of a signal in Python                                                |
-| `signal.with_width()`      | Create and connect to the new signal with specific width, trimming/padding is done |
-| `signal.with_signed()`     | Create and connect to the new signal with specific signedness                      |
+| Operator                       | Description                                                                        |
+|--------------------------------|------------------------------------------------------------------------------------|
+| `<<=`                          | *Connect signals. This is not a Left Shift*                                        |
+| `+`, `+=`                      | Addition                                                                           |
+| `-`, `-=`                      | Subtraction                                                                        |
+| `-signal`                      | Negation                                                                           |
+| `*`, `*=`                      | Multiplication                                                                     |
+| `&`, `&=`                      | Bitwise AND                                                                        |
+| `\|` , `\|=`                   | Bitwise OR                                                                         |
+| `^`, `^=`                      | Bitwise XOR                                                                        |
+| `~`                            | Bitwise NOT                                                                        |
+| `<<`                           | Left shift (Only on Python Integer, Constant Shift)                                |
+| `>>`                           | Right shift (Only on Python Integer, Constant Shift)                               |
+| `==`                           | Equality                                                                           |
+| `!=`                           | Inequality                                                                         |
+| `<`                            | Less than                                                                          |
+| `<=`                           | Less than or equal                                                                 |
+| `>`                            | Greater than                                                                       |
+| `>=`                           | Greater than or equal                                                              |
+| `@` , `@=`                     | Concatenation                                                                      |
+| `[y:x]`                        | Slicing (`[:]` and `[...]` represents the whole signal)                            |
+|                                | Beware of endianness when slicing                                                  |
+| `signal.reg()`                 | Register a signal                                                                  |
+| `signal.when(cond, else_)`     | Gate the signal with a condition. Equivalent to `signal if cond else else_`        |
+| `signal.case(cases)`           | Using the signal as a switch. Equivalent to `cases[signal]`                        |
+| `signal.any()`                 | Check if any bit in the signal is 1                                                |
+| `signal.all()`                 | Check if all bits in the signal are 1                                              |
+| `signal.parity()`              | Compute the parity of the signal (Reduced XOR)                                     |
+| `len(signal)` / `signal.width` | Get the width of a signal in Python                                                |
+| `signal.with_width()`          | Create and connect to the new signal with specific width, trimming/padding is done |
+| `signal.with_signed()`         | Create and connect to the new signal with specific signedness                      |
 
 ### Exceptions:
 
