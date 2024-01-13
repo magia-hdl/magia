@@ -128,6 +128,7 @@ class MyModule(Module):
 | `signal.case(cases)`       | Using the signal as a switch. Equivalent to `cases[signal]`                        |
 | `signal.any()`             | Check if any bit in the signal is 1                                                |
 | `signal.all()`             | Check if all bits in the signal are 1                                              |
+| `signal.parity()`          | Compute the parity of the signal (Reduced XOR)                                     |
 | `len(signal)`              | Get the width of a signal in Python                                                |
 | `signal.with_width()`      | Create and connect to the new signal with specific width, trimming/padding is done |
 | `signal.with_signed()`     | Create and connect to the new signal with specific signedness                      |
