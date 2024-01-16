@@ -75,8 +75,6 @@ class ExternalModule(Module):
         for port in self.ports_from_code:
             self.io += self._create_port(port)
 
-        self.register_module_doc(locals())
-
     def elaborate(self) -> tuple[str, set[Module]]:
         mod_decl = self.mod_declaration()
         mod_end = "endmodule"

@@ -1,6 +1,6 @@
 import inspect
 import logging
-from collections import Counter
+from collections import Counter, OrderedDict
 from dataclasses import dataclass
 from itertools import count
 from os import PathLike
@@ -56,6 +56,19 @@ class Module(Synthesizable):
 
     def __init__(self, name: Optional[str] = None, **kwargs):
         super().__init__(**kwargs)
+
+        # Get the arguments passed to the __init__ method of the inherited class
+        # === DON'T REFACTOR BELOW. We are inspecting the stack and refactoring will affect the result ===
+        children_local = inspect.stack(0)[1].frame.f_locals
+        children_class = children_local.get("__class__")
+        func_signature = inspect.signature(children_class.__init__) if children_class else {}
+        self._mod_params = OrderedDict(**{
+            arg: children_local[arg]
+            for arg, param in func_signature.parameters.items()
+            if param.kind not in (param.VAR_KEYWORD, param.VAR_POSITIONAL) and arg != "self"
+        })
+        # === DON'T REFACTOR ABOVE ===
+
         if name is None:
             name = f"{self.__class__.__name__}_{next(self._new_module_counter)}"
 
@@ -66,8 +79,6 @@ class Module(Synthesizable):
         self.io = IOBundle()
         self._signals: dict[str, Signal] = {}
         self._instance_counter = count(0)
-
-        self._mod_doc: Optional[str] = None
 
     def validate(self) -> list[Exception]:
         undriven_outputs = [
@@ -90,8 +101,7 @@ class Module(Synthesizable):
                 for port in self.io.inputs + self.io.outputs
             ),
         )
-        mod_doc = "" if self._mod_doc is None else self._mod_doc
-        return "\n".join((mod_decl, mod_doc))
+        return "\n".join((mod_decl, self._module_elab_doc))
 
     def elaborate(self) -> tuple[str, set["Module"]]:
         """
@@ -240,30 +250,35 @@ class Module(Synthesizable):
     def name(self) -> str:
         return self._config.name
 
-    def register_module_doc(self, locals_param: dict) -> str:
+    @property
+    def params(self) -> dict[str, object]:
+        """
+        Return the parameters used to specialize this module.
+        """
+        return self._mod_params
+
+    @property
+    def _module_elab_doc(self) -> str:
         """
         Generate the summary of a module and register it to the module.
         It will be written into the SystemVerilog code during elaboration.
-
-        Calling this method in the __init__ method with the following:
-        self.register_module_doc(locals())
         """
-        doc = inspect.getdoc(self)
-        if doc is None:
+        doc = inspect.getdoc(self.__class__)
+        if doc is None or doc == inspect.getdoc(Module):
             doc = ""
-        else:
-            doc += "\n\n"
+        elif not doc.endswith("\n"):
+            doc += "\n"
 
-        signature = inspect.signature(self.__init__)
-        args = {k: v for k, v in locals_param.items() if k in signature.parameters}
+        if self.params:
+            doc += "\nModule Parameters:\n"
+            doc += "-----------------\n"
+            doc += "\n".join(
+                f"{k}: {v}"
+                for k, v in self.params.items()
+            ) + "\n"
 
-        doc += "Module Parameters:\n"
-        doc += "-----------------\n"
-        for k, v in args.items():
-            doc += f"{k}: {v}\n"
-        doc = f"/*\n{doc}*/\n"
-
-        self._mod_doc = doc
+        if doc:
+            doc = f"/*\n{doc}*/\n"
         return doc
 
 
