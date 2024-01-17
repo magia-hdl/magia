@@ -2,6 +2,7 @@ import inspect
 import logging
 from collections import Counter, OrderedDict
 from dataclasses import dataclass
+from functools import cached_property
 from itertools import count
 from os import PathLike
 from pathlib import Path
@@ -77,8 +78,6 @@ class Module(Synthesizable):
             name=name,
         )
         self.io = IOBundle()
-        self._signals: dict[str, Signal] = {}
-        self._instance_counter = count(0)
 
     def validate(self) -> list[Exception]:
         undriven_outputs = [
@@ -263,11 +262,7 @@ class Module(Synthesizable):
         Generate the summary of a module and register it to the module.
         It will be written into the SystemVerilog code during elaboration.
         """
-        doc = inspect.getdoc(self.__class__)
-        if doc is None or doc == inspect.getdoc(Module):
-            doc = ""
-        elif not doc.endswith("\n"):
-            doc += "\n"
+        doc = self._module_doc_str
 
         if self.params:
             doc += "\nModule Parameters:\n"
@@ -280,6 +275,59 @@ class Module(Synthesizable):
         if doc:
             doc = f"/*\n{doc}*/\n"
         return doc
+
+    @property
+    def _module_doc_str(self) -> str:
+        doc = inspect.getdoc(self.__class__)
+        if doc is None or doc == inspect.getdoc(Module):
+            return ""
+        if not doc.endswith("\n"):
+            return doc + "\n"
+        return doc
+
+    @cached_property
+    def _module_init_param_doc(self) -> dict[str, str]:
+        params = [(k, f"{k}:") for k in self._mod_params]
+        doc = inspect.getdoc(self.__init__)
+        if doc is None:
+            return []
+
+        result_doc = {}
+        possible_param = [line.strip() for line in doc.split("\n") if ":" in line]
+        for line in possible_param:
+            for param, sep in params:
+                if sep in line:
+                    result_doc[param] = line.split(sep, 1)[-1].strip()
+        return result_doc
+
+    @property
+    def spec(self) -> dict[str, object]:
+        """
+        Return the "Specification" of a specialized Module.
+        It is a dictionary which can be further processed.
+        """
+        return {
+            "name": self.name,
+            "description": self._module_doc_str.strip(),
+            "parameters": [
+                {
+                    "name": k,
+                    "value": v,
+                    "description": self._module_init_param_doc.get(k, ""),
+                }
+                for k, v in self.params.items()
+            ],
+            "ports": [
+                {
+                    "name": alias,
+                    "direction": signal.type.name,
+                    "width": len(signal),
+                    "signed": signal.signed,
+                    "description": signal.description,
+                }
+                for alias, signal in self.io.signals.items()
+            ],
+        }
 
 
 class Instance(Synthesizable):

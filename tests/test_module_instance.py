@@ -122,6 +122,7 @@ def test_elaborate_doc():
         """
         This is a top module.
         """
+
         def __init__(self, width, **kwargs):
             super().__init__(**kwargs)
             self.io += Input("a", width)
@@ -131,3 +132,35 @@ def test_elaborate_doc():
     doc = Elaborator.to_string(Top(width=7086))
     assert "This is a top module." in doc, "Module doc is missing."
     assert "width: 7086" in doc, "Module parameter is missing."
+
+
+def test_module_spec():
+    class Top(Module):
+        """
+        This is a top module.
+        """
+
+        def __init__(self, width, **kwargs):
+            """
+            :param width: The width of the module.
+            """
+            super().__init__(**kwargs)
+            self.io += Input("a", width, description="Input A")
+            self.io += Output("b", width)
+            self.io.b <<= self.io.a
+
+    spec = Top(width=7086, name="TopLevel").spec
+    assert spec["name"] == "TopLevel"
+    assert spec["description"] == "This is a top module."
+    assert spec["parameters"][0]["name"] == "width"
+    assert spec["parameters"][0]["value"] == 7086
+    assert spec["parameters"][0]["description"] == "The width of the module."
+    for port in spec["ports"]:
+        assert port["name"] in ["a", "b"]
+        assert port["width"] == 7086
+        if port["name"] == "a":
+            assert port["direction"] == "INPUT"
+            assert port["description"] == "Input A"
+        else:
+            assert port["direction"] == "OUTPUT"
+            assert port["description"] == ""

@@ -15,6 +15,7 @@ class SignalConfig:
     width: int = 0
     signed: bool = False
     signal_type: SignalType = SignalType.WIRE
+    description: str = ""
 
     # The module instance that owns this signal
     # Applicable to input / output ports only
@@ -104,6 +105,7 @@ class Signal(Synthesizable):
             width: int = 0, signed: bool = False,
             name: Optional[str] = None,
             parent_bundle: Optional["SignalBundle"] = None,
+            description: Optional[str] = None,
             **kwargs
     ):
         if name is None:
@@ -115,6 +117,7 @@ class Signal(Synthesizable):
             width=width,
             signed=signed,
             parent_bundle=parent_bundle,
+            description="" if description is None else description,
         )
         self._drivers = SignalDict()
 
@@ -135,6 +138,13 @@ class Signal(Synthesizable):
         Short name of the signal, is used to identify the signal in a bundle / SignalDict
         """
         return self._config.name
+
+    @property
+    def description(self) -> str:
+        """
+        Description of the signal
+        """
+        return self._config.description
 
     @property
     def type(self) -> SignalType:
@@ -594,6 +604,7 @@ class Input(Signal):
             name=self.name,
             width=len(self),
             signed=self.signed,
+            description=self.description,
             owner_instance=owner_instance,
         )
 
@@ -647,6 +658,7 @@ class Output(Signal):
             name=self.name,
             width=len(self),
             signed=self.signed,
+            description=self.description,
             owner_instance=owner_instance,
         )
 

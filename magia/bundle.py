@@ -289,6 +289,10 @@ class IOBundle:
         return self._output_names
 
     @property
+    def signals(self) -> SignalDict:
+        return self._signals
+
+    @property
     def owner_instance(self) -> Optional["Instance"]:
         return self._owner_instance
 
