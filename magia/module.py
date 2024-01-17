@@ -1,7 +1,8 @@
 import inspect
 import logging
-from collections import Counter
+from collections import Counter, OrderedDict
 from dataclasses import dataclass
+from functools import cached_property
 from itertools import count
 from os import PathLike
 from pathlib import Path
@@ -56,6 +57,19 @@ class Module(Synthesizable):
 
     def __init__(self, name: Optional[str] = None, **kwargs):
         super().__init__(**kwargs)
+
+        # Get the arguments passed to the __init__ method of the inherited class
+        # === DON'T REFACTOR BELOW. We are inspecting the stack and refactoring will affect the result ===
+        children_local = inspect.stack(0)[1].frame.f_locals
+        children_class = children_local.get("__class__")
+        func_signature = inspect.signature(children_class.__init__) if children_class else {}
+        self._mod_params = OrderedDict(**{
+            arg: children_local[arg]
+            for arg, param in func_signature.parameters.items()
+            if param.kind not in (param.VAR_KEYWORD, param.VAR_POSITIONAL) and arg != "self"
+        })
+        # === DON'T REFACTOR ABOVE ===
+
         if name is None:
             name = f"{self.__class__.__name__}_{next(self._new_module_counter)}"
 
@@ -64,10 +78,6 @@ class Module(Synthesizable):
             name=name,
         )
         self.io = IOBundle()
-        self._signals: dict[str, Signal] = {}
-        self._instance_counter = count(0)
-
-        self._mod_doc: Optional[str] = None
 
     def validate(self) -> list[Exception]:
         undriven_outputs = [
@@ -90,8 +100,7 @@ class Module(Synthesizable):
                 for port in self.io.inputs + self.io.outputs
             ),
         )
-        mod_doc = "" if self._mod_doc is None else self._mod_doc
-        return "\n".join((mod_decl, mod_doc))
+        return "\n".join((mod_decl, self._module_elab_doc))
 
     def elaborate(self) -> tuple[str, set["Module"]]:
         """
@@ -240,31 +249,85 @@ class Module(Synthesizable):
     def name(self) -> str:
         return self._config.name
 
-    def register_module_doc(self, locals_param: dict) -> str:
+    @property
+    def params(self) -> dict[str, object]:
+        """
+        Return the parameters used to specialize this module.
+        """
+        return self._mod_params
+
+    @property
+    def _module_elab_doc(self) -> str:
         """
         Generate the summary of a module and register it to the module.
         It will be written into the SystemVerilog code during elaboration.
-
-        Calling this method in the __init__ method with the following:
-        self.register_module_doc(locals())
         """
-        doc = inspect.getdoc(self)
-        if doc is None:
-            doc = ""
-        else:
-            doc += "\n\n"
+        doc = self._module_doc_str
 
-        signature = inspect.signature(self.__init__)
-        args = {k: v for k, v in locals_param.items() if k in signature.parameters}
+        if self.params:
+            doc += "\nModule Parameters:\n"
+            doc += "-----------------\n"
+            doc += "\n".join(
+                f"{k}: {v}"
+                for k, v in self.params.items()
+            ) + "\n"
 
-        doc += "Module Parameters:\n"
-        doc += "-----------------\n"
-        for k, v in args.items():
-            doc += f"{k}: {v}\n"
-        doc = f"/*\n{doc}*/\n"
-
-        self._mod_doc = doc
+        if doc:
+            doc = f"/*\n{doc}*/\n"
         return doc
+
+    @property
+    def _module_doc_str(self) -> str:
+        doc = inspect.getdoc(self.__class__)
+        if doc is None or doc == inspect.getdoc(Module):
+            return ""
+        if not doc.endswith("\n"):
+            return doc + "\n"
+        return doc
+
+    @cached_property
+    def _module_init_param_doc(self) -> dict[str, str]:
+        params = [(k, f"{k}:") for k in self._mod_params]
+        doc = inspect.getdoc(self.__init__)
+        if doc is None:
+            return []
+
+        result_doc = {}
+        possible_param = [line.strip() for line in doc.split("\n") if ":" in line]
+        for line in possible_param:
+            for param, sep in params:
+                if sep in line:
+                    result_doc[param] = line.split(sep, 1)[-1].strip()
+        return result_doc
+
+    @property
+    def spec(self) -> dict[str, object]:
+        """
+        Return the "Specification" of a specialized Module.
+        It is a dictionary which can be further processed.
+        """
+        return {
+            "name": self.name,
+            "description": self._module_doc_str.strip(),
+            "parameters": [
+                {
+                    "name": k,
+                    "value": v,
+                    "description": self._module_init_param_doc.get(k, ""),
+                }
+                for k, v in self.params.items()
+            ],
+            "ports": [
+                {
+                    "name": alias,
+                    "direction": signal.type.name,
+                    "width": len(signal),
+                    "signed": signal.signed,
+                    "description": signal.description,
+                }
+                for alias, signal in self.io.signals.items()
+            ],
+        }
 
 
 class Instance(Synthesizable):
