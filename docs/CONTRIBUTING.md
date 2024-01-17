@@ -21,9 +21,9 @@ Pull requests are the best way to propose changes to the codebase (we use [Githu
 5. Lint your code with `ruff check`.
 6. Issue that pull request!
 
-## Report bugs using GitHub [issues](https://github.com/khwong-c/syn-magia/issues)
+## Report bugs using GitHub [issues](https://github.com/magia-hdl/magia/issues)
 We use GitHub issues to track public bugs. 
-Report a bug by [opening a new issue](https://github.com/khwong-c/syn-magia/issues/new); it's that easy!
+Report a bug by [opening a new issue](https://github.com/magia-hdl/magia/issues/new); it's that easy!
 
 ## Write bug reports with detail, background, and sample code
 **Great Bug Reports** tend to have:

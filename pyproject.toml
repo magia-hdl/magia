@@ -14,7 +14,7 @@ ignore = ["F821", "A003"]
 "tests/**" = ["S101", "S311"]
 
 [tool.poetry]
-name = "syn-magia"
+name = "magia-hdl"
 version = "0.3.0"
 description = "Magia generates Synthesizable SystemVerilog in pythonic syntax"
 readme = "README.md"
@@ -50,7 +50,7 @@ ruff = "*"
 hdlConvertor-binary = "~2.3"
 
 [project.urls]
-Repository = "https://github.com/khwong-c/syn-magia"
+Repository = "https://github.com/magia-hdl/magia"
 
 [tool.pytest.ini_options]
 norecursedirs = "tests/helpers"
