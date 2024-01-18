@@ -13,6 +13,8 @@ jobs:
         python-version: [ "3.9", "3.10", "3.11", "3.12" ]
 
     runs-on: ubuntu-latest
+    container:
+      image: verilator/verilator:v5.018
 
     steps:
     - name: Checkout Source Code
@@ -21,24 +23,20 @@ jobs:
     # Installation of Binary Dependencies
     - name: Install Poetry
       run: |
-        curl -sSL https://install.python-poetry.org | python
-        echo "${HOME}/.poetry/bin" >> $GITHUB_PATH
+        apt-get update; apt-get install -y curl sudo
+        curl -sSL https://install.python-poetry.org | python3
+        ln -sf "${HOME}/.local/bin/poetry" /usr/bin/poetry
 
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
         cache: 'poetry'
-    - name: Install Verilator
+
+    - name: Hack on Verilator
       run: |
-        sudo apt install libjs-underscore libjs-jquery fonts-font-awesome fonts-lato
-        wget -q http://mirrors.kernel.org/ubuntu/pool/main/s/sphinx/libjs-sphinxdoc_5.3.0-4_all.deb
-        wget -q http://mirrors.kernel.org/ubuntu/pool/main/s/sphinx-rtd-theme/sphinx-rtd-theme-common_1.3.0+dfsg-1_all.deb
-        wget -q http://mirrors.kernel.org/ubuntu/pool/universe/v/verilator/verilator_5.012-1_amd64.deb
-        sudo dpkg -i sphinx-rtd-theme-common_1.3.0+dfsg-1_all.deb libjs-sphinxdoc_5.3.0-4_all.deb verilator_5.012-1_amd64.deb
-        
         export CUR_PYTHON=$(poetry run which python)
-        sudo ln -sf $CUR_PYTHON /usr/bin/python3
+        ln -sf $CUR_PYTHON /usr/bin/python3
 
     # Verify version of installed binaries
     - name: List Poetry Environment
