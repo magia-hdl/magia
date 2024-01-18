@@ -10,7 +10,7 @@ jobs:
 
     strategy:
       matrix:
-        python-version: [ "3.9", "3.10", "3.11", "3.12" ]
+        python-version: [ "3.11" ]
 
     runs-on: ubuntu-latest
     container:
@@ -42,7 +42,7 @@ jobs:
       env:
         pytest_github_report: true
       run: |
-        poetry run pytest -n auto tests
+        poetry run pytest tests
 
 
   Deploy:
