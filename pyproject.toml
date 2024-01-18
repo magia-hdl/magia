@@ -49,7 +49,7 @@ pytest-github-report = "*"
 ruff = "*"
 hdlConvertor-binary = "~2.3"
 
-[project.urls]
+[tool.poetry.urls]
 Repository = "https://github.com/magia-hdl/magia"
 
 [tool.pytest.ini_options]
