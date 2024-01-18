@@ -176,7 +176,7 @@ async def bitwise_op(dut):
 
         assert dut.any.value.integer == ((a & 0xFF) > 0)
         assert dut.all.value.integer == ((a & 0xFF) == 0xFF)
-        assert dut.parity.value.integer == (((a & 0xFF).bit_count()) % 2)
+        assert dut.parity.value.integer == ((bin(a & 0xFF).count("1")) % 2)
 
 
 #############################
