@@ -30,6 +30,10 @@ Please refer to the [Magia Roadmap](docs/roadmap.md).
 
 ```bash
 pip install magia-hdl
+
+# Install with full dependencies if advanced features are required
+
+pip install magia-hdl[full]
 ```
 
 ## Examples

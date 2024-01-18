@@ -12,7 +12,16 @@ Common Use-cases are importing IP core such as:
 
 ## Prerequisite
 
-We need to install [hdlConvertor](https://github.com/Nic30/hdlConvertor) for this feature.
+This feature requires extra packages to be installed.
+Install with full features by running:
+
+```bash
+pip install magia-hdl[full]
+```
+
+Or install the following packages manually:
+
+- [hdlConvertor](https://github.com/Nic30/hdlConvertor)
 
 Run the following command to install hdlConvertor, if you are running on Linux X86_64:
 

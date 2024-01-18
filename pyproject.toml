@@ -37,8 +37,12 @@ keywords = [
     "Code Generation", "FPGA", "ASIC", "EDA", "RTL Design"
 ]
 
+[tool.poetry.extras]
+full = ["hdlConvertor-binary"]
+
 [tool.poetry.dependencies]
 python = "^3.9"
+hdlConvertor-binary = { version = "~2.3", optional=true }
 
 [tool.poetry.group.dev.dependencies]
 cocotb = "*"
