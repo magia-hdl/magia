@@ -23,8 +23,6 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
-        cache: 'poetry'
-        cache-dependency-path: poetry.lock
     - name: Install Poetry
       uses: snok/install-poetry@v1
     - name: Install Verilator
