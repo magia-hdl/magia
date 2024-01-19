@@ -58,4 +58,4 @@ Repository = "https://github.com/magia-hdl/magia"
 
 [tool.pytest.ini_options]
 norecursedirs = "tests/helpers"
-log_cli=false  # turn to true to enable debug logging
+log_cli=true  # turn to true to enable debug logging

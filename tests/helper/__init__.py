@@ -1,6 +1,11 @@
 import functools
 import inspect
+import os
+import shutil
+import subprocess
+import sys
 from contextlib import contextmanager
+from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Callable
 
@@ -48,7 +53,35 @@ def parameterized_testbench(test_function, test_opts_val) -> tuple[Callable, lis
     return test_generator, pytest_param, pytest_param_val
 
 
+def init_verilator():
+    # Skip if not in venv
+    if sys.base_prefix == sys.prefix:
+        return
+
+    # Check if verilator is already copied into venv
+    verilator_mounted = Path(sys.prefix, "bin", "verilator").exists()
+    if not verilator_mounted:
+        verilator_bin_location = Path(shutil.which("verilator_bin")).parent
+        verilator_root = Path(subprocess.check_output(["verilator", "--getenv", "VERILATOR_ROOT"]).decode().strip())
+        verilator_bins = list(verilator_bin_location.glob("verilator*"))
+
+        shutil.copytree(verilator_root, Path(sys.prefix), dirs_exist_ok=True)
+        for path in verilator_bins:
+            shutil.copy(path, Path(sys.prefix, "bin"))
+
+        makefile_in = Path(sys.prefix, "include", "verilated.mk")
+        makefile_content = makefile_in.read_text().splitlines()
+        for i, line in enumerate(makefile_content):
+            if line.startswith("PYTHON3 ="):
+                makefile_content[i] = f"PYTHON3 = {sys.executable}"
+        makefile_in.write_text("\n".join(makefile_content))
+
+    # Override VERILATOR_ROOT
+    os.environ["VERILATOR_ROOT"] = sys.prefix
+
+
 __all__ = [
     "elaborate_to_file",
     "parameterized_testbench",
+    "init_verilator",
 ]
