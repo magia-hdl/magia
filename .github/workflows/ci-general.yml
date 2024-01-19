@@ -19,25 +19,46 @@ jobs:
     steps:
     - name: Checkout Source Code
       uses: actions/checkout@v4
-    - name: Print Verilator version
+
+    # Installation of Binary Dependencies
+    - name: Install Poetry
       run: |
-        verilator --version
-    - name: Set up Python ${{ matrix.python-version }}
+        apt-get update; apt-get install -y curl sudo
+        curl -sSL https://install.python-poetry.org | python3
+        ln -sf "${HOME}/.local/bin/poetry" /usr/bin/poetry
+
+    - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Install Poetry
-      run: |
-        python3 -m pip install poetry
-    - name: Set up Poetry
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.10"
         cache: 'poetry'
-        cache-dependency-path: poetry.lock
+
+    - name: Hack on Verilator
+      run: |
+        export CUR_PYTHON=$(poetry run which python)
+        ln -sf $CUR_PYTHON /usr/bin/python3
+
+    # Verify version of installed binaries
+    - name: List Poetry Environment
+      run: |
+        poetry env list
+    - name: Print Poetry Environment
+      run: |
+        poetry env info
+    - name: Print Verilator version
+      run: |
+        verilator --version
+    - name: Python Version
+      run: |
+        python --version
+    - name: Python with Poetry Version
+      run: |
+        poetry run python --version
+
     - name: Install dependencies
       run: |
         poetry install --no-interaction  --with=dev
+
     - name: Run Pytest
       env:
         pytest_github_report: true
@@ -47,33 +68,48 @@ jobs:
 
   Deploy:
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs:
       - RunTests
     if: ${{ startsWith(github.ref, 'refs/tags/v') && success() }}
+    environment: release
+    permissions:
+      id-token: write
 
     steps:
     - name: Checkout Source
       uses: actions/checkout@v4
-    - name: Install poetry
-      run: pipx install poetry
-    - name: Set up Poetry
+
+    # Installation of Binary Dependencies
+    - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: "3.10"
-        cache: 'poetry'
-        cache-dependency-path: poetry.lock
+    - name: Install Poetry
+      uses: snok/install-poetry@v1
+
+    # Verify version of installed binaries
+    - name: List Poetry Environment
+      run: |
+        poetry env list
+    - name: Print Poetry Environment
+      run: |
+        poetry env info
+    - name: Python Version
+      run: |
+        python --version
+    - name: Python with Poetry Version
+      run: |
+        poetry run python --version
+
+
     - name: Install dependencies
       run: |
         poetry install --no-interaction  --with=dev
 
-    - name: Setup Credential
-      env:
-        PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
-      run: |
-       poetry config pypi-token.pypi "$PYPI_TOKEN" 
-
-    - name: Publish to PyPi
+    - name: Build Package
       run: |
         poetry build
-        poetry publish
+
+    - name: Publish package distributions to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1

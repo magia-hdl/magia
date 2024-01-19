@@ -14,7 +14,7 @@ ignore = ["F821", "A003"]
 "tests/**" = ["S101", "S311"]
 
 [tool.poetry]
-name = "syn-magia"
+name = "magia-hdl"
 version = "0.3.0"
 description = "Magia generates Synthesizable SystemVerilog in pythonic syntax"
 readme = "README.md"
@@ -37,8 +37,12 @@ keywords = [
     "Code Generation", "FPGA", "ASIC", "EDA", "RTL Design"
 ]
 
+[tool.poetry.extras]
+full = ["hdlConvertor-binary"]
+
 [tool.poetry.dependencies]
 python = "^3.9"
+hdlConvertor-binary = { version = "~2.3", optional=true }
 
 [tool.poetry.group.dev.dependencies]
 cocotb = "*"
@@ -49,8 +53,9 @@ pytest-github-report = "*"
 ruff = "*"
 hdlConvertor-binary = "~2.3"
 
-[project.urls]
-Repository = "https://github.com/khwong-c/syn-magia"
+[tool.poetry.urls]
+Repository = "https://github.com/magia-hdl/magia"
 
 [tool.pytest.ini_options]
 norecursedirs = "tests/helpers"
+log_cli=false  # turn to true to enable debug logging

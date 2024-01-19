@@ -29,7 +29,11 @@ Please refer to the [Magia Roadmap](docs/roadmap.md).
 ## Installation
 
 ```bash
-pip install syn-magia
+pip install magia-hdl
+
+# Install with full dependencies if advanced features are required
+
+pip install magia-hdl[full]
 ```
 
 ## Examples
