@@ -33,11 +33,6 @@ jobs:
         python-version: ${{ matrix.python-version }}
         cache: 'poetry'
 
-    - name: Hack on Verilator
-      run: |
-        export CUR_PYTHON=$(poetry run which python)
-        ln -sf $CUR_PYTHON /usr/bin/python3
-
     # Verify version of installed binaries
     - name: List Poetry Environment
       run: |
