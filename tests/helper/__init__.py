@@ -74,6 +74,7 @@ def init_verilator():
         for i, line in enumerate(makefile_content):
             if line.startswith("PYTHON3 ="):
                 makefile_content[i] = f"PYTHON3 = {sys.executable}"
+                break
         makefile_in.write_text("\n".join(makefile_content))
 
     # Override VERILATOR_ROOT
