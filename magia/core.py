@@ -2,6 +2,7 @@ import inspect
 from collections import UserDict
 from collections.abc import Iterable
 from dataclasses import dataclass
+from functools import cached_property
 from itertools import count
 from math import ceil
 from pathlib import Path
@@ -60,16 +61,12 @@ class Synthesizable:
     _ANNOTATION_TEMPLATE = Template("/*\nNet name: $net_name\n$comment$loc\n*/")
 
     def __init__(self, **kwargs):
-        callstack = [
+        self._init_callstack = [
             frame_info for frame_info in inspect.stack()[1:]
             if Path(frame_info.filename).parent != CURRENT_DIR
         ]
-        self._annotated = False
+        self._annotated_from = None
         self._comment = None
-        self._loc = "\n".join(
-            f"{frame_info.filename}:{frame_info.lineno}"
-            for frame_info in callstack
-        )
 
     @property
     def net_name(self) -> str:
@@ -93,12 +90,26 @@ class Synthesizable:
         """
         raise NotImplementedError
 
-    @property
+    @cached_property
     def loc(self) -> str:
         """
         The location of the object in the code.
+        This property only works if the object is annotated.
         """
-        return self._loc
+        if not self.annotated:
+            raise RuntimeError("Object is not annotated.")
+
+        last_seen = None
+        for i, frame_info in enumerate(self._init_callstack):
+            last_seen = i if frame_info.filename == self._annotated_from else last_seen
+
+        return "\n".join(
+            f"{frame_info.filename}:{frame_info.lineno}"
+            for frame_info in (
+                self._init_callstack[:last_seen + 1]
+                if last_seen is not None else self._init_callstack
+            )
+        )
 
     def elaborate(self) -> str:
         """
@@ -108,12 +119,12 @@ class Synthesizable:
         """
         return ""
 
-    def annotate(self, comment: str) -> "Synthesizable":
+    def annotate(self, comment: Optional[str] = None) -> "Synthesizable":
         """
         Annotate the object with a comment.
         :return: The object itself.
         """
-        self._annotated = True
+        self._annotated_from = inspect.stack()[1].filename
         self._comment = comment
         return self
 
@@ -122,7 +133,7 @@ class Synthesizable:
         """
         Whether the object is annotated.
         """
-        return self._annotated
+        return self._annotated_from is not None
 
     @property
     def elaborated_loc(self) -> str:
@@ -132,7 +143,7 @@ class Synthesizable:
         """
         return self._ANNOTATION_TEMPLATE.substitute(
             net_name=self.net_name,
-            comment=f"{self._comment}\n" if self._annotated else "",
+            comment=f"{self._comment}\n" if self.annotated else "",
             loc=self.loc,
         )
 
