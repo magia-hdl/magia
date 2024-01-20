@@ -92,3 +92,25 @@ class TestSignalManipulate:
 
         result = Elaborator.to_string(Top(name=self.TOP))
         assert "logic signed [4:0] next_one;" in result
+
+    def test_annotate(self):
+        """
+        Signal can be annotated by `signal.annotate()` with comment
+        """
+        signal = Signal(8, name="a").annotate("This is a comment")
+        signal <<= signal  # Stub just for elaboration
+        result = signal.elaborate()
+        assert "/*" in result, "There shall be a comment in the elaboration result"
+        assert "Net name: a\nThis is a comment\n/" in result, "Net name does not exists in the elaboration result"
+        assert __file__ in result, "The file name does not exists in the elaboration result"
+
+    def test_annotate_without_comment(self):
+        """
+        Signal can be annotated by `signal.annotate()` without comment
+        """
+        signal = Signal(8, name="a").annotate()
+        signal <<= signal  # Stub just for elaboration
+        result = signal.elaborate()
+        assert "/*" in result, "There shall be a comment in the elaboration result"
+        assert "Net name: a\n/" in result, "Net name does not exists in the elaboration result"
+        assert __file__ in result, "The file name does not exists in the elaboration result"
