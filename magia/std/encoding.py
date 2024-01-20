@@ -16,13 +16,12 @@ def binary_to_onehot(binary_input: Signal, max_value: Optional[int] = None) -> S
     """
     if max_value is None:
         max_value = 2 ** len(binary_input) - 1
-    signal_width = max_value + 1
     if max_value >= 2 ** len(binary_input):
         raise ValueError("max_value is too large for the given binary_input")
 
     conversion_table = {i: 1 << i for i in range(max_value + 1)}
 
-    return binary_input.case(conversion_table, default=0).with_width(signal_width)
+    return binary_input.case(conversion_table, default=0)
 
 
 def onehot_to_binary(onehot_input: Signal) -> Signal:

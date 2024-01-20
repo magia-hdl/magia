@@ -1,12 +1,16 @@
+import inspect
 from collections import UserDict
 from collections.abc import Iterable
 from dataclasses import dataclass
 from itertools import count
 from math import ceil
+from pathlib import Path
 from string import Template
 from typing import Optional, Union
 
 from .constants import OPType, RegType, SignalType
+
+CURRENT_DIR = Path(__file__).parent
 
 
 @dataclass
@@ -53,9 +57,19 @@ class Synthesizable:
     The base class of all synthesizable objects.
     They can be elaborated into SystemVerilog code.
     """
+    _ANNOTATION_TEMPLATE = Template("/*\nNet name: $net_name\n$comment$loc\n*/")
 
     def __init__(self, **kwargs):
-        ...
+        callstack = [
+            frame_info for frame_info in inspect.stack()[1:]
+            if Path(frame_info.filename).parent != CURRENT_DIR
+        ]
+        self._annotated = False
+        self._comment = None
+        self._loc = "\n".join(
+            f"{frame_info.filename}:{frame_info.lineno}"
+            for frame_info in callstack
+        )
 
     @property
     def net_name(self) -> str:
@@ -79,6 +93,13 @@ class Synthesizable:
         """
         raise NotImplementedError
 
+    @property
+    def loc(self) -> str:
+        """
+        The location of the object in the code.
+        """
+        return self._loc
+
     def elaborate(self) -> str:
         """
         Elaborate the object into SystemVerilog code.
@@ -86,6 +107,34 @@ class Synthesizable:
         :return: SystemVerilog code
         """
         return ""
+
+    def annotate(self, comment: str) -> "Synthesizable":
+        """
+        Annotate the object with a comment.
+        :return: The object itself.
+        """
+        self._annotated = True
+        self._comment = comment
+        return self
+
+    @property
+    def annotated(self) -> bool:
+        """
+        Whether the object is annotated.
+        """
+        return self._annotated
+
+    @property
+    def elaborated_loc(self) -> str:
+        """
+        Return the elaborated location of the object.
+        :return: SV comments with Line number of the object in the elaborated code.
+        """
+        return self._ANNOTATION_TEMPLATE.substitute(
+            net_name=self.net_name,
+            comment=f"{self._comment}\n" if self._annotated else "",
+            loc=self.loc,
+        )
 
 
 class Signal(Synthesizable):
@@ -243,11 +292,14 @@ class Signal(Synthesizable):
         if len(self) == 0:
             raise ValueError("Signal width is not set and cannot be inferred")
 
-        return self._SIGNAL_DECL_TEMPLATE.substitute(
+        decl = self._SIGNAL_DECL_TEMPLATE.substitute(
             signed="signed" if self.signed else "",
             width=f"[{width - 1}:0]" if (width := len(self)) > 1 else "",
             name=self.net_name,
         )
+        if self.annotated:
+            decl += f"\n{self.elaborated_loc}"
+        return decl
 
     def elaborate(self) -> str:
         signal_decl = self.signal_decl()
