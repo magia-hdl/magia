@@ -57,7 +57,7 @@ class Synthesizable:
     The base class of all synthesizable objects.
     They can be elaborated into SystemVerilog code.
     """
-    _ANNOTATION_TEMPLATE = Template("/*\n$comment$loc\n*/")
+    _ANNOTATION_TEMPLATE = Template("/*\nNet name: $net_name\n$comment$loc\n*/")
 
     def __init__(self, **kwargs):
         callstack = [
@@ -131,6 +131,7 @@ class Synthesizable:
         :return: SV comments with Line number of the object in the elaborated code.
         """
         return self._ANNOTATION_TEMPLATE.substitute(
+            net_name=self.net_name,
             comment=f"{self._comment}\n" if self._annotated else "",
             loc=self.loc,
         )
