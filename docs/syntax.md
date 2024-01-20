@@ -210,3 +210,36 @@ class TopLevel(Module):
         )
 
 ```
+
+## Signal Tracing
+
+There are two ways to trace the signal in elaborated SystemVerilog code.
+
+1. Setting the name of the signal during creation or with the `Signal.set_name()` API.
+  - Elaborated net with the name specified will have the same net name in the elaborated code.
+  - However, the developer has to ensure there is no naming conflict within the module.
+2. Using `Signal.annotate()` API to add comments and locations of code information in the elaborated code
+  - Example    
+```python
+class OneHotLoop(Module):
+    def __init__(self, width, **kwargs):
+        ...
+        onehot = binary_to_onehot(self.io.binary_in).annotate("Binary to one-hot")
+        ...
+```
+```verilog
+...
+logic  [15:0] net_0;
+/*
+Net name: net_0
+Binary to one-hot
+/home/khwong/projects/syn-magia/magia/std/encoding.py:24
+/home/khwong/scratches/scratch_35.py:14
+/home/khwong/scratches/scratch_35.py:20
+*/
+always_comb
+  unique case (binary_in)
+    4'h0: net_0 = 16'h0001;
+    4'h1: net_0 = 16'h0002;
+...
+```
