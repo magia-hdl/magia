@@ -143,7 +143,7 @@ class Synthesizable:
         """
         return self._ANNOTATION_TEMPLATE.substitute(
             net_name=self.net_name,
-            comment=f"{self._comment}\n" if self.annotated else "",
+            comment=f"{self._comment}\n" if self._comment else "",
             loc=self.loc,
         )
 
