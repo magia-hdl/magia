@@ -167,3 +167,5 @@ poetry.lock
 .ruff_cache/
 
 **/parsetab.py
+
+.vscode/
