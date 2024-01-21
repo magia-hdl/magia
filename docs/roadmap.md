@@ -55,7 +55,7 @@ All syntax being covered must be synthesizable, at least on common FPGA platform
 
 
 - Signal Bundling
-    - `IOBundle` defines the IO ports of a Module (`self.io`)
+    - `IOPorts` defines the IO ports of a Module (`self.io`)
         - Similar to `interface` in SV
         - Create signal bundles by `self.io.signal_bundle()` for bus connections
     - `SignalBundle` defines a set of signals

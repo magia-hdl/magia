@@ -1,6 +1,6 @@
 from importlib.util import find_spec
 
-from .bundle import IOBundle, SignalBundle
+from .bundle import IOPorts
 from .core import Constant, Input, Output, Register, Signal
 from .memory import Memory
 from .module import Blackbox, Elaborator, Instance, Module
@@ -41,8 +41,7 @@ __all__ = [
 Signal Bundles
 """
 __all__ += [
-    "SignalBundle",
-    "IOBundle",
+    "IOPorts",
 ]
 
 """

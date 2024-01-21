@@ -9,7 +9,7 @@ from pathlib import Path
 from string import Template
 from typing import Optional, Union
 
-from .bundle import IOBundle, SignalBundleView
+from .bundle import IOPorts
 from .core import Signal, SignalDict, SignalType, Synthesizable
 from .memory import Memory, MemorySignal
 
@@ -77,7 +77,7 @@ class Module(Synthesizable):
             module_class=type(self),
             name=name,
         )
-        self.io = IOBundle()
+        self.io = IOPorts()
 
     def validate(self) -> list[Exception]:
         undriven_outputs = [
@@ -351,7 +351,7 @@ class Instance(Synthesizable):
             module=module,
             name=name,
         )
-        self._io = IOBundle(owner_instance=self)
+        self._io = IOPorts(owner_instance=self)
         self.outputs = SignalDict()
         self.inputs = SignalDict()
 
@@ -389,20 +389,6 @@ class Instance(Synthesizable):
     @property
     def module(self) -> Module:
         return self._inst_config.module
-
-    def __ilshift__(self, other: SignalBundleView):
-        """
-        Connect signals in the bundle to the instance I/O ports.
-        """
-        if not isinstance(other, SignalBundleView):
-            raise TypeError(f"Cannot connect {type(other)} to {type(self)}")
-        for port_name, signal in other.items():
-            if port_name in self.inputs:
-                self.inputs[port_name] <<= signal
-            elif port_name in self.outputs:
-                signal <<= self.outputs[port_name]
-            else:
-                logger.warning(f"Port {port_name} is not defined in {self.name}.")
 
     def validate(self) -> list[Exception]:
         errors = []
