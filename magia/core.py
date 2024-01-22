@@ -26,6 +26,10 @@ class SignalConfig:
     # Applicable to input / output ports only
     owner_instance: Optional["Instance"] = None
 
+    # Specification of the bundle, if the signal is part of it
+    bundle_spec: Optional["BundleSpec"] = None
+    bundle_alias: Optional[str] = None
+
 
 @dataclass
 class OperationConfig:

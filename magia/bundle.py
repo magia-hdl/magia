@@ -1,100 +1,73 @@
-import logging
-from typing import Optional, Union
-
 from .constants import SignalType
-from .core import Constant, Input, Output, Signal, SignalDict
+from .core import Signal, SignalConfig, SignalDict
+from .module import IOPorts
 
-logger = logging.getLogger(__name__)
 
-
-class IOPorts:
+class BundleSpec:
     """
-    Define a bundle of I/O, which can be used as the input or output of a module.
-    An IOBundle can be added with Input and Output.
-    However, the bundle cannot be used as normal signals.
-    The actual signals can be accessed from `input` and `output` of the instance instead.
-
-    We can use `signal_bundle()` to create a SignalBundle that turns all the ports into normal signals,
-    which we can connect to the instance of the module and other destinations.
-    It can be accessed by individual port by attributes, or connect to multiple instance directly.
+    Specification of a signal bundle.
+    Use to spin up a bundle / IO ports
     """
 
-    def __init__(self, owner_instance: Optional["Instance"] = None, **kwargs):
-        self._signals = SignalDict()
-        self._input_names: list[str] = []
-        self._output_names: list[str] = []
-        self._owner_instance: Optional["Instance"] = owner_instance
+    def __init__(self, **kwargs):
+        self.common_signals: dict[str, SignalConfig] = {}
+        self.forward_signals: dict[str, SignalConfig] = {}
+        self.backward_signals: dict[str, SignalConfig] = {}
 
-    def __add__(self, other: Union["IOPorts", list[Union[Input, Output]], Input, Output]) -> "IOPorts":
-        new_ports = IOPorts()
-        new_ports += self
-        new_ports += other
-        return new_ports
+    def add_common(self, signal: Signal):
+        name = signal.name
+        if name is None:
+            raise ValueError("Signal must have a name")
+        if name in self.common_signals or name in self.forward_signals or name in self.backward_signals:
+            raise ValueError(f"Signal {name} already exists in common")
+        self.common_signals[name] = SignalConfig(
+            name=name,
+            width=signal.width,
+            signed=signal.signed,
+            description=signal.description,
+            type=SignalType.INPUT,
+        )
 
-    def __iadd__(self, other: Union["IOPorts", list[Union[Input, Output]], Input, Output]) -> "IOPorts":
-        if isinstance(other, IOPorts):
-            other = other.inputs + other.outputs
-        if isinstance(other, (Input, Output)):
-            other = [other]
+    def add_signal(self, signal: Signal):
+        name = signal.name
+        if name is None:
+            raise ValueError("Signal must have a name")
+        if name in self.common_signals or name in self.forward_signals or name in self.backward_signals:
+            raise ValueError(f"Signal {name} already exists in common")
 
-        for port in other:
-            if port.name in self.input_names + self.output_names:
-                raise KeyError(f"Port {port.name} is already defined.")
-
-            if port.type == SignalType.INPUT:
-                self._input_names.append(port.name)
-            elif port.type == SignalType.OUTPUT:
-                self._output_names.append(port.name)
-            else:
-                raise TypeError(f"Signal Type {port.type} is forbidden in IOBundle.")
-
-            self._signals[port.name] = port.copy(owner_instance=self._owner_instance)
-
-        return self
-
-    def __getattr__(self, name: str) -> Union[Input, Output]:
-        if name.startswith("_"):
-            return super().__getattribute__(name)
-        if name in self.input_names + self.output_names:
-            return self.__getitem__(name)
-        return super().__getattribute__(name)
-
-    def __setattr__(self, name: str, value: Union[Input, Output]):
-        if name.startswith("_"):
-            super().__setattr__(name, value)
-        if isinstance(value, Signal):
-            self.__setitem__(name, value)
+        if signal.type == SignalType.INPUT:
+            target = self.backward_signals
+        elif signal.type == SignalType.OUTPUT:
+            target = self.forward_signals
         else:
-            super().__setattr__(name, value)
+            raise ValueError(f"Unknown signal type {signal.type}")
+        target[name] = SignalConfig(
+            name=name,
+            width=signal.width,
+            signed=signal.signed,
+            description=signal.description,
+            type=signal.type,
+        )
 
-    def __getitem__(self, item: str) -> Union[Input, Output]:
-        return self._signals[item]
+    # IO Ports factory methods
+    def master_ports(self) -> IOPorts:
+        ...
 
-    def __setitem__(self, key, value):
-        self._signals[key] = value
+    def slave_ports(self) -> IOPorts:
+        ...
 
-    @property
-    def inputs(self) -> list[Signal]:
-        return [
-            signal for signal in self._signals.values()
-            if signal.type == SignalType.INPUT
-        ]
+    def monitor_ports(self) -> IOPorts:
+        ...
 
-    @property
-    def outputs(self) -> list[Signal]:
-        return [
-            signal for signal in self._signals.values()
-            if signal.type == SignalType.OUTPUT
-        ]
+    # Signal Bundle factory method
+    def bundle(self) -> "Bundle":
+        ...
 
-    @property
-    def input_names(self) -> list[str]:
-        return self._input_names
 
-    @property
-    def output_names(self) -> list[str]:
-        return self._output_names
-
-    @property
-    def signals(self) -> SignalDict:
-        return self._signals
+class Bundle:
+    """
+    A signal bundle, containing a set of signals
+    """
+    def __init__(self, **kwargs):
+        self._spec = BundleSpec()
+        self._signals: SignalDict = SignalDict()
