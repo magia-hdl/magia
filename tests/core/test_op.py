@@ -105,7 +105,7 @@ async def case_as_lut(dut):
 def assert_not_extended(a, b, dut):
     assert dut.qadd.value == (a + b) & 0xFF
     assert dut.qsub.value == (a - b) & 0xFF
-    assert dut.qmul.value == (a * b) & 0xFF
+    assert dut.qmul.value == (a * b) & 0xFFFF
     assert dut.qge.value == int(a >= b)
     assert dut.qgt.value == int(a > b)
     assert dut.qle.value == int(a <= b)
@@ -344,7 +344,7 @@ class TestArithmetic:
                 self.io += Input("b", 8)
                 self.io += Output("qadd", 8)
                 self.io += Output("qsub", 8)
-                self.io += Output("qmul", 8)
+                self.io += Output("qmul", 16)
                 self.io += Output("qge", 1)
                 self.io += Output("qgt", 1)
                 self.io += Output("qle", 1)
@@ -385,7 +385,7 @@ class TestArithmetic:
                 self.io += Input("b", 8, signed=True)
                 self.io += Output("qadd", 8, signed=True)
                 self.io += Output("qsub", 8, signed=True)
-                self.io += Output("qmul", 8, signed=True)
+                self.io += Output("qmul", 16, signed=True)
                 self.io += Output("qge", 1)
                 self.io += Output("qgt", 1)
                 self.io += Output("qle", 1)

@@ -30,7 +30,6 @@ class TestSmokeCompile:
                 ops = [
                     self.io.a + self.io.b,
                     self.io.a - self.io.b,
-                    self.io.a * self.io.b,
                     self.io.a & self.io.b,
                     self.io.a | self.io.b,
                     self.io.a ^ self.io.b,
@@ -47,13 +46,14 @@ class TestSmokeCompile:
                 ]
 
                 for i, op in enumerate(ops):
-                    self.io += Output(f"q_{i}", width)
+                    self.io += Output(f"q_{i}", op.width)
                     self.io[f"q_{i}"] <<= op
 
                 accumulator = self.io.a + self.io.b
                 accumulator += self.io.a
                 accumulator -= self.io.a
                 accumulator *= self.io.a
+                accumulator = accumulator[width-1:0]
                 accumulator |= self.io.a
                 accumulator &= self.io.a
                 accumulator ^= self.io.a

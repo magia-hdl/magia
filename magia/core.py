@@ -812,7 +812,7 @@ class Operation(Signal):
         OPType.XOR: lambda x, y: max(len(x), len(y)),
         OPType.ADD: lambda x, y: max(len(x), len(y)),
         OPType.MINUS: lambda x, y: max(len(x), len(y)),
-        OPType.MUL: lambda x, y: max(len(x), len(y)),
+        OPType.MUL: lambda x, y: len(x) + len(y),
         OPType.EQ: lambda x, y: 1,
         OPType.NEQ: lambda x, y: 1,
         OPType.LT: lambda x, y: 1,
