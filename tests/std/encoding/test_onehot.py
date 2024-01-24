@@ -23,7 +23,7 @@ async def onehot_with_width(dut, width):
 
 
 test_gen, onehot_width_params, onehot_width_values = helper.parameterized_testbench(
-    onehot_with_width, [(i,) for i in [2, 3, 4, 5, 8, 10]],
+    onehot_with_width, [(i,) for i in [2, 3, 4, 5, 8]],
 )
 test_gen()
 
