@@ -27,8 +27,10 @@ class SignalConfig:
     owner_instance: Optional["Instance"] = None
 
     # Specification of the bundle, if the signal is part of it
+    bundle: Optional["Bundle"] = None
     bundle_spec: Optional["BundleSpec"] = None
     bundle_alias: Optional[str] = None
+    bundle_type: Optional["BundleType"] = None
 
 
 @dataclass
@@ -165,6 +167,10 @@ class Signal(Synthesizable):
             width: int = 0, signed: bool = False,
             name: Optional[str] = None,
             description: Optional[str] = None,
+            bundle: Optional["Bundle"] = None,
+            bundle_spec: Optional["BundleSpec"] = None,
+            bundle_alias: Optional[str] = None,
+            bundle_type: Optional["BundleType"] = None,
             **kwargs
     ):
         if name is None:
@@ -176,8 +182,16 @@ class Signal(Synthesizable):
             width=width,
             signed=signed,
             description="" if description is None else description,
+            bundle=bundle,
+            bundle_spec=bundle_spec,
+            bundle_alias=bundle_alias,
+            bundle_type=bundle_type,
         )
         self._drivers = SignalDict()
+
+    @property
+    def signal_config(self) -> SignalConfig:
+        return self._config
 
     @property
     def net_name(self) -> str:
@@ -321,7 +335,7 @@ class Signal(Synthesizable):
         Copy the signal. Driver is discarded.
         :return: A new signal with the same configuration.
         """
-        return type(self)(
+        return Signal(
             name=self.name,
             width=len(self),
             signed=self.signed,

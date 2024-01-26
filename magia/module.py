@@ -1,7 +1,7 @@
 import inspect
 import logging
 from collections import Counter, OrderedDict
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from functools import cached_property
 from itertools import count
 from os import PathLike
@@ -31,7 +31,7 @@ class ModuleInstanceConfig:
 class IOPorts:
     """
     Define a bundle of I/O, which can be used as the input or output of a module.
-    An IOBundle can be added with Input and Output.
+    An IOPorts can be added with Input and Output.
     However, the bundle cannot be used as normal signals.
     The actual signals can be accessed from `input` and `output` of the instance instead.
 
@@ -42,8 +42,6 @@ class IOPorts:
 
     def __init__(self, owner_instance: Optional["Instance"] = None, **kwargs):
         self._signals = SignalDict()
-        self._input_names: list[str] = []
-        self._output_names: list[str] = []
         self._owner_instance: Optional["Instance"] = owner_instance
 
     def __add__(self, other: Union["IOPorts", list[Union[Input, Output]], Input, Output]) -> "IOPorts":
@@ -59,24 +57,30 @@ class IOPorts:
             other = [other]
 
         for port in other:
-            if port.name in self.input_names + self.output_names:
-                raise KeyError(f"Port {port.name} is already defined.")
-
-            if port.type == SignalType.INPUT:
-                self._input_names.append(port.name)
-            elif port.type == SignalType.OUTPUT:
-                self._output_names.append(port.name)
-            else:
-                raise TypeError(f"Signal Type {port.type} is forbidden in IOBundle.")
-
-            self._signals[port.name] = port.copy(owner_instance=self._owner_instance)
+            self._add_port(port)
 
         return self
+
+    def _add_port(self, port: Union[Input, Output]):
+        if port.name in self.signals.keys():
+            raise KeyError(f"Port {port.name} is already defined.")
+
+        if port.type not in (SignalType.INPUT, SignalType.OUTPUT):
+            raise TypeError(f"Signal Type {port.type} is forbidden in IOPorts.")
+
+        self._signals[port.name] = port.__class__(
+            **{
+                k: v
+                for k, v in asdict(port.signal_config).items()
+                if k not in ("signal_type", "owner_instance",)
+            },
+            owner_instance=self._owner_instance,
+        )
 
     def __getattr__(self, name: str) -> Union[Input, Output]:
         if name.startswith("_"):
             return super().__getattribute__(name)
-        if name in self.input_names + self.output_names:
+        if name in self.signals.keys():
             return self.__getitem__(name)
         return super().__getattribute__(name)
 
@@ -110,15 +114,27 @@ class IOPorts:
 
     @property
     def input_names(self) -> list[str]:
-        return self._input_names
+        return [
+            name for name, port in self._signals.items()
+            if port.type == SignalType.INPUT
+        ]
 
     @property
     def output_names(self) -> list[str]:
-        return self._output_names
+        return [
+            name for name, port in self._signals.items()
+            if port.type == SignalType.OUTPUT
+        ]
 
     @property
     def signals(self) -> SignalDict:
         return self._signals
+
+    def __ilshift__(self, other: "Bundle"):
+        if self._owner_instance is not None:
+            raise TypeError("Connect the bundle to an Instance directly, instead of `Instance.io <<= Bundle`.")
+        other.connect_to(self)
+        return self
 
 
 class Module(Synthesizable):
@@ -522,6 +538,10 @@ class Instance(Synthesizable):
             inst_name=inst_name,
             io=io_list,
         )
+
+    def __ilshift__(self, other: "Bundle"):
+        other.connect_to(self)
+        return self
 
 
 class Blackbox(Module):
