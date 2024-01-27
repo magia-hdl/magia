@@ -308,3 +308,24 @@ class Bundle:
                     self[src_name] <<= target_io[dst_name]
                 else:
                     target_io[dst_name] <<= self[src_name]
+
+    def __getattr__(self, name: str) -> Union[Input, Output]:
+        if name.startswith("_"):
+            return super().__getattribute__(name)
+        if name in self.signals.keys():
+            return self.__getitem__(name)
+        return super().__getattribute__(name)
+
+    def __setattr__(self, name: str, value: Union[Input, Output]):
+        if name.startswith("_"):
+            super().__setattr__(name, value)
+        if isinstance(value, Signal):
+            self.__setitem__(name, value)
+        else:
+            super().__setattr__(name, value)
+
+    def __getitem__(self, item: str) -> Union[Input, Output]:
+        return self._signals[item]
+
+    def __setitem__(self, key, value):
+        self._signals[key] = value
