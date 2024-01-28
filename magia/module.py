@@ -62,7 +62,7 @@ class IOPorts:
         return self
 
     def _add_port(self, port: Union[Input, Output]):
-        if port.name in self.signals.keys():
+        if port.name in self.signals:
             raise KeyError(f"Port {port.name} is already defined.")
 
         if port.type not in (SignalType.INPUT, SignalType.OUTPUT):
@@ -80,7 +80,7 @@ class IOPorts:
     def __getattr__(self, name: str) -> Union[Input, Output]:
         if name.startswith("_"):
             return super().__getattribute__(name)
-        if name in self.signals.keys():
+        if name in self.signals:
             return self.__getitem__(name)
         return super().__getattribute__(name)
 

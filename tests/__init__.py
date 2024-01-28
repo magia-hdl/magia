@@ -1,1 +1,1 @@
-# Allows pytest importing the helper funcions 
+# Allows pytest importing the helper functions

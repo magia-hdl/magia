@@ -54,10 +54,10 @@ def parameterized_testbench(test_function, test_opts_val) -> tuple[Callable, lis
 
 
 def init_verilator():
-    if not shutil.which("verilator"):
+    if not (verilator := shutil.which("verilator")):
         raise RuntimeError("Verilator not found in PATH")
 
-    version = subprocess.check_output(["verilator", "--version"]).decode().strip().split()[1]
+    version = subprocess.check_output([verilator, "--version"]).decode().strip().split()[1]  # noqa: S603
     if float(version) < 5.006:
         raise RuntimeError("Verilator version >= 5.006 is required")
 
@@ -70,7 +70,9 @@ def init_verilator():
     if not verilator_mounted:
         # Locate Verilator binaries and the original VERILATOR_ROOT
         verilator_bin_location = Path(shutil.which("verilator_bin")).parent
-        verilator_root = Path(subprocess.check_output(["verilator", "--getenv", "VERILATOR_ROOT"]).decode().strip())
+        verilator_root = Path(
+            subprocess.check_output([verilator, "--getenv", "VERILATOR_ROOT"]).decode().strip()
+        )  # noqa: S603
         verilator_bins = list(verilator_bin_location.glob("verilator*"))
 
         # Copy files into venv
