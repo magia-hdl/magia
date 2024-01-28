@@ -34,14 +34,14 @@ Master is usually the side that initiates a transaction and the Slave is the res
 Signals usually come with complementary directions on different sides of Master and Slave. 
 So that, the Signals are connected from Master to Slave, and vice versa.
 
-(Illustration)
+![BundleDirection.drawio.svg](img/BundleDirection.drawio.svg)
 
 The direction of a Signal in the `BundleSpec` is defined from the Master's perspective.
 - i.e. `Input` in the `BundleSpec` is an `Input` on the Master Port and an `Output` on the Slave Port 
 
 ---
 
-We can add siganls with directions to the `BundleSpec` by adding `Input/Output` to it,
+We can add signals with directions to the `BundleSpec` by adding `Input/Output` to it,
 similar to adding IO Ports to a `Module`.
 
 The following example demonstrates a BundleSpec with
