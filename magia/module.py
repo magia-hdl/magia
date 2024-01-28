@@ -44,17 +44,26 @@ class IOPorts:
         self._signals = SignalDict()
         self._owner_instance: Optional["Instance"] = owner_instance
 
-    def __add__(self, other: Union["IOPorts", list[Union[Input, Output]], Input, Output]) -> "IOPorts":
+    def __add__(self, other: Union["IOPorts", list[Union[Input, Output, "IOPorts"]], Input, Output]) -> "IOPorts":
         new_ports = IOPorts()
         new_ports += self
         new_ports += other
         return new_ports
 
-    def __iadd__(self, other: Union["IOPorts", list[Union[Input, Output]], Input, Output]) -> "IOPorts":
-        if isinstance(other, IOPorts):
-            other = other.inputs + other.outputs
-        if isinstance(other, (Input, Output)):
-            other = [other]
+    def __iadd__(self, other: Union["IOPorts", list[Union[Input, Output, "IOPorts"]], Input, Output]) -> "IOPorts":
+        if isinstance(other, list):
+            flatten = []
+            for ports in other:
+                if isinstance(ports, IOPorts):
+                    flatten += ports.inputs + ports.outputs
+                else:
+                    flatten.append(ports)
+            other = flatten
+        else:
+            if isinstance(other, IOPorts):
+                other = other.inputs + other.outputs
+            elif isinstance(other, (Input, Output)):
+                other = [other]
 
         for port in other:
             self._add_port(port)

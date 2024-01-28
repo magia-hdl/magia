@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from magia import Elaborator, Input, Module, Output
+from magia import Elaborator, Input, IOPorts, Module, Output
 
 
 class TestModSpecialize:
@@ -164,3 +164,39 @@ def test_module_spec():
         else:
             assert port["direction"] == "OUTPUT"
             assert port["description"] == ""
+
+
+def test_module_io_definition():
+    io_set_1 = IOPorts()
+    io_set_1 += Input("set1_a", 8)
+    io_set_1 += Input("set1_b", 8)
+
+    io_set_2 = IOPorts()
+    io_set_2 += Input("set2_a", 8)
+    io_set_2 += Input("set2_b", 8)
+
+    io_set_3 = IOPorts()
+    io_set_3 += Input("set3_a", 8)
+    io_set_3 += Input("set3_b", 8)
+
+    class Top(Module):
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            # Adding IO one by one
+            self.io += Input("in_a", 8)
+            self.io += Output("out_a", 8)
+            # Adding list of IO
+            self.io += [Input("in_b", 8), Output("out_b", 8)]
+            # Adding Single IOPorts
+            self.io += io_set_1
+            # Adding a list of IOPorts
+            self.io += [io_set_2, io_set_3]
+
+    top = Top()
+
+    assert len(top.io.signals) == 10
+    # Assert all inputs in io
+    for input_name in ["in_a", "in_b", "set1_a", "set1_b", "set2_a", "set2_b", "set3_a", "set3_b"]:
+        assert input_name in top.io.input_names
+    for output_name in ["out_a", "out_b"]:
+        assert output_name in top.io.output_names
