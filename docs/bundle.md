@@ -146,11 +146,11 @@ endmodule
 
 Signals within a Bundle can be accessed by multiple ways.
 
-| API                 | Description                                     | Example                  |
-|---------------------|-------------------------------------------------|--------------------------|
-| `bundle.signal_name | Access signal as attribute with the same name   | `bundle.data`            |                                         
-| `bundle[...]`       | Access signal with naming variables.            | `bundle[data_or_clk]`    |
-| `bundle.signals`    | Get all signals in the Bundle as a `SignalDict` | `bundle.signals["data"]` |
+| API                  | Description                                     | Example                  |
+|----------------------|-------------------------------------------------|--------------------------|
+| `bundle.signal_name` | Access signal as attribute with the same name   | `bundle.data`            |                                         
+| `bundle[...]`        | Access signal with naming variables.            | `bundle[data_or_clk]`    |
+| `bundle.signals`     | Get all signals in the Bundle as a `SignalDict` | `bundle.signals["data"]` |
 
 ```python
 from magia import BundleSpec, Output
