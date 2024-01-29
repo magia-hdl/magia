@@ -142,5 +142,99 @@ output logic   output_3_valid
 endmodule
 ```
 
+## Signal Access from the Bundle
+
+Signals within a Bundle can be accessed by multiple ways.
+
+| API                 | Description                                     | Example                  |
+|---------------------|-------------------------------------------------|--------------------------|
+| `bundle.signal_name | Access signal as attribute with the same name   | `bundle.data`            |                                         
+| `bundle[...]`       | Access signal with naming variables.            | `bundle[data_or_clk]`    |
+| `bundle.signals`    | Get all signals in the Bundle as a `SignalDict` | `bundle.signals["data"]` |
+
+```python
+from magia import BundleSpec, Output
+
+spec = BundleSpec()
+spec += [
+    Output(name="data", width=16),
+    Output(name="valid", width=1),
+]
+
+bundle1, bundle2, bundle_result = spec.bundle(), spec.bundle(), spec.bundle()
+bundle_result.data <<= (bundle1.data + bundle2.data).when(bundle1.valid & bundle2.valid, else_=0)
+bundle_result.valid <<= bundle1.valid & bundle2.valid
+
+```
+
 ## Connections to Instance and Module I/O
 
+`Bundle`can be connected to an `Instance` or IO Ports of a `Module`(i.e. `Module.io`).
+It can be done with the ` <<= ` operator.
+
+While the ports on the Module I/O can be renamed with the `prefix` and `suffix` arguments,
+We can connect it by adding prefix and suffix to the `Bundle` Signals with the `Bundle.with_name()` API.
+
+### Instance Connection
+
+```python
+from magia import BundleSpec, Module
+
+my_bus_spec = BundleSpec()
+...
+
+
+class BusMaster(Module):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.io += my_bus_spec.master_ports("master_")
+        ...
+
+
+class BusSlave(Module):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.io += my_bus_spec.slave_ports("slave_")
+        ...
+
+
+class Top(Module):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        ...
+        inst_master = BusMaster().instance("master")
+        inst_slave = BusSlave().instance("slave")
+
+        bus = my_bus_spec.bundle()
+        inst_master <<= bus.with_name("master_")
+        inst_slave <<= bus.with_name("slave_")
+
+```
+
+### Module I/O Connection
+
+```python
+from magia import BundleSpec, Output, Module
+
+data_path_spec = BundleSpec()
+data_path_spec += [
+    Output(name="data", width=16),
+    Output(name="valid", width=1),
+]
+
+
+class Broker(Module):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.io += Output(name="data_incoming", width=1)
+        self.io += data_path_spec.slave_ports(prefix="input_")
+        self.io += [
+            data_path_spec.master_ports(prefix=f"output_{i}_")
+            for i in range(4)
+        ]
+        bundle = data_path_spec.bundle()
+        for i in range(4):
+            self.io <<= bundle.with_name("input_")
+            self.io <<= bundle.with_name(f"output_{i}_")
+        self.io.data_incoming <<= bundle.valid
+```
