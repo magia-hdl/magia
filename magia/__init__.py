@@ -1,9 +1,9 @@
 from importlib.util import find_spec
 
-from .bundle import IOBundle, SignalBundle
+from .bundle import Bundle, BundleSpec, BundleType
 from .core import Constant, Input, Output, Register, Signal
 from .memory import Memory
-from .module import Blackbox, Elaborator, Instance, Module
+from .module import Blackbox, Elaborator, Instance, IOPorts, Module
 
 if find_spec("hdlConvertor") is not None:
     from .external import ExternalModule
@@ -41,14 +41,13 @@ __all__ = [
 Signal Bundles
 """
 __all__ += [
-    "SignalBundle",
-    "IOBundle",
 ]
 
 """
 Module and Instance
 """
 __all__ += [
+    "IOPorts",
     "Module",
     "Instance",
     "Blackbox",
@@ -61,4 +60,11 @@ Memory
 """
 __all__ += [
     "Memory",
+]
+
+"""
+Signal Bundles
+"""
+__all__ += [
+    "Bundle", "BundleSpec", "BundleType",
 ]

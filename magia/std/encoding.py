@@ -1,6 +1,6 @@
 from typing import Optional
 
-from magia import Signal, Constant
+from magia import Constant, Signal
 
 
 def binary_to_onehot(binary_input: Signal, max_value: Optional[int] = None) -> Signal:
@@ -33,7 +33,7 @@ def onehot_to_binary(onehot_input: Signal) -> Signal:
     Returns:
         Signal: A binary output signal.
     """
-    binary_width = (len(onehot_input)-1).bit_length()
+    binary_width = (len(onehot_input) - 1).bit_length()
     conversion_table = [
         Constant(i, binary_width).when(onehot_input[i])
         for i in range(len(onehot_input))
@@ -42,4 +42,3 @@ def onehot_to_binary(onehot_input: Signal) -> Signal:
     for entry in conversion_table:
         binary_out |= entry
     return binary_out
-

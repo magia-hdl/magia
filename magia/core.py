@@ -26,9 +26,11 @@ class SignalConfig:
     # Applicable to input / output ports only
     owner_instance: Optional["Instance"] = None
 
-    # The signal bundle that owns this signal
-    # Applicable to signals only
-    parent_bundle: Optional["SignalBundle"] = None
+    # Specification of the bundle, if the signal is part of it
+    bundle: Optional["Bundle"] = None
+    bundle_spec: Optional["BundleSpec"] = None
+    bundle_alias: Optional[str] = None
+    bundle_type: Optional["BundleType"] = None
 
 
 @dataclass
@@ -164,8 +166,11 @@ class Signal(Synthesizable):
             self,
             width: int = 0, signed: bool = False,
             name: Optional[str] = None,
-            parent_bundle: Optional["SignalBundle"] = None,
             description: Optional[str] = None,
+            bundle: Optional["Bundle"] = None,
+            bundle_spec: Optional["BundleSpec"] = None,
+            bundle_alias: Optional[str] = None,
+            bundle_type: Optional["BundleType"] = None,
             **kwargs
     ):
         if name is None:
@@ -176,20 +181,23 @@ class Signal(Synthesizable):
             name=name,
             width=width,
             signed=signed,
-            parent_bundle=parent_bundle,
             description="" if description is None else description,
+            bundle=bundle,
+            bundle_spec=bundle_spec,
+            bundle_alias=bundle_alias,
+            bundle_type=bundle_type,
         )
         self._drivers = SignalDict()
+
+    @property
+    def signal_config(self) -> SignalConfig:
+        return self._config
 
     @property
     def net_name(self) -> str:
         """
         Full name of a signal, used for elaboration.
         """
-        if self._config.parent_bundle is not None:
-            if self._config.parent_bundle.name is not None:
-                return f"bundle_{self._config.parent_bundle.name}_{self.name}"
-            return f"bundle_{id(self._config.parent_bundle)}_{self.name}"
         return self.name
 
     @property
@@ -262,7 +270,6 @@ class Signal(Synthesizable):
         signal = Signal(
             width=len(self),
             signed=signed,
-            parent_bundle=None,
         )
         signal <<= self
         return signal
@@ -280,7 +287,6 @@ class Signal(Synthesizable):
             signal = Signal(
                 width=width,
                 signed=self.signed,
-                parent_bundle=None,
             )
             signal <<= self
             return signal
@@ -324,17 +330,17 @@ class Signal(Synthesizable):
             return "\n".join((signal_decl, assignment))
         return signal_decl
 
-    def copy(self, parent_bundle: Optional["SignalBundle"] = None, **kwargs) -> "Signal":
+    def copy(self, owner_instance=None, **kwargs) -> "Signal":
         """
         Copy the signal. Driver is discarded.
-        Signal can only be copied to a SignalBundle, not an IOBundle.
         :return: A new signal with the same configuration.
         """
         return Signal(
             name=self.name,
             width=len(self),
             signed=self.signed,
-            parent_bundle=parent_bundle,
+            owner_instance=owner_instance,
+            description=self.description,
         )
 
     def __ilshift__(self, other):
@@ -642,13 +648,6 @@ class Input(Signal):
         self._config.signal_type = SignalType.INPUT
         self._config.owner_instance = owner_instance
 
-    @property
-    def net_name(self) -> str:
-        """
-        Net Name of I/O must be the same with the name, even they are within an IOBundle
-        """
-        return self.name
-
     def elaborate(self) -> str:
         """
         Elaborate the input signal in the module declaration.
@@ -656,20 +655,6 @@ class Input(Signal):
         """
         port_decl = self.signal_decl().rstrip(";")
         return f"input  {port_decl}"
-
-    def copy(self, owner_instance: Optional["Instance"] = None) -> "Input":
-        """
-        Copy the input signal. Driver is discarded.
-        I/O port can only be assigned to an instance, not a SignalBundle / IOBundle.
-        :return: A new input signal with the same configuration.
-        """
-        return Input(
-            name=self.name,
-            width=len(self),
-            signed=self.signed,
-            description=self.description,
-            owner_instance=owner_instance,
-        )
 
 
 class Output(Signal):
@@ -696,13 +681,6 @@ class Output(Signal):
         self._config.signal_type = SignalType.OUTPUT
         self._config.owner_instance = owner_instance
 
-    @property
-    def net_name(self) -> str:
-        """
-        Net Name of I/O must be the same with the name, even they are within an IOBundle
-        """
-        return self.name
-
     def elaborate(self) -> str:
         """
         Elaborate the output signal in the module declaration.
@@ -710,20 +688,6 @@ class Output(Signal):
         """
         port_decl = self.signal_decl().rstrip(";")
         return f"output {port_decl}"
-
-    def copy(self, owner_instance: Optional["Instance"] = None, **kwargs) -> "Output":
-        """
-        Copy the output signal. Driver is discarded.
-        I/O port can only be assigned to an instance, not a SignalBundle / IOBundle.
-        :return: A new output signal with the same configuration.
-        """
-        return Output(
-            name=self.name,
-            width=len(self),
-            signed=self.signed,
-            description=self.description,
-            owner_instance=owner_instance,
-        )
 
 
 class Constant(Signal):

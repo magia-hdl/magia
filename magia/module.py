@@ -1,7 +1,7 @@
 import inspect
 import logging
 from collections import Counter, OrderedDict
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from functools import cached_property
 from itertools import count
 from os import PathLike
@@ -9,8 +9,8 @@ from pathlib import Path
 from string import Template
 from typing import Optional, Union
 
-from .bundle import IOBundle, SignalBundleView
-from .core import Signal, SignalDict, SignalType, Synthesizable
+from .constants import SignalType
+from .core import Input, Output, Signal, SignalDict, Synthesizable
 from .memory import Memory, MemorySignal
 
 logger = logging.getLogger(__name__)
@@ -26,6 +26,124 @@ class ModuleConfig:
 class ModuleInstanceConfig:
     module: "Module"
     name: Optional[str] = None
+
+
+class IOPorts:
+    """
+    Define a bundle of I/O, which can be used as the input or output of a module.
+    An IOPorts can be added with Input and Output.
+    However, the bundle cannot be used as normal signals.
+    The actual signals can be accessed from `input` and `output` of the instance instead.
+
+    We can use `signal_bundle()` to create a SignalBundle that turns all the ports into normal signals,
+    which we can connect to the instance of the module and other destinations.
+    It can be accessed by individual port by attributes, or connect to multiple instance directly.
+    """
+
+    def __init__(self, owner_instance: Optional["Instance"] = None, **kwargs):
+        self._signals = SignalDict()
+        self._owner_instance: Optional["Instance"] = owner_instance
+
+    def __add__(self, other: Union["IOPorts", list[Union[Input, Output, "IOPorts"]], Input, Output]) -> "IOPorts":
+        new_ports = IOPorts()
+        new_ports += self
+        new_ports += other
+        return new_ports
+
+    def __iadd__(self, other: Union["IOPorts", list[Union[Input, Output, "IOPorts"]], Input, Output]) -> "IOPorts":
+        if isinstance(other, list):
+            flatten = []
+            for ports in other:
+                if isinstance(ports, IOPorts):
+                    flatten += ports.inputs + ports.outputs
+                else:
+                    flatten.append(ports)
+            other = flatten
+        else:
+            if isinstance(other, IOPorts):
+                other = other.inputs + other.outputs
+            elif isinstance(other, (Input, Output)):
+                other = [other]
+
+        for port in other:
+            self._add_port(port)
+
+        return self
+
+    def _add_port(self, port: Union[Input, Output]):
+        if port.name in self.signals:
+            raise KeyError(f"Port {port.name} is already defined.")
+
+        if port.type not in (SignalType.INPUT, SignalType.OUTPUT):
+            raise TypeError(f"Signal Type {port.type} is forbidden in IOPorts.")
+
+        self._signals[port.name] = port.__class__(
+            **{
+                k: v
+                for k, v in asdict(port.signal_config).items()
+                if k not in ("signal_type", "owner_instance",)
+            },
+            owner_instance=self._owner_instance,
+        )
+
+    def __getattr__(self, name: str) -> Union[Input, Output]:
+        if name.startswith("_"):
+            return super().__getattribute__(name)
+        if name in self.signals:
+            return self.__getitem__(name)
+        return super().__getattribute__(name)
+
+    def __setattr__(self, name: str, value: Union[Input, Output]):
+        if name.startswith("_"):
+            super().__setattr__(name, value)
+        if isinstance(value, Signal):
+            self.__setitem__(name, value)
+        else:
+            super().__setattr__(name, value)
+
+    def __getitem__(self, item: str) -> Union[Input, Output]:
+        return self._signals[item]
+
+    def __setitem__(self, key, value):
+        self._signals[key] = value
+
+    @property
+    def inputs(self) -> list[Signal]:
+        return [
+            signal for signal in self._signals.values()
+            if signal.type == SignalType.INPUT
+        ]
+
+    @property
+    def outputs(self) -> list[Signal]:
+        return [
+            signal for signal in self._signals.values()
+            if signal.type == SignalType.OUTPUT
+        ]
+
+    @property
+    def input_names(self) -> list[str]:
+        return [
+            name for name, port in self._signals.items()
+            if port.type == SignalType.INPUT
+        ]
+
+    @property
+    def output_names(self) -> list[str]:
+        return [
+            name for name, port in self._signals.items()
+            if port.type == SignalType.OUTPUT
+        ]
+
+    @property
+    def signals(self) -> SignalDict:
+        return self._signals
+
+    def __ilshift__(self, other: "Bundle"):
+        if self._owner_instance is not None:
+            raise TypeError("Connect the bundle to an Instance directly, instead of `Instance.io <<= Bundle`.")
+        other.connect_to(self)
+        return self
 
 
 class Module(Synthesizable):
@@ -77,7 +195,7 @@ class Module(Synthesizable):
             module_class=type(self),
             name=name,
         )
-        self.io = IOBundle()
+        self.io = IOPorts()
 
     def validate(self) -> list[Exception]:
         undriven_outputs = [
@@ -351,7 +469,7 @@ class Instance(Synthesizable):
             module=module,
             name=name,
         )
-        self._io = IOBundle(owner_instance=self)
+        self._io = IOPorts(owner_instance=self)
         self.outputs = SignalDict()
         self.inputs = SignalDict()
 
@@ -389,20 +507,6 @@ class Instance(Synthesizable):
     @property
     def module(self) -> Module:
         return self._inst_config.module
-
-    def __ilshift__(self, other: SignalBundleView):
-        """
-        Connect signals in the bundle to the instance I/O ports.
-        """
-        if not isinstance(other, SignalBundleView):
-            raise TypeError(f"Cannot connect {type(other)} to {type(self)}")
-        for port_name, signal in other.items():
-            if port_name in self.inputs:
-                self.inputs[port_name] <<= signal
-            elif port_name in self.outputs:
-                signal <<= self.outputs[port_name]
-            else:
-                logger.warning(f"Port {port_name} is not defined in {self.name}.")
 
     def validate(self) -> list[Exception]:
         errors = []
@@ -443,6 +547,10 @@ class Instance(Synthesizable):
             inst_name=inst_name,
             io=io_list,
         )
+
+    def __ilshift__(self, other: "Bundle"):
+        other.connect_to(self)
+        return self
 
 
 class Blackbox(Module):

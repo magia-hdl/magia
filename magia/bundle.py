@@ -1,82 +1,214 @@
-import logging
+import enum
+from copy import deepcopy
 from typing import Optional, Union
 
 from .constants import SignalType
-from .core import Constant, Input, Output, Signal, SignalDict
+from .core import Input, Output, Signal, SignalConfig, SignalDict
+from .module import Instance, IOPorts
 
-logger = logging.getLogger(__name__)
+
+class BundleType(enum.Enum):
+    MASTER = 0
+    SLAVE = 1
+    MONITOR = 2
 
 
-class SignalBundleView:
+class BundleSpec:
     """
-    SignalBundleView is a collection of signals, which is a view of the original SignalBundle.
-    It can be considered as a bus or a group of wires.
-
-    SignalBundleView will not change the parent of the signals contained in it.
-    The signals contained is exactly the same as the original one.
-    The way to access the signals is the same as SignalBundle.
-
-    Adding signals to a SignalBundleView is allowed.
-    It will be added as is, without any modification or copy.
-
-    Part of the signals can be selected by `select` and `exclude`.
-    It creates a new view from the current one.
-
-    Alias of the signals can be changed by `with_alias`.
-    It creates a new view from the current one, with the alias of the signals changed.
-    The signals contained in the new bundle is the same as the original one.
+    Specification of a signal bundle.
+    Use to spin up a bundle / IO ports
     """
 
     def __init__(self, **kwargs):
-        self._signals = SignalDict()
+        self.bus_signature: str = ""  # Identifying different types of buses
 
-    @property
-    def signals(self) -> list[Signal]:
-        return list(self._signals.values())
+        self.common: dict[str, SignalConfig] = {}
+        self.forward: dict[str, SignalConfig] = {}
+        self.backward: dict[str, SignalConfig] = {}
 
-    @property
-    def signal_alias(self) -> list[str]:
-        return list(self._signals.keys())
+        self.routing_map: dict[str, str] = {}
+        self.prefix = self.suffix = ""
 
-    def __add__(self, other: Union["SignalBundle", "SignalBundleView", list[Signal], Signal]) -> "SignalBundleView":
-        new_view = SignalBundleView()
-        new_view += self
-        new_view += other
-        return new_view
+    def add_common(self, signal: Signal):
+        """
+        Adding a common signal into the bundle spec.
+        Common signals are always with same direction on both master and slave.
+        (e.g. Clocks, Resets, etc.)
+        """
+        name = signal.name
+        if name is None:
+            raise ValueError("Signal must have a name")
+        if name in self.common or name in self.forward or name in self.backward:
+            raise ValueError(f"Signal {name} already exists in common")
+        if signal.type not in (SignalType.INPUT, SignalType.OUTPUT):
+            raise ValueError(f"Common signal {name} must be an input / output")
+        self.common[name] = SignalConfig(
+            name=name,
+            width=signal.width,
+            signed=signal.signed,
+            description=signal.description,
+            signal_type=signal.type,
+        )
 
-    def __iadd__(self, other: Union["SignalBundle", "SignalBundleView", list[Signal], Signal]) -> "SignalBundleView":
-        if isinstance(other, (SignalBundle, SignalBundleView)):
-            other = other.signals
+    def add_signal(self, signal: Signal):
+        """
+        Adding an Input/Output into the bundle spec.
+        These signals will flip direction on master and slave.
+        The direction of the signal is in the perspective of the master.
+        """
+        name = signal.name
+        if name is None:
+            raise ValueError("Signal must have a name")
+        if name in self.common or name in self.forward or name in self.backward:
+            raise ValueError(f"Signal {name} already exists in common")
+
+        if signal.type == SignalType.INPUT:
+            target = self.backward
+        elif signal.type == SignalType.OUTPUT:
+            target = self.forward
+        else:
+            raise ValueError(f"Unknown signal type {signal.type}")
+        target[name] = SignalConfig(
+            name=name,
+            width=signal.width,
+            signed=signal.signed,
+            description=signal.description,
+            signal_type=signal.type,
+        )
+
+    def __iadd__(self, other: Union[Signal, list[Signal], IOPorts]):
         if isinstance(other, Signal):
             other = [other]
+        elif isinstance(other, IOPorts):
+            other = list(other.signals.values())
         for signal in other:
-            if not isinstance(signal, Signal):
-                raise TypeError(f"Signal {signal} is not a Signal object.")
-            if signal.name in self.signal_alias:
-                raise KeyError(f"Signal {signal.name} is already defined.")
-            if isinstance(signal, (Input, Output, Constant)):
-                raise TypeError(f"Signal Type {signal.type} is forbidden in SignalBundleView.")
-            self._signals[signal.name] = signal
-
+            self.add_signal(signal)
         return self
 
-    def __getattr__(self, alias: str) -> Signal:
-        if alias.startswith("_"):
-            return super().__getattribute__(alias)
-        if alias in self.signal_alias:
-            return self.__getitem__(alias)
-        return super().__getattribute__(alias)
+    def route_ports(self, src: str, dst: str):
+        """
+        Specify a connection between two signals, when they have different names on master and slave.
+        e.g. connect("data_in", "data_out") will connect the signal "data_in" on master to "data_out" on slave,
+        and vice versa.
 
-    def __setattr__(self, alias: str, value: Signal):
+        These signals must be specified as common signals in the bundle spec.
         """
-        Avoid Bundle to be modified by mistake.
-        """
-        if alias.startswith("_"):
-            super().__setattr__(alias, value)
-        if isinstance(value, Signal):
-            self.__setitem__(alias, value)
-        else:
-            super().__setattr__(alias, value)
+        if src not in self.common or dst not in self.common:
+            raise ValueError(f"Signal {src} and {dst} needs to be specified as common signals with `add_common()`")
+
+        self.routing_map[src] = dst
+        self.routing_map[dst] = src
+
+    def _spec_gen(self, prefix: Optional[str] = None, suffix: Optional[str] = None) -> "BundleSpec":
+        new_spec = deepcopy(self)
+        if prefix is not None:
+            new_spec.prefix = prefix
+        if suffix is not None:
+            new_spec.suffix = suffix
+        return new_spec
+
+    # IO Ports factory methods
+    def _create_ports(
+            self,
+            prefix: Optional[str], suffix: Optional[str],
+            inputs: list[SignalConfig], outputs: list[SignalConfig],
+            bundle_type: BundleType,
+    ) -> IOPorts:
+        new_spec = self._spec_gen(prefix, suffix)
+        new_ports = IOPorts()
+        new_ports += [
+            Input(
+                name=new_spec.prefix + port.name + new_spec.suffix,
+                width=port.width,
+                signed=port.signed,
+                description=port.description,
+                bundle_spec=new_spec,
+                bundle_alias=port.name,
+                bundle_type=bundle_type,
+            )
+            for port in inputs
+        ]
+        new_ports += [
+            Output(
+                name=new_spec.prefix + port.name + new_spec.suffix,
+                width=port.width,
+                signed=port.signed,
+                description=port.description,
+                bundle_spec=new_spec,
+                bundle_alias=port.name,
+                bundle_type=bundle_type,
+            )
+            for port in outputs
+        ]
+        return new_ports
+
+    def master_ports(self, prefix: Optional[str] = None, suffix: Optional[str] = None) -> IOPorts:
+        input_configs = [
+            config
+            for config in self.common.values()
+            if config.signal_type == SignalType.INPUT
+        ]
+        input_configs += list(self.backward.values())
+        output_configs = [
+            config
+            for config in self.common.values()
+            if config.signal_type == SignalType.OUTPUT
+        ]
+        output_configs += list(self.forward.values())
+        return self._create_ports(prefix, suffix, input_configs, output_configs, BundleType.MASTER)
+
+    def slave_ports(self, prefix: Optional[str] = None, suffix: Optional[str] = None) -> IOPorts:
+        input_configs = [
+            config
+            for config in self.common.values()
+            if config.signal_type == SignalType.INPUT
+        ]
+        input_configs += list(self.forward.values())
+        output_configs = [
+            config
+            for config in self.common.values()
+            if config.signal_type == SignalType.OUTPUT
+        ]
+        output_configs += list(self.backward.values())
+        return self._create_ports(prefix, suffix, input_configs, output_configs, BundleType.SLAVE)
+
+    def monitor_ports(self, prefix: Optional[str] = None, suffix: Optional[str] = None) -> IOPorts:
+        input_configs = list(self.common.values()) + list(self.forward.values()) + list(self.backward.values())
+        output_configs = []
+        return self._create_ports(prefix, suffix, input_configs, output_configs, BundleType.MONITOR)
+
+    # Signal Bundle factory method
+    def bundle(self, name: Optional[str] = None) -> "Bundle":
+        new_bundle = Bundle(new_spec := self._spec_gen(), name)
+        signal_configs = list(self.common.values()) + list(self.forward.values()) + list(self.backward.values())
+        for config in signal_configs:
+            new_bundle.signals[config.name] = Signal(
+                width=config.width,
+                signed=config.signed,
+                description=config.description,
+                bundle=new_bundle,
+                bundle_spec=new_spec,
+                bundle_alias=config.name,
+            )
+        return new_bundle
+
+
+class Bundle:
+    """
+    A signal bundle, containing a set of signals
+    """
+
+    def __init__(
+            self, spec: BundleSpec, name: Optional[str] = None,
+            prefix: Optional[str] = None,
+            suffix: Optional[str] = None,
+            **kwargs
+    ):
+        self._spec = spec
+        self._name = name
+        self._signals: SignalDict = SignalDict()
+        self._prefix = prefix if prefix is not None else ""
+        self._suffix = suffix if suffix is not None else ""
 
     def __getitem__(self, item: str) -> Signal:
         return self._signals[item]
@@ -84,171 +216,10 @@ class SignalBundleView:
     def __setitem__(self, key, value):
         self._signals[key] = value
 
-    def items(self):
-        return self._signals.items()
-
-    def values(self):
-        return self._signals.values()
-
-    def __iter__(self):
-        return self._signals.__iter__()
-
-    def __ilshift__(self, other: "SignalBundleView"):
-        if not isinstance(other, SignalBundleView):
-            raise TypeError("Cannot add SignalBundleView to SignalBundleView.")
-        for signal_alias, signal in other.items():
-            if signal_alias not in self.signal_alias:
-                logger.warning(f"Signal {signal_alias} is not defined.")
-            elif self[signal_alias].driver() is None:
-                self[signal_alias] <<= signal
-            else:
-                signal <<= self[signal_alias]
-
-    def with_alias(self, prefix: str = "", suffix: str = "") -> "SignalBundleView":
-        """
-        Create a new SignalBundleView with a renamed alias.
-        Each signal can be access with an alias prefixed with `prefix` and suffixed with `suffix`.
-        The signal contained in the new bundle is the same as the original one.
-        """
-        new_bundle = SignalBundleView()
-        for alias, signal in self._signals.items():
-            new_bundle[f"{prefix}{alias}{suffix}"] = signal
-        return new_bundle
-
-    def select(self, *alias: list[str]) -> "SignalBundleView":
-        """
-        Select a subset of signals from the bundle and create a new SignalBundleView.
-        """
-        new_bundle = SignalBundleView()
-        for signal_alias, signal in self._signals.items():
-            if signal_alias in alias:
-                new_bundle[signal_alias] = signal
-        return new_bundle
-
-    def exclude(self, *alias: list[str]) -> "SignalBundleView":
-        """
-        Exclude a subset of signals from the bundle and create a new SignalBundleView.
-        """
-        new_bundle = SignalBundleView()
-        for signal_alias, signal in self._signals.items():
-            if signal_alias not in alias:
-                new_bundle[signal_alias] = signal
-        return new_bundle
-
-
-class SignalBundle(SignalBundleView):
-    """
-    SignalBundle is a collection of signals.
-    It can be considered as a bus or a group of wires.
-
-    SignalBundle is the parent of the signals contained in it.
-    The signals contained in the bundle can be accessed:
-    bundle.signal_alias / bundle[signal_alias]
-
-    New signal can be added to the bundle by:
-    bundle += signal / bundle += [signal1, signal2, ...] / bundle += other_bundle
-    Signal added to the bundle is a copy of the original and must have a unique name.
-    """
-
-    def __init__(self, name: Optional[str] = None, **kwargs):
-        super().__init__(**kwargs)
-        self._name = name
-
-    def __add__(self, other: Union["SignalBundle", list[Signal], Signal]) -> "SignalBundle":
-        new_bundle = SignalBundle()
-        new_bundle += self
-        new_bundle += other
-        return new_bundle
-
-    def __iadd__(self, other: Union["SignalBundle", list[Signal], Signal]) -> "SignalBundle":
-        if isinstance(other, SignalBundle):
-            other = other.signals
-        if isinstance(other, SignalBundleView):
-            raise TypeError("Cannot add SignalBundleView to SignalBundle.")
-        if isinstance(other, Signal):
-            other = [other]
-        for signal in other:
-            if not isinstance(signal, Signal):
-                raise TypeError(f"Signal {signal} is not a Signal object.")
-            if signal.name in self.signal_alias:
-                raise KeyError(f"Signal {signal.name} is already defined.")
-            if isinstance(signal, (Input, Output, Constant)):
-                raise TypeError(f"Signal Type {signal.type} is forbidden in SignalBundle.")
-            self._signals[signal.name] = signal.copy(parent_bundle=self)
-        return self
-
-    def copy(self) -> "SignalBundle":
-        """
-        Create a new SignalBundle with the same signals alias as the original one.
-        The signals contained in the new bundle are different from the original one.
-        """
-        new_bundle = SignalBundle()
-        new_bundle += self
-        return new_bundle
-
-    def view(self) -> SignalBundleView:
-        """
-        Create a new SignalBundleView with the same signals alias as the original one.
-        The signals contained in the new bundle are the same as the original one.
-        """
-        new_bundle = SignalBundleView()
-        new_bundle += self
-        return new_bundle
-
-    @property
-    def name(self) -> Optional[str]:
-        return self._name
-
-
-class IOBundle:
-    """
-    Define a bundle of I/O, which can be used as the input or output of a module.
-    An IOBundle can be added with Input and Output.
-    However, the bundle cannot be used as normal signals.
-    The actual signals can be accessed from `input` and `output` of the instance instead.
-
-    We can use `signal_bundle()` to create a SignalBundle that turns all the ports into normal signals,
-    which we can connect to the instance of the module and other destinations.
-    It can be accessed by individual port by attributes, or connect to multiple instance directly.
-    """
-
-    def __init__(self, owner_instance: Optional["Instance"] = None, **kwargs):
-        self._signals = SignalDict()
-        self._input_names: list[str] = []
-        self._output_names: list[str] = []
-        self._owner_instance: Optional["Instance"] = owner_instance
-
-    def __add__(self, other: Union["IOBundle", list[Union[Input, Output]], Input, Output]) -> "IOBundle":
-        new_bundle = IOBundle()
-        new_bundle += self
-        new_bundle += other
-        return new_bundle
-
-    def __iadd__(self, other: Union["IOBundle", list[Union[Input, Output]], Input, Output]) -> "IOBundle":
-        if isinstance(other, IOBundle):
-            other = other.inputs + other.outputs
-        if isinstance(other, (Input, Output)):
-            other = [other]
-
-        for port in other:
-            if port.name in self.input_names + self.output_names:
-                raise KeyError(f"Port {port.name} is already defined.")
-
-            if port.type == SignalType.INPUT:
-                self._input_names.append(port.name)
-            elif port.type == SignalType.OUTPUT:
-                self._output_names.append(port.name)
-            else:
-                raise TypeError(f"Signal Type {port.type} is forbidden in IOBundle.")
-
-            self._signals[port.name] = port.copy(owner_instance=self.owner_instance)
-
-        return self
-
     def __getattr__(self, name: str) -> Union[Input, Output]:
         if name.startswith("_"):
             return super().__getattribute__(name)
-        if name in self.input_names + self.output_names:
+        if name in self.signals:
             return self.__getitem__(name)
         return super().__getattribute__(name)
 
@@ -260,87 +231,95 @@ class IOBundle:
         else:
             super().__setattr__(name, value)
 
-    def __getitem__(self, item: str) -> Union[Input, Output]:
-        return self._signals[item]
-
-    def __setitem__(self, key, value):
-        self._signals[key] = value
-
     @property
-    def inputs(self) -> list[Signal]:
-        return [
-            signal for signal in self._signals.values()
-            if signal.type == SignalType.INPUT
-        ]
-
-    @property
-    def outputs(self) -> list[Signal]:
-        return [
-            signal for signal in self._signals.values()
-            if signal.type == SignalType.OUTPUT
-        ]
-
-    @property
-    def input_names(self) -> list[str]:
-        return self._input_names
-
-    @property
-    def output_names(self) -> list[str]:
-        return self._output_names
+    def name(self) -> str:
+        return self._name
 
     @property
     def signals(self) -> SignalDict:
         return self._signals
 
     @property
-    def owner_instance(self) -> Optional["Instance"]:
-        return self._owner_instance
+    def prefix(self) -> str:
+        return self._prefix
 
-    def flip(self, ignore: Optional[list[str]] = None) -> "IOBundle":
-        """
-        Create a new IOBundle with the Input and Output inverted.
-        Ports specified in the `ignore` arguments will not be inverted.
+    @property
+    def suffix(self) -> str:
+        return self._suffix
 
-        If `ignore` is not specified, default ports: "clk", "rst_n", "reset" are remain unchanged.
+    def with_name(self, prefix: Optional[str] = None, suffix: Optional[str] = None) -> "Bundle":
         """
-        if ignore is None:
-            ignore = ["clk", "rst_n", "reset"]
-        new_bundle = IOBundle()
-        for port in self._signals.values():
-            if port.name in ignore:
-                new_bundle += port
-            else:
-                new_port_type = {
-                    SignalType.INPUT: Output,
-                    SignalType.OUTPUT: Input,
-                }[port.type]
-                new_port = new_port_type(name=port.name, width=len(port), signed=port.signed)
-                new_bundle += new_port
+        Create a view of bundle with different signal names.
+        The signals are not copied, only the names are changed.
+
+        It is used to connect to IOPorts with multiple bundles with different names.
+        """
+        new_bundle = Bundle(self._spec, self._name, prefix, suffix)
+        new_bundle._signals = self._signals
         return new_bundle
 
-    def signal_bundle(self, name: Optional[str] = None) -> SignalBundle:
+    def _connection_map(self, bundle_type: BundleType, connecting_instance: bool) -> dict[str, str]:
         """
-        Return a SignalBundle that turns all the ports into normal signals
-        The bundle can be connected to the instance of the module and other destinations.
+        Return a map of signal names within the bundle to their target signal names on a module's IOPort.
         """
-        new_bundle = SignalBundle(name)
-        for port in self._signals.values():
-            new_bundle += Signal(name=port.name, width=len(port), signed=port.signed)
-        return new_bundle
+        bundle_names = list(self._signals.keys())
+        port_names = {
+            name: f"{self.prefix}{name}{self.suffix}"
+            for name in bundle_names
+        }
+        if connecting_instance and bundle_type == BundleType.SLAVE:
+            # Reroute signals in case of connecting to slave bundles on an instance.
+            return {
+                name: port_names[self._spec.routing_map.get(name, name)]
+                for name in bundle_names
+            }
+        # No rerouting needed for master/monitor bundles or bundles on a module.
+        return {
+            name: port_names[name]
+            for name in bundle_names
+        }
 
-    def with_name(self, prefix: str = "", suffix: str = "", upper_case=False) -> "IOBundle":
+    def connect_to(self, target_io: Union[IOPorts, Instance]):
         """
-        Create a new IOBundle with the name of each port prefixed with `prefix` and suffixed with `suffix`.
+        Connect the bundle to an IOPorts, owned by an Instance / Module.
         """
-        new_bundle = IOBundle()
-        for port in self._signals.values():
-            new_port_type = {
-                SignalType.INPUT: Input,
-                SignalType.OUTPUT: Output,
-            }[port.type]
-            new_name = f"{prefix}{port.name}{suffix}"
-            if upper_case:
-                new_name = new_name.upper()
-            new_port = new_port_type(name=new_name, width=len(port), signed=port.signed)
-            new_bundle += new_port
-        return new_bundle
+        if not isinstance(target_io, (IOPorts, Instance)):
+            raise ValueError(f"Target must be an IOPorts or an Instance, got {type(target_io)}")
+
+        # Find one of the port from the target IOPorts
+        # to obtain the bundle type
+        connect_to_instance = isinstance(target_io, Instance)
+        first_port = next(iter(self.signals.keys()))
+        target_name = f"{self.prefix}{first_port}{self.suffix}"
+        target_port = (mod_io := target_io.module.io)[target_name] if connect_to_instance else target_io[target_name]
+
+        # Obtain target bundle information
+        target_type = target_port.signal_config.bundle_type
+        connection_map = self._connection_map(target_type, connect_to_instance)
+
+        ports_set = set(mod_io.signals.keys()) if connect_to_instance else set(target_io.signals.keys())
+        # Check if any port is missing
+        missing_ports = [
+            target_name
+            for target_name in connection_map.values()
+            if target_name not in ports_set
+        ]
+        if missing_ports:
+            raise ValueError(f"Missing ports: {missing_ports} in target IOPorts")
+
+        if connect_to_instance:
+            # IO ports owned by instance
+            # Inputs are load, outputs are drivers
+            for src_name, dst_name in connection_map.items():
+                if mod_io[dst_name].type == SignalType.INPUT:
+                    target_io.inputs[dst_name] <<= self[src_name]
+                else:
+                    self[src_name] <<= target_io.outputs[dst_name]
+        else:
+            # IO ports owned by module
+            # Inputs are drivers, outputs are loads
+            for src_name, dst_name in connection_map.items():
+                if target_io[dst_name].type == SignalType.INPUT:
+                    self[src_name] <<= target_io[dst_name]
+                else:
+                    target_io[dst_name] <<= self[src_name]
