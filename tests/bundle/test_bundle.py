@@ -6,7 +6,7 @@ from cocotb.clock import Clock
 from cocotb.triggers import FallingEdge, RisingEdge
 from cocotb_test.simulator import run as sim_run
 
-from magia import Elaborator, Input, Module
+from magia import Input, Module
 from magia.std.bundles import valid_signal
 from tests import helper
 
@@ -17,17 +17,17 @@ async def input_driver(dut):
     await FallingEdge(dut.clk)
     dut.reset.value = 0
 
-    for i in range(1000):
+    for _ in range(1000):
         dut.in_data.value = random.randint(0, 2 ** 15)
         dut.in_valid.value = 1 if random.randint(0, 4) > 1 else 0
         await FallingEdge(dut.clk)
-    for i in range(5):
+    for _ in range(5):
         dut.in_valid.value = 0
         await FallingEdge(dut.clk)
 
 
 async def io_monitor(dut, end_of_sim: cocotb.triggers.Event):
-    input_record, output_record = list(), list()
+    input_record, output_record = [], []
     await RisingEdge(dut.clk)
     await FallingEdge(dut.reset)
     while not end_of_sim.is_set():
@@ -116,8 +116,6 @@ def test_bundle_connections(temp_build_dir):
                 incrementer <<= interconnects[i].with_name("out_")
             self.io <<= input_bus.with_name("in_")
             self.io <<= interconnects[-1].with_name("out_")
-
-    print(Elaborator.to_string(TopModule(name=top)))
 
     with helper.elaborate_to_file(TopModule(name=top)) as filename:
         sim_run(
