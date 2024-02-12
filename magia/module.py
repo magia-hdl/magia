@@ -569,6 +569,29 @@ class Blackbox(Module):
         raise NotImplementedError("Blackbox module must implement elaborate() method.")
 
 
+class VerilogWrapper(Module):
+    """
+    VerilogWrapper Creates a module that wraps a module in a Verilog Format.
+    Some EDA tools do not support SystemVerilog as the top level or integrable IP.
+    Wrapping the SV module in Verilog allows strict integration with those EDA tools.
+    """
+
+    def __init__(self, module: Module, **kwargs):
+        if kwargs.get("name") is None and module.name is not None:
+            kwargs["name"] = f"{module.name}Wrapper"
+        super().__init__(**kwargs)
+        self.module = module
+        self.io += module.io
+        module.instance(name="inst", io={
+            name: self.io[name]
+            for name in module.io.signals
+        })
+
+    def elaborate(self) -> tuple[str, set[Module]]:
+        with Signal.decl_in_verilog():
+            return super().elaborate()
+
+
 class Elaborator:
     """
     Elaborator is a helper class to elaborate modules.
@@ -579,7 +602,7 @@ class Elaborator:
         raise NotImplementedError("Elaborator is a helper class and should not be instantiated.")
 
     @classmethod
-    def to_dict(cls, *modules: Module) -> dict[str, str]:
+    def to_dict(cls, *modules: Module, top_only: bool = False) -> dict[str, str]:
         """
         Elaborate all modules in the list.
         Each module will be elaborated only once and return the SystemVerilog code, plus a list of submodules
@@ -587,6 +610,7 @@ class Elaborator:
         The elaboration is done recursively, until all submodules are elaborated.
 
         :param modules: The modules to be elaborated.
+        :param top_only: If True, Elaborator will skip the submodules instantiated by `modules`
         :return: A dictionary of the SystemVerilog code for each module.
         """
         cls.name_to_module = {}
@@ -598,26 +622,32 @@ class Elaborator:
             if mod.name not in elaborated_modules:
                 sv_code, submodules = mod.elaborate()
                 elaborated_modules[mod.name] = sv_code
-                modules += submodules
+                if not top_only:
+                    modules += submodules
         return elaborated_modules
 
     @classmethod
-    def to_string(cls, *modules: Module) -> str:
+    def to_string(cls, *modules: Module, top_only: bool = False) -> str:
         """
         Elaborate all modules in the list and return the SystemVerilog code as a string.
         """
-        return "\n\n".join(cls.to_dict(*modules).values())
+        return "\n\n".join(cls.to_dict(*modules, top_only=top_only).values())
 
     @classmethod
-    def to_file(cls, filename: PathLike, *modules: Module):
+    def to_file(cls, filename: PathLike, *modules: Module, top_only: bool = False):
         """
         Elaborate all modules in the list and write the SystemVerilog code to a file.
         """
-        sv_code = cls.to_string(*modules)
+        sv_code = cls.to_string(*modules, top_only=top_only)
         Path(filename).write_text(sv_code)
 
     @classmethod
-    def to_files(cls, output_dir: PathLike, /, *modules: Module, force: bool = False) -> list[Path]:
+    def to_files(
+            cls, output_dir: PathLike, /,
+            *modules: Module,
+            force: bool = False,
+            top_only: bool = False
+    ) -> list[Path]:
         """
         Elaborate all modules in the list and write the SystemVerilog code to files.
         The files are written to the output directory.
@@ -625,6 +655,7 @@ class Elaborator:
         :param output_dir: The output directory.
         :param modules: The modules to be elaborated.
         :param force: If True, files in the output directory will be overwritten if it exists.
+        :param top_only: If True, Elaborator will skip the submodules instantiated by `modules`
 
         :return: A list of Path objects of the files written.
         """
@@ -633,7 +664,7 @@ class Elaborator:
             raise FileExistsError(f"Directory {output_dir} already exists and not empty.")
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        result = cls.to_dict(*modules)
+        result = cls.to_dict(*modules, top_only=top_only)
         result_by_file: dict[str, list[str]] = {}
 
         # Categorize by output file
