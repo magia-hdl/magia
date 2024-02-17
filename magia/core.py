@@ -1,6 +1,7 @@
 import inspect
 from collections import UserDict
 from collections.abc import Iterable
+from contextlib import contextmanager
 from dataclasses import dataclass
 from functools import cached_property
 from itertools import count
@@ -157,10 +158,12 @@ class Signal(Synthesizable):
     """
     SINGLE_DRIVER_NAME: str = "d"
     _SIGNAL_DECL_TEMPLATE = Template("logic $signed $width $name;")
+    _SIGNAL_DECL_VERILOG_TEMPLATE = Template("wire $signed $width $name;")
     _SIGNAL_CONNECT_TEMPLATE = Template("always_comb\n  $name = $driver;")
     _SIGNAL_ASSIGN_TEMPLATE = Template("assign $name = $driver;")
 
     _new_signal_counter = count(0)
+    _signal_decl_in_verilog = False
 
     def __init__(
             self,
@@ -299,6 +302,16 @@ class Signal(Synthesizable):
             return self[(-1,) * padding_size, :]
         return Constant(0, padding_size) @ self
 
+    @classmethod
+    @contextmanager
+    def decl_in_verilog(cls):
+        """
+        A context manager to declare signals in Verilog style.
+        """
+        cls._signal_decl_in_verilog = True
+        yield
+        cls._signal_decl_in_verilog = False
+
     def signal_decl(self) -> str:
         """
         Declare the signal in the module implementation.
@@ -309,7 +322,8 @@ class Signal(Synthesizable):
         if len(self) == 0:
             raise ValueError("Signal width is not set and cannot be inferred")
 
-        decl = self._SIGNAL_DECL_TEMPLATE.substitute(
+        template = self._SIGNAL_DECL_VERILOG_TEMPLATE if self._signal_decl_in_verilog else self._SIGNAL_DECL_TEMPLATE
+        decl = template.substitute(
             signed="signed" if self.signed else "",
             width=f"[{width - 1}:0]" if (width := len(self)) > 1 else "",
             name=self.net_name,
