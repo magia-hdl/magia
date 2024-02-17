@@ -3,7 +3,7 @@ from importlib.util import find_spec
 from .bundle import Bundle, BundleSpec, BundleType
 from .core import Constant, Input, Output, Register, Signal
 from .memory import Memory
-from .module import Blackbox, Elaborator, Instance, IOPorts, Module
+from .module import Blackbox, Elaborator, Instance, IOPorts, Module, VerilogWrapper
 
 if find_spec("hdlConvertor") is not None:
     from .external import ExternalModule
@@ -53,6 +53,7 @@ __all__ += [
     "Blackbox",
     "Elaborator",
     "ExternalModule",
+    "VerilogWrapper",
 ]
 
 """
