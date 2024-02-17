@@ -1,12 +1,27 @@
 name: General CI Build and Test
 
-on: [push]
+on: [ push ]
 
 permissions:
   contents: read
 
 jobs:
+  Linting:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: chartboost/ruff-action@v1
+        with:
+          src: "magia"
+          version: 0.2.1
+      - uses: chartboost/ruff-action@v1
+        with:
+          src: "tests"
+          version: 0.2.1
+
   RunTests:
+    needs:
+      - Linting
 
     strategy:
       matrix:
@@ -17,48 +32,48 @@ jobs:
       image: verilator/verilator:v5.018
 
     steps:
-    - name: Checkout Source Code
-      uses: actions/checkout@v4
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
 
-    # Installation of Binary Dependencies
-    - name: Install Poetry
-      run: |
-        apt-get update; apt-get install -y curl sudo
-        curl -sSL https://install.python-poetry.org | python3
-        ln -sf "${HOME}/.local/bin/poetry" /usr/bin/poetry
+      # Installation of Binary Dependencies
+      - name: Install Poetry
+        run: |
+          apt-get update; apt-get install -y curl sudo
+          curl -sSL https://install.python-poetry.org | python3
+          ln -sf "${HOME}/.local/bin/poetry" /usr/bin/poetry
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
-        cache: 'poetry'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'poetry'
 
-    # Verify version of installed binaries
-    - name: List Poetry Environment
-      run: |
-        poetry env list
-    - name: Print Poetry Environment
-      run: |
-        poetry env info
-    - name: Print Verilator version
-      run: |
-        verilator --version
-    - name: Python Version
-      run: |
-        python --version
-    - name: Python with Poetry Version
-      run: |
-        poetry run python --version
+      # Verify version of installed binaries
+      - name: List Poetry Environment
+        run: |
+          poetry env list
+      - name: Print Poetry Environment
+        run: |
+          poetry env info
+      - name: Print Verilator version
+        run: |
+          verilator --version
+      - name: Python Version
+        run: |
+          python --version
+      - name: Python with Poetry Version
+        run: |
+          poetry run python --version
 
-    - name: Install dependencies
-      run: |
-        poetry install --no-interaction  --with=dev
+      - name: Install dependencies
+        run: |
+          poetry install --no-interaction  --with=dev
 
-    - name: Run Pytest
-      env:
-        pytest_github_report: true
-      run: |
-        poetry run pytest -n auto tests
+      - name: Run Pytest
+        env:
+          pytest_github_report: true
+        run: |
+          poetry run pytest -n auto tests
 
 
   Deploy:
@@ -72,39 +87,39 @@ jobs:
       id-token: write
 
     steps:
-    - name: Checkout Source
-      uses: actions/checkout@v4
+      - name: Checkout Source
+        uses: actions/checkout@v4
 
-    # Installation of Binary Dependencies
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.10"
-    - name: Install Poetry
-      uses: snok/install-poetry@v1
+      # Installation of Binary Dependencies
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
 
-    # Verify version of installed binaries
-    - name: List Poetry Environment
-      run: |
-        poetry env list
-    - name: Print Poetry Environment
-      run: |
-        poetry env info
-    - name: Python Version
-      run: |
-        python --version
-    - name: Python with Poetry Version
-      run: |
-        poetry run python --version
+      # Verify version of installed binaries
+      - name: List Poetry Environment
+        run: |
+          poetry env list
+      - name: Print Poetry Environment
+        run: |
+          poetry env info
+      - name: Python Version
+        run: |
+          python --version
+      - name: Python with Poetry Version
+        run: |
+          poetry run python --version
 
 
-    - name: Install dependencies
-      run: |
-        poetry install --no-interaction  --with=dev
+      - name: Install dependencies
+        run: |
+          poetry install --no-interaction  --with=dev
 
-    - name: Build Package
-      run: |
-        poetry build
+      - name: Build Package
+        run: |
+          poetry build
 
-    - name: Publish package distributions to PyPI
-      uses: pypa/gh-action-pypi-publish@release/v1
+      - name: Publish package distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
