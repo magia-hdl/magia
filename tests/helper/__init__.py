@@ -71,8 +71,8 @@ def init_verilator():
         # Locate Verilator binaries and the original VERILATOR_ROOT
         verilator_bin_location = Path(shutil.which("verilator_bin")).parent
         verilator_root = Path(
-            subprocess.check_output([verilator, "--getenv", "VERILATOR_ROOT"]).decode().strip()
-        )  # noqa: S603
+            subprocess.check_output([verilator, "--getenv", "VERILATOR_ROOT"]).decode().strip()  # noqa: S603
+        )
         verilator_bins = list(verilator_bin_location.glob("verilator*"))
 
         # Copy files into venv
