@@ -18,7 +18,7 @@ def axi4lite(
     :param addr_width: The width of the address signal, default is 32.
     """
     if data_width not in (32, 64):
-        raise ValueError("data_width must be eiter 32 or 64")
+        raise ValueError("data_width must be either 32 or 64")
 
     # Define the AXI4-Lite signals
     aw = decoupled_bundle([
