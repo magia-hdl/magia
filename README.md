@@ -131,6 +131,11 @@ if __name__ == "__main__":
 - [Memory Syntax](docs/memory.md)
 - [External Module](docs/external_module.md)
 
+## Related Projects
+
+- [Magia Flow](https://www.github.com/magia-hdl/magia-flow): Design flow integration and automation with Magia.
+- [Magia IP](https://www.github.com/magia-hdl/magia-ip): IP libraries designed with Magia.
+
 ## Contributing
 
 The project is still a personal project, in a very early stage.

@@ -995,7 +995,7 @@ class Case(Operation):
     The selector is a signal, and the cases is a dictionary of selector value and driver.
     Selector can only be an unsigned signal, and the key of the cases can only be int.
     All drivers must have the same width.
-    If all drivers are int, Inference the width of the output signal.
+    If all drivers are int, infer the width of the output signal.
 
     The Case Operation requires all the width of the input signals are defined,
     before the creation of the Operation.
@@ -1024,7 +1024,7 @@ class Case(Operation):
         if any(k >= 2 ** len(selector) for k in cases):
             raise ValueError("Selector value is out of range.")
 
-        # Inference the width of the output signal
+        # Infer the width of the output signal
         output_signals = list(cases.values()) + ([] if default is None else [default])
         if any(isinstance(v, Signal) for v in output_signals):
             signal_width = {len(sig) for sig in output_signals if isinstance(sig, Signal)}
