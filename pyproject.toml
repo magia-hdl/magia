@@ -15,7 +15,7 @@ lint.ignore = ["F821", "A003"]
 
 [tool.poetry]
 name = "magia-hdl"
-version = "0.4.1"
+version = "0.5.0"
 description = "Magia generates Synthesizable SystemVerilog in pythonic syntax"
 readme = "README.md"
 authors = ["khwong-c64 <kin.hin.wong.c@gmail.com>"]
