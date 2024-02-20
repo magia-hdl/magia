@@ -1,3 +1,10 @@
+"""
+Core Magia package
+This index shall only import modules from this level of the package.
+
+Sub-packages (e.g. magia.std, etc.) shall be imported in their respective __init__.py files.
+"""
+
 from importlib.util import find_spec
 
 from .bundle import Bundle, BundleSpec, BundleType

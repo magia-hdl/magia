@@ -1,6 +1,6 @@
 import pytest
 
-from magia.std.fixed_point import FixedPoint
+from magia.format import FixedPoint
 
 
 class TestFixedPoint:
