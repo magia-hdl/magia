@@ -1,9 +1,7 @@
-from pathlib import Path
-
 import cocotb
 import pytest
 from cocotb.triggers import Timer
-from cocotb_test.simulator import run as sim_run
+from magia_flow.simulation.general import Simulator
 
 import tests.helper as helper
 from magia import Input, Module, Output
@@ -46,6 +44,10 @@ test_gen()
 
 class TestOneHot:
     TOP = "TopModule"
+    sim_module_and_path = {
+        "test_module": [Simulator.current_package()],
+        "python_search_path": [Simulator.current_dir()],
+    }
 
     class OneHotLoop(Module):
         def __init__(self, width, **kwargs):
@@ -72,33 +74,21 @@ class TestOneHot:
             self.io.binary <<= onehot_to_binary(onehot)
 
     @pytest.mark.parametrize(onehot_width_params, onehot_width_values)
-    def test_width(self, width, cocotb_testcase, temp_build_dir):
-        with helper.elaborate_to_file(
-                self.OneHotLoop(width=width, name=self.TOP)
-        ) as filename:
-            sim_run(
-                simulator="verilator",  # simulator
-                verilog_sources=[filename],  # sources
-                toplevel=self.TOP,  # top level HDL
-                python_search=[str(Path(__name__).parent.absolute())],  # python search path
-                module=Path(__name__).name,  # name of cocotb test module
-                testcase=cocotb_testcase,  # name of test function
-                sim_build=temp_build_dir,  # temp build directory
-                work_dir=temp_build_dir,  # simulation  directory
-            )
+    def test_width(self, width, cocotb_testcase):
+        sim = Simulator(self.TOP)
+        sim.add_magia_module(self.OneHotLoop(width=width, name=self.TOP))
+        sim.compile()
+        sim.sim(
+            testcase=cocotb_testcase,
+            **self.sim_module_and_path,
+        )
 
     @pytest.mark.parametrize(onehot_max_params, onehot_max_values)
-    def test_max_value(self, max_value, cocotb_testcase, temp_build_dir):
-        with helper.elaborate_to_file(
-                self.OneHotLoopWithMax(max_value, name=self.TOP)
-        ) as filename:
-            sim_run(
-                simulator="verilator",  # simulator
-                verilog_sources=[filename],  # sources
-                toplevel=self.TOP,  # top level HDL
-                python_search=[str(Path(__name__).parent.absolute())],  # python search path
-                module=Path(__name__).name,  # name of cocotb test module
-                testcase=cocotb_testcase,  # name of test function
-                sim_build=temp_build_dir,  # temp build directory
-                work_dir=temp_build_dir,  # simulation  directory
-            )
+    def test_max_value(self, max_value, cocotb_testcase):
+        sim = Simulator(self.TOP)
+        sim.add_magia_module(self.OneHotLoopWithMax(max_value, name=self.TOP))
+        sim.compile()
+        sim.sim(
+            testcase=cocotb_testcase,
+            **self.sim_module_and_path,
+        )

@@ -1,11 +1,10 @@
 import random
-from pathlib import Path
 
 import cocotb
 import pytest
 from cocotb.clock import Clock
 from cocotb.triggers import FallingEdge
-from cocotb_test.simulator import run as sim_run
+from magia_flow.simulation.general import Simulator
 
 import tests.helper as helper
 from magia import Input, Module, Output
@@ -110,6 +109,10 @@ async def reg_multi_reg_test(dut):
 
 class TestRegisters:
     TOP = "TopModule"
+    sim_module_and_path = {
+        "test_module": [Simulator.current_package()],
+        "python_search_path": [Simulator.current_dir()],
+    }
 
     class ParamRegister(Module):
         def __init__(self, enable=False, reset=False, async_reset=False, **kwargs):
@@ -161,32 +164,24 @@ class TestRegisters:
             return 8
 
     @pytest.mark.parametrize(reg_test_params, reg_test_values)
-    def test_register_features(self, enable, reset, async_reset, cocotb_testcase, temp_build_dir):
-        with helper.elaborate_to_file(
-                self.ParamRegister(enable, reset, async_reset, name=self.TOP)
-        ) as filename:
-            sim_run(
-                simulator="verilator",  # simulator
-                verilog_sources=[filename],  # sources
-                toplevel=self.TOP,  # top level HDL
-                python_search=[str(Path(__name__).parent.absolute())],  # python search path
-                module=Path(__name__).name,  # name of cocotb test module
-                testcase=cocotb_testcase,  # name of test function
-                sim_build=temp_build_dir,  # temp build directory
-                work_dir=temp_build_dir,  # simulation  directory
-            )
+    def test_register_features(self, enable, reset, async_reset, cocotb_testcase):
+        sim = Simulator(self.TOP)
+        sim.add_magia_module(
+            self.ParamRegister(enable, reset, async_reset, name=self.TOP)
+        )
+        sim.compile()
+        sim.sim(
+            testcase=cocotb_testcase,
+            **self.sim_module_and_path,
+        )
 
-    def test_register_multi_stage(self, temp_build_dir):
-        with helper.elaborate_to_file(
-                self.MultiStageRegister(name=self.TOP)
-        ) as filename:
-            sim_run(
-                simulator="verilator",  # simulator
-                verilog_sources=[filename],  # sources
-                toplevel=self.TOP,  # top level HDL
-                python_search=[str(Path(__name__).parent.absolute())],  # python search path
-                module=Path(__name__).name,  # name of cocotb test module
-                testcase="reg_multi_reg_test",  # name of test function
-                sim_build=temp_build_dir,  # temp build directory
-                work_dir=temp_build_dir,  # simulation  directory
-            )
+    def test_register_multi_stage(self):
+        sim = Simulator(self.TOP)
+        sim.add_magia_module(
+            self.MultiStageRegister(name=self.TOP)
+        )
+        sim.compile()
+        sim.sim(
+            testcase="reg_multi_reg_test",
+            **self.sim_module_and_path,
+        )

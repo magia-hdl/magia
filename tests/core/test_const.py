@@ -1,10 +1,8 @@
-from pathlib import Path
 
 import cocotb.clock
 import pytest
-from cocotb_test.simulator import run as sim_run
+from magia_flow.simulation.general import Simulator
 
-import tests.helper as helper
 from magia import Constant, Module, Output
 
 test_constants = [
@@ -66,21 +64,19 @@ async def constant_test(dut):
 
 class TestSvConstant:
     TOP = "AssignmentModule"
+    sim_module_and_path = {
+        "test_module": [Simulator.current_package()],
+        "python_search_path": [Simulator.current_dir()],
+    }
 
-    def test_sv_constant_integers(self, temp_build_dir):
-        with helper.elaborate_to_file(
-                AssignmentModule(test_constants, name=self.TOP)
-        ) as filename:
-            sim_run(
-                simulator="verilator",  # simulator
-                verilog_sources=[filename],  # sources
-                toplevel=self.TOP,  # top level HDL
-                python_search=[str(Path(__name__).parent.absolute())],  # python search path
-                module=Path(__name__).name,  # name of cocotb test module
-                testcase="constant_test",  # name of test function
-                sim_build=temp_build_dir,  # temp build directory
-                work_dir=temp_build_dir,  # simulation  directory
-            )
+    def test_sv_constant_integers(self):
+        sim = Simulator(self.TOP)
+        sim.add_magia_module(AssignmentModule(test_constants, name=self.TOP))
+        sim.compile()
+        sim.sim(
+            testcase="constant_test",
+            **self.sim_module_and_path,
+        )
 
     @pytest.mark.parametrize("width, signed, expected", [
         (8, False, "8'hX"),

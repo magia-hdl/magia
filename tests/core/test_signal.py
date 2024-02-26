@@ -1,11 +1,9 @@
 import random
-from pathlib import Path
 
 import cocotb
 import cocotb.clock
-from cocotb_test.simulator import run as sim_run
+from magia_flow.simulation.general import Simulator
 
-import tests.helper as helper
 from magia import Elaborator, Input, Module, Output, Signal
 
 
@@ -25,6 +23,10 @@ async def adder_test(dut):
 
 class TestSignalManipulate:
     TOP = "TopLevel"
+    sim_module_and_path = {
+        "test_module": [Simulator.current_package()],
+        "python_search_path": [Simulator.current_dir()],
+    }
 
     def test_naming(self):
         """
@@ -49,7 +51,7 @@ class TestSignalManipulate:
         assert "intermediate = a" in result
         assert "next_one = intermediate" in result
 
-    def test_width(self, temp_build_dir):
+    def test_width(self):
         """
         Signal width can be changed by `signal.set_width()`
         """
@@ -64,17 +66,13 @@ class TestSignalManipulate:
                 # A + B usually has width of 4, but we can change it to 5
                 self.io.q <<= (self.io.a + self.io.b).set_width(5)
 
-        with helper.elaborate_to_file(Top(name=self.TOP)) as filename:
-            sim_run(
-                simulator="verilator",  # simulator
-                verilog_sources=[filename],  # sources
-                toplevel=self.TOP,  # top level HDL
-                python_search=[str(Path(__name__).parent.absolute())],  # python search path
-                module=Path(__name__).name,  # name of cocotb test module
-                testcase="adder_test",  # name of test function
-                sim_build=temp_build_dir,  # temp build directory
-                work_dir=temp_build_dir,  # simulation  directory
-            )
+        sim = Simulator(self.TOP)
+        sim.add_magia_module(Top(name=self.TOP))
+        sim.compile()
+        sim.sim(
+            testcase="adder_test",
+            **self.sim_module_and_path,
+        )
 
     def test_signed(self):
         """

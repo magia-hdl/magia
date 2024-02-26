@@ -1,11 +1,8 @@
-from pathlib import Path
-
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import FallingEdge
-from cocotb_test.simulator import run as sim_run
+from magia_flow.simulation.general import Simulator
 
-import tests.helper as helper
 from magia import Input, Memory, Module, Output
 
 
@@ -67,6 +64,10 @@ async def spram_en_over_wen(dut):
 
 class TestMemory:
     TOP = "TopModule"
+    sim_module_and_path = {
+        "test_module": [Simulator.current_package()],
+        "python_search_path": [Simulator.current_dir()],
+    }
 
     class SPRAM(Module):
         def __init__(self, rw_write_through, en=False, **kwargs):
@@ -116,58 +117,42 @@ class TestMemory:
             mem.read_port().en <<= 1
             self.io.dout <<= mem.read_port().dout
 
-    def test_sp_write_through(self, temp_build_dir):
+    def test_sp_write_through(self):
         ram = self.SPRAM(rw_write_through=True, name=self.TOP)
-        with helper.elaborate_to_file(ram) as filename:
-            sim_run(
-                simulator="verilator",  # simulator
-                verilog_sources=[filename],  # sources
-                toplevel=self.TOP,  # top level HDL
-                python_search=[str(Path(__name__).parent.absolute())],  # python search path
-                module=Path(__name__).name,  # name of cocotb test module
-                testcase="spram_write_through",  # name of test function
-                sim_build=temp_build_dir,  # temp build directory
-                work_dir=temp_build_dir,  # simulation  directory
-            )
+        sim = Simulator(self.TOP)
+        sim.add_magia_module(ram)
+        sim.compile()
+        sim.sim(
+            testcase="spram_write_through",  # name of test function
+            **self.sim_module_and_path,
+        )
 
-    def test_sp_read_first(self, temp_build_dir):
+    def test_sp_read_first(self):
         ram = self.SPRAM(rw_write_through=False, name=self.TOP)
-        with helper.elaborate_to_file(ram) as filename:
-            sim_run(
-                simulator="verilator",  # simulator
-                verilog_sources=[filename],  # sources
-                toplevel=self.TOP,  # top level HDL
-                python_search=[str(Path(__name__).parent.absolute())],  # python search path
-                module=Path(__name__).name,  # name of cocotb test module
-                testcase="ram_read_first",  # name of test function
-                sim_build=temp_build_dir,  # temp build directory
-                work_dir=temp_build_dir,  # simulation  directory
-            )
+        sim = Simulator(self.TOP)
+        sim.add_magia_module(ram)
+        sim.compile()
+        sim.sim(
+            testcase="ram_read_first",  # name of test function
+            **self.sim_module_and_path,
+        )
 
-    def test_sp_en_over_wen(self, temp_build_dir):
+    def test_sp_en_over_wen(self):
         ram = self.SPRAM(rw_write_through=False, en=True, name=self.TOP)
-        with helper.elaborate_to_file(ram) as filename:
-            sim_run(
-                simulator="verilator",  # simulator
-                verilog_sources=[filename],  # sources
-                toplevel=self.TOP,  # top level HDL
-                python_search=[str(Path(__name__).parent.absolute())],  # python search path
-                module=Path(__name__).name,  # name of cocotb test module
-                testcase="spram_en_over_wen",  # name of test function
-                sim_build=temp_build_dir,  # temp build directory
-                work_dir=temp_build_dir,  # simulation  directory
-            )
+        sim = Simulator(self.TOP)
+        sim.add_magia_module(ram)
+        sim.compile()
+        sim.sim(
+            testcase="spram_en_over_wen",  # name of test function
+            **self.sim_module_and_path,
+        )
 
-    def test_sdp_read_first(self, temp_build_dir):
+    def test_sdp_read_first(self):
         ram = self.SDPRAM(name=self.TOP)
-        with helper.elaborate_to_file(ram) as filename:
-            sim_run(
-                simulator="verilator",  # simulator
-                verilog_sources=[filename],  # sources
-                toplevel=self.TOP,  # top level HDL
-                python_search=[str(Path(__name__).parent.absolute())],  # python search path
-                module=Path(__name__).name,  # name of cocotb test module
-                testcase="ram_read_first",  # name of test function
-                sim_build=temp_build_dir,  # temp build directory
-                work_dir=temp_build_dir,  # simulation  directory
-            )
+        sim = Simulator(self.TOP)
+        sim.add_magia_module(ram)
+        sim.compile()
+        sim.sim(
+            testcase="ram_read_first",  # name of test function
+            **self.sim_module_and_path,
+        )
