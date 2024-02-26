@@ -1,9 +1,9 @@
-
 import cocotb.clock
 import pytest
 from magia_flow.simulation.general import Simulator
 
 from magia import Constant, Module, Output
+from tests import helper
 
 test_constants = [
     # Format: (value, width, signed) # noqa: ERA001
@@ -64,29 +64,25 @@ async def constant_test(dut):
 
 class TestSvConstant:
     TOP = "AssignmentModule"
-    sim_module_and_path = {
-        "test_module": [Simulator.current_package()],
-        "python_search_path": [Simulator.current_dir()],
-    }
 
     def test_sv_constant_integers(self):
-        sim = Simulator(self.TOP)
-        sim.add_magia_module(AssignmentModule(test_constants, name=self.TOP))
-        sim.compile()
-        sim.sim(
+        helper.simulate(
+            top_level_name=self.TOP,
+            hdl_modules=AssignmentModule(test_constants, name=self.TOP),
             testcase="constant_test",
-            **self.sim_module_and_path,
+            test_module=[Simulator.current_package()],
+            python_search_path=[Simulator.current_dir()],
         )
 
-    @pytest.mark.parametrize("width, signed, expected", [
-        (8, False, "8'hX"),
-        (8, True, "8'shX"),
-        (16, False, "16'hX"),
-        (16, True, "16'shX"),
-        (32, False, "32'hX"),
-        (32, True, "32'shX"),
-        (64, False, "64'hX"),
-        (64, True, "64'shX"),
-    ])
-    def test_sv_constant_unknown(self, width, signed, expected):
-        assert Constant.sv_constant(None, width, signed) == expected
+        @pytest.mark.parametrize("width, signed, expected", [
+            (8, False, "8'hX"),
+            (8, True, "8'shX"),
+            (16, False, "16'hX"),
+            (16, True, "16'shX"),
+            (32, False, "32'hX"),
+            (32, True, "32'shX"),
+            (64, False, "64'hX"),
+            (64, True, "64'shX"),
+        ])
+        def test_sv_constant_unknown(self, width, signed, expected):
+            assert Constant.sv_constant(None, width, signed) == expected

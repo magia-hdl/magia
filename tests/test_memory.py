@@ -4,6 +4,7 @@ from cocotb.triggers import FallingEdge
 from magia_flow.simulation.general import Simulator
 
 from magia import Input, Memory, Module, Output
+from tests.helper import simulate
 
 
 async def drive_spram(dut):
@@ -119,40 +120,28 @@ class TestMemory:
 
     def test_sp_write_through(self):
         ram = self.SPRAM(rw_write_through=True, name=self.TOP)
-        sim = Simulator(self.TOP)
-        sim.add_magia_module(ram)
-        sim.compile()
-        sim.sim(
-            testcase="spram_write_through",  # name of test function
+        simulate(
+            self.TOP, ram, testcase="spram_write_through",
             **self.sim_module_and_path,
         )
 
     def test_sp_read_first(self):
         ram = self.SPRAM(rw_write_through=False, name=self.TOP)
-        sim = Simulator(self.TOP)
-        sim.add_magia_module(ram)
-        sim.compile()
-        sim.sim(
-            testcase="ram_read_first",  # name of test function
+        simulate(
+            self.TOP, ram, testcase="ram_read_first",
             **self.sim_module_and_path,
         )
 
     def test_sp_en_over_wen(self):
         ram = self.SPRAM(rw_write_through=False, en=True, name=self.TOP)
-        sim = Simulator(self.TOP)
-        sim.add_magia_module(ram)
-        sim.compile()
-        sim.sim(
-            testcase="spram_en_over_wen",  # name of test function
+        simulate(
+            self.TOP, ram, testcase="spram_en_over_wen",
             **self.sim_module_and_path,
         )
 
     def test_sdp_read_first(self):
         ram = self.SDPRAM(name=self.TOP)
-        sim = Simulator(self.TOP)
-        sim.add_magia_module(ram)
-        sim.compile()
-        sim.sim(
-            testcase="ram_read_first",  # name of test function
+        simulate(
+            self.TOP, ram, testcase="ram_read_first",
             **self.sim_module_and_path,
         )

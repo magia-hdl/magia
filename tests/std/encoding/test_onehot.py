@@ -75,20 +75,14 @@ class TestOneHot:
 
     @pytest.mark.parametrize(onehot_width_params, onehot_width_values)
     def test_width(self, width, cocotb_testcase):
-        sim = Simulator(self.TOP)
-        sim.add_magia_module(self.OneHotLoop(width=width, name=self.TOP))
-        sim.compile()
-        sim.sim(
-            testcase=cocotb_testcase,
-            **self.sim_module_and_path,
+        helper.simulate(
+            self.TOP, self.OneHotLoop(width=width, name=self.TOP), testcase=cocotb_testcase,
+            **self.sim_module_and_path
         )
 
     @pytest.mark.parametrize(onehot_max_params, onehot_max_values)
     def test_max_value(self, max_value, cocotb_testcase):
-        sim = Simulator(self.TOP)
-        sim.add_magia_module(self.OneHotLoopWithMax(max_value, name=self.TOP))
-        sim.compile()
-        sim.sim(
-            testcase=cocotb_testcase,
-            **self.sim_module_and_path,
+        helper.simulate(
+            self.TOP, self.OneHotLoopWithMax(max_value, name=self.TOP), testcase=cocotb_testcase,
+            **self.sim_module_and_path
         )

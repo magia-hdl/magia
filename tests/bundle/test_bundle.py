@@ -7,6 +7,7 @@ from magia_flow.simulation.general import Simulator
 
 from magia import Input, Module
 from magia.std.bundles import valid_signal
+from tests.helper import simulate
 
 
 async def input_driver(dut):
@@ -115,11 +116,8 @@ def test_bundle_connections():
             self.io <<= input_bus.with_name("in_")
             self.io <<= interconnects[-1].with_name("out_")
 
-    sim = Simulator(top)
-    sim.add_magia_module(TopModule(name=top))
-    sim.compile()
-    sim.sim(
-        testcase="bundle_test",
+    simulate(
+        top, TopModule(name=top), testcase="bundle_test",
         test_module=[Simulator.current_package()],
         python_search_path=[Simulator.current_dir()],
     )

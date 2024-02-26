@@ -5,6 +5,7 @@ import cocotb.clock
 from magia_flow.simulation.general import Simulator
 
 from magia import Elaborator, Input, Module, Output, Signal
+from tests import helper
 
 
 @cocotb.test()
@@ -66,12 +67,9 @@ class TestSignalManipulate:
                 # A + B usually has width of 4, but we can change it to 5
                 self.io.q <<= (self.io.a + self.io.b).set_width(5)
 
-        sim = Simulator(self.TOP)
-        sim.add_magia_module(Top(name=self.TOP))
-        sim.compile()
-        sim.sim(
-            testcase="adder_test",
-            **self.sim_module_and_path,
+        helper.simulate(
+            self.TOP, Top(name=self.TOP), testcase="adder_test",
+            **self.sim_module_and_path
         )
 
     def test_signed(self):

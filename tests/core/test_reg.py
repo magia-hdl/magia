@@ -165,23 +165,15 @@ class TestRegisters:
 
     @pytest.mark.parametrize(reg_test_params, reg_test_values)
     def test_register_features(self, enable, reset, async_reset, cocotb_testcase):
-        sim = Simulator(self.TOP)
-        sim.add_magia_module(
-            self.ParamRegister(enable, reset, async_reset, name=self.TOP)
-        )
-        sim.compile()
-        sim.sim(
+        helper.simulate(
+            self.TOP, self.ParamRegister(enable, reset, async_reset, name=self.TOP),
             testcase=cocotb_testcase,
             **self.sim_module_and_path,
         )
 
     def test_register_multi_stage(self):
-        sim = Simulator(self.TOP)
-        sim.add_magia_module(
-            self.MultiStageRegister(name=self.TOP)
-        )
-        sim.compile()
-        sim.sim(
+        helper.simulate(
+            self.TOP, self.MultiStageRegister(name=self.TOP),
             testcase="reg_multi_reg_test",
             **self.sim_module_and_path,
         )

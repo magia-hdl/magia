@@ -202,11 +202,8 @@ class TestWhenCase:
 
                 self.io.q <<= self.io.a.when(self.io.sel, else_=self.io.b)
 
-        sim = Simulator(self.TOP)
-        sim.add_magia_module(SimpleMux(name=self.TOP))
-        sim.compile()
-        sim.sim(
-            testcase="when_as_mux_test",
+        helper.simulate(
+            self.TOP, SimpleMux(name=self.TOP), testcase="when_as_mux_test",
             **self.sim_module_and_path,
         )
 
@@ -221,11 +218,8 @@ class TestWhenCase:
 
                 self.io.q <<= self.io.a.when(self.io.a != self.io.b, else_=0xF)
 
-        sim = Simulator(self.TOP)
-        sim.add_magia_module(Comparator(name=self.TOP))
-        sim.compile()
-        sim.sim(
-            testcase="when_as_mux_comp",
+        helper.simulate(
+            self.TOP, Comparator(name=self.TOP), testcase="when_as_mux_comp",
             **self.sim_module_and_path,
         )
 
@@ -276,11 +270,8 @@ class TestWhenCase:
                     for case, select in selection.items()
                 }, default=None)
 
-        sim = Simulator(self.TOP)
-        sim.add_magia_module(CaseMux(selector, selection, name=self.TOP))
-        sim.compile()
-        sim.sim(
-            testcase=cocotb_testcase,
+        helper.simulate(
+            self.TOP, CaseMux(selector, selection, name=self.TOP), testcase=cocotb_testcase,
             **self.sim_module_and_path,
         )
 
@@ -302,11 +293,8 @@ class TestWhenCase:
                 for i in case_as_lut_table:
                     self.io[f"lut_{i}"] <<= case_as_lut_table[i]
 
-        sim = Simulator(self.TOP)
-        sim.add_magia_module(CaseLut(name=self.TOP))
-        sim.compile()
-        sim.sim(
-            testcase="case_as_lut",
+        helper.simulate(
+            self.TOP, CaseLut(name=self.TOP), testcase="case_as_lut",
             **self.sim_module_and_path,
         )
 
@@ -345,11 +333,8 @@ class TestArithmetic:
                 self.io.qeq <<= self.io.a == self.io.b
                 self.io.qne <<= self.io.a != self.io.b
 
-        sim = Simulator(self.TOP)
-        sim.add_magia_module(Top(name=self.TOP))
-        sim.compile()
-        sim.sim(
-            testcase="unsigned_op",
+        helper.simulate(
+            self.TOP, Top(name=self.TOP), testcase="unsigned_op",
             **self.sim_module_and_path,
         )
 
@@ -380,11 +365,8 @@ class TestArithmetic:
                 self.io.qeq <<= self.io.a == self.io.b
                 self.io.qne <<= self.io.a != self.io.b
 
-        sim = Simulator(self.TOP)
-        sim.add_magia_module(Top(name=self.TOP))
-        sim.compile()
-        sim.sim(
-            testcase="signed_op",
+        helper.simulate(
+            self.TOP, Top(name=self.TOP), testcase="signed_op",
             **self.sim_module_and_path,
         )
 
@@ -403,11 +385,8 @@ class TestArithmetic:
                 self.io.qsub <<= (self.io.a - self.io.b).set_width(9)
                 self.io.qmul <<= (self.io.a * self.io.b).set_width(16)
 
-        sim = Simulator(self.TOP)
-        sim.add_magia_module(Top(name=self.TOP))
-        sim.compile()
-        sim.sim(
-            testcase="unsigned_op_extended",
+        helper.simulate(
+            self.TOP, Top(name=self.TOP), testcase="unsigned_op_extended",
             **self.sim_module_and_path,
         )
 
@@ -426,11 +405,8 @@ class TestArithmetic:
                 self.io.qsub <<= (self.io.a - self.io.b).set_width(9)
                 self.io.qmul <<= (self.io.a * self.io.b).set_width(16)
 
-        sim = Simulator(self.TOP)
-        sim.add_magia_module(Top(name=self.TOP))
-        sim.compile()
-        sim.sim(
-            testcase="signed_op_extended",
+        helper.simulate(
+            self.TOP, Top(name=self.TOP), testcase="signed_op_extended",
             **self.sim_module_and_path,
         )
 
@@ -458,10 +434,7 @@ class TestArithmetic:
                 self.io.all <<= self.io.a.all()
                 self.io.parity <<= self.io.a.parity()
 
-        sim = Simulator(self.TOP)
-        sim.add_magia_module(Top(name=self.TOP))
-        sim.compile()
-        sim.sim(
-            testcase="bitwise_op",
+        helper.simulate(
+            self.TOP, Top(name=self.TOP), testcase="bitwise_op",
             **self.sim_module_and_path,
         )
