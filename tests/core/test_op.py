@@ -1,11 +1,10 @@
 import random
 from itertools import product
-from pathlib import Path
 
 import cocotb
 import cocotb.clock
 import pytest
-from cocotb_test.simulator import run as sim_run
+from magia_flow.simulation.general import Simulator
 
 import tests.helper as helper
 from magia import Elaborator, Input, Module, Output
@@ -186,8 +185,12 @@ async def bitwise_op(dut):
 
 class TestWhenCase:
     TOP = "TopModule"
+    sim_module_and_path = {
+        "test_module": [Simulator.current_package()],
+        "python_search_path": [Simulator.current_dir()],
+    }
 
-    def test_when_mux(self, temp_build_dir):
+    def test_when_mux(self):
         class SimpleMux(Module):
             def __init__(self, **kwargs):
                 super().__init__(**kwargs)
@@ -199,21 +202,12 @@ class TestWhenCase:
 
                 self.io.q <<= self.io.a.when(self.io.sel, else_=self.io.b)
 
-        with helper.elaborate_to_file(
-                SimpleMux(name=self.TOP)
-        ) as filename:
-            sim_run(
-                simulator="verilator",  # simulator
-                verilog_sources=[filename],  # sources
-                toplevel=self.TOP,  # top level HDL
-                python_search=[str(Path(__name__).parent.absolute())],  # python search path
-                module=Path(__name__).name,  # name of cocotb test module
-                testcase="when_as_mux_test",  # name of test function
-                sim_build=temp_build_dir,  # temp build directory
-                work_dir=temp_build_dir,  # simulation  directory
-            )
+        helper.simulate(
+            self.TOP, SimpleMux(name=self.TOP), testcase="when_as_mux_test",
+            **self.sim_module_and_path,
+        )
 
-    def test_when_cond(self, temp_build_dir):
+    def test_when_cond(self):
         class Comparator(Module):
             def __init__(self, **kwargs):
                 super().__init__(**kwargs)
@@ -224,19 +218,10 @@ class TestWhenCase:
 
                 self.io.q <<= self.io.a.when(self.io.a != self.io.b, else_=0xF)
 
-        with helper.elaborate_to_file(
-                Comparator(name=self.TOP)
-        ) as filename:
-            sim_run(
-                simulator="verilator",  # simulator
-                verilog_sources=[filename],  # sources
-                toplevel=self.TOP,  # top level HDL
-                python_search=[str(Path(__name__).parent.absolute())],  # python search path
-                module=Path(__name__).name,  # name of cocotb test module
-                testcase="when_as_mux_comp",  # name of test function
-                sim_build=temp_build_dir,  # temp build directory
-                work_dir=temp_build_dir,  # simulation  directory
-            )
+        helper.simulate(
+            self.TOP, Comparator(name=self.TOP), testcase="when_as_mux_comp",
+            **self.sim_module_and_path,
+        )
 
     @pytest.mark.parametrize("width, cases, expected_default", [
         (4, 4, True),
@@ -270,7 +255,7 @@ class TestWhenCase:
             assert "unique case" in sv_code
 
     @pytest.mark.parametrize(case_as_mux_params, case_as_mux_values)
-    def test_case_as_mux(self, selector, selection, cocotb_testcase, temp_build_dir):
+    def test_case_as_mux(self, selector, selection, cocotb_testcase):
         class CaseMux(Module):
             def __init__(self, selector, selection, **kwargs):
                 super().__init__(**kwargs)
@@ -285,21 +270,12 @@ class TestWhenCase:
                     for case, select in selection.items()
                 }, default=None)
 
-        with helper.elaborate_to_file(
-                CaseMux(selector, selection, name=self.TOP)
-        ) as filename:
-            sim_run(
-                simulator="verilator",  # simulator
-                verilog_sources=[filename],  # sources
-                toplevel=self.TOP,  # top level HDL
-                python_search=[str(Path(__name__).parent.absolute())],  # python search path
-                module=Path(__name__).name,  # name of cocotb test module
-                testcase=cocotb_testcase,  # name of test function
-                sim_build=temp_build_dir,  # temp build directory
-                work_dir=temp_build_dir,  # simulation  directory
-            )
+        helper.simulate(
+            self.TOP, CaseMux(selector, selection, name=self.TOP), testcase=cocotb_testcase,
+            **self.sim_module_and_path,
+        )
 
-    def test_case_as_lut(self, temp_build_dir):
+    def test_case_as_lut(self):
         class CaseLut(Module):
             def __init__(self, **kwargs):
                 super().__init__(**kwargs)
@@ -317,25 +293,20 @@ class TestWhenCase:
                 for i in case_as_lut_table:
                     self.io[f"lut_{i}"] <<= case_as_lut_table[i]
 
-        with helper.elaborate_to_file(
-                CaseLut(name=self.TOP)
-        ) as filename:
-            sim_run(
-                simulator="verilator",  # simulator
-                verilog_sources=[filename],  # sources
-                toplevel=self.TOP,  # top level HDL
-                python_search=[str(Path(__name__).parent.absolute())],  # python search path
-                module=Path(__name__).name,  # name of cocotb test module
-                testcase="case_as_lut",  # name of test function
-                sim_build=temp_build_dir,  # temp build directory
-                work_dir=temp_build_dir,  # simulation  directory
-            )
+        helper.simulate(
+            self.TOP, CaseLut(name=self.TOP), testcase="case_as_lut",
+            **self.sim_module_and_path,
+        )
 
 
 class TestArithmetic:
     TOP = "TopModule"
+    sim_module_and_path = {
+        "test_module": [Simulator.current_package()],
+        "python_search_path": [Simulator.current_dir()],
+    }
 
-    def test_unsigned(self, temp_build_dir):
+    def test_unsigned(self):
         class Top(Module):
             def __init__(self, **kwargs):
                 super().__init__(**kwargs)
@@ -362,21 +333,12 @@ class TestArithmetic:
                 self.io.qeq <<= self.io.a == self.io.b
                 self.io.qne <<= self.io.a != self.io.b
 
-        with helper.elaborate_to_file(
-                Top(name=self.TOP)
-        ) as filename:
-            sim_run(
-                simulator="verilator",  # simulator
-                verilog_sources=[filename],  # sources
-                toplevel=self.TOP,  # top level HDL
-                python_search=[str(Path(__name__).parent.absolute())],  # python search path
-                module=Path(__name__).name,  # name of cocotb test module
-                testcase="unsigned_op",  # name of test function
-                sim_build=temp_build_dir,  # temp build directory
-                work_dir=temp_build_dir,  # simulation  directory
-            )
+        helper.simulate(
+            self.TOP, Top(name=self.TOP), testcase="unsigned_op",
+            **self.sim_module_and_path,
+        )
 
-    def test_signed(self, temp_build_dir):
+    def test_signed(self):
         class Top(Module):
             def __init__(self, **kwargs):
                 super().__init__(**kwargs)
@@ -403,21 +365,12 @@ class TestArithmetic:
                 self.io.qeq <<= self.io.a == self.io.b
                 self.io.qne <<= self.io.a != self.io.b
 
-        with helper.elaborate_to_file(
-                Top(name=self.TOP)
-        ) as filename:
-            sim_run(
-                simulator="verilator",  # simulator
-                verilog_sources=[filename],  # sources
-                toplevel=self.TOP,  # top level HDL
-                python_search=[str(Path(__name__).parent.absolute())],  # python search path
-                module=Path(__name__).name,  # name of cocotb test module
-                testcase="signed_op",  # name of test function
-                sim_build=temp_build_dir,  # temp build directory
-                work_dir=temp_build_dir,  # simulation  directory
-            )
+        helper.simulate(
+            self.TOP, Top(name=self.TOP), testcase="signed_op",
+            **self.sim_module_and_path,
+        )
 
-    def test_unsigned_extended(self, temp_build_dir):
+    def test_unsigned_extended(self):
         class Top(Module):
             def __init__(self, **kwargs):
                 super().__init__(**kwargs)
@@ -432,21 +385,12 @@ class TestArithmetic:
                 self.io.qsub <<= (self.io.a - self.io.b).set_width(9)
                 self.io.qmul <<= (self.io.a * self.io.b).set_width(16)
 
-        with helper.elaborate_to_file(
-                Top(name=self.TOP)
-        ) as filename:
-            sim_run(
-                simulator="verilator",  # simulator
-                verilog_sources=[filename],  # sources
-                toplevel=self.TOP,  # top level HDL
-                python_search=[str(Path(__name__).parent.absolute())],  # python search path
-                module=Path(__name__).name,  # name of cocotb test module
-                testcase="unsigned_op_extended",  # name of test function
-                sim_build=temp_build_dir,  # temp build directory
-                work_dir=temp_build_dir,  # simulation  directory
-            )
+        helper.simulate(
+            self.TOP, Top(name=self.TOP), testcase="unsigned_op_extended",
+            **self.sim_module_and_path,
+        )
 
-    def test_signed_extended(self, temp_build_dir):
+    def test_signed_extended(self):
         class Top(Module):
             def __init__(self, **kwargs):
                 super().__init__(**kwargs)
@@ -461,21 +405,12 @@ class TestArithmetic:
                 self.io.qsub <<= (self.io.a - self.io.b).set_width(9)
                 self.io.qmul <<= (self.io.a * self.io.b).set_width(16)
 
-        with helper.elaborate_to_file(
-                Top(name=self.TOP)
-        ) as filename:
-            sim_run(
-                simulator="verilator",  # simulator
-                verilog_sources=[filename],  # sources
-                toplevel=self.TOP,  # top level HDL
-                python_search=[str(Path(__name__).parent.absolute())],  # python search path
-                module=Path(__name__).name,  # name of cocotb test module
-                testcase="signed_op_extended",  # name of test function
-                sim_build=temp_build_dir,  # temp build directory
-                work_dir=temp_build_dir,  # simulation  directory
-            )
+        helper.simulate(
+            self.TOP, Top(name=self.TOP), testcase="signed_op_extended",
+            **self.sim_module_and_path,
+        )
 
-    def test_bitwise(self, temp_build_dir):
+    def test_bitwise(self):
         class Top(Module):
             def __init__(self, **kwargs):
                 super().__init__(**kwargs)
@@ -499,16 +434,7 @@ class TestArithmetic:
                 self.io.all <<= self.io.a.all()
                 self.io.parity <<= self.io.a.parity()
 
-        with helper.elaborate_to_file(
-                Top(name=self.TOP)
-        ) as filename:
-            sim_run(
-                simulator="verilator",  # simulator
-                verilog_sources=[filename],  # sources
-                toplevel=self.TOP,  # top level HDL
-                python_search=[str(Path(__name__).parent.absolute())],  # python search path
-                module=Path(__name__).name,  # name of cocotb test module
-                testcase="bitwise_op",  # name of test function
-                sim_build=temp_build_dir,  # temp build directory
-                work_dir=temp_build_dir,  # simulation  directory
-            )
+        helper.simulate(
+            self.TOP, Top(name=self.TOP), testcase="bitwise_op",
+            **self.sim_module_and_path,
+        )

@@ -1,14 +1,13 @@
 import random
-from pathlib import Path
 
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import FallingEdge, RisingEdge
-from cocotb_test.simulator import run as sim_run
+from magia_flow.simulation.general import Simulator
 
 from magia import Input, Module
 from magia.std.bundles import valid_signal
-from tests import helper
+from tests.helper import simulate
 
 
 async def input_driver(dut):
@@ -55,7 +54,7 @@ async def bundle_test(dut):
         assert (in_data + 6) == out_data, f"Expected {in_data + 6}, got {out_data}"
 
 
-def test_bundle_connections(temp_build_dir):
+def test_bundle_connections():
     top = "TopModule"
     width = 16
     data_bus_spec = valid_signal(width=width)
@@ -117,14 +116,8 @@ def test_bundle_connections(temp_build_dir):
             self.io <<= input_bus.with_name("in_")
             self.io <<= interconnects[-1].with_name("out_")
 
-    with helper.elaborate_to_file(TopModule(name=top)) as filename:
-        sim_run(
-            simulator="verilator",  # simulator
-            verilog_sources=[filename],  # sources
-            toplevel=top,  # top level HDL
-            python_search=[str(Path(__name__).parent.absolute())],  # python search path
-            module=Path(__name__).name,  # name of cocotb test module
-            testcase="bundle_test",  # name of test function
-            sim_build=temp_build_dir,  # temp build directory
-            work_dir=temp_build_dir,  # simulation  directory
-        )
+    simulate(
+        top, TopModule(name=top), testcase="bundle_test",
+        test_module=[Simulator.current_package()],
+        python_search_path=[Simulator.current_dir()],
+    )

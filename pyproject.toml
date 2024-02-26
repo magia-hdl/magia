@@ -52,6 +52,7 @@ pytest-xdist = "*"
 pytest-github-report = "*"
 ruff = "*"
 hdlConvertor-binary = "~2.3"
+magia-flow = "^0.1"
 
 [tool.poetry.urls]
 Repository = "https://github.com/magia-hdl/magia"

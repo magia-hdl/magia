@@ -1,11 +1,9 @@
-from pathlib import Path
-
 import cocotb.clock
 import pytest
-from cocotb_test.simulator import run as sim_run
+from magia_flow.simulation.general import Simulator
 
-import tests.helper as helper
 from magia import Constant, Module, Output
+from tests import helper
 
 test_constants = [
     # Format: (value, width, signed) # noqa: ERA001
@@ -67,30 +65,24 @@ async def constant_test(dut):
 class TestSvConstant:
     TOP = "AssignmentModule"
 
-    def test_sv_constant_integers(self, temp_build_dir):
-        with helper.elaborate_to_file(
-                AssignmentModule(test_constants, name=self.TOP)
-        ) as filename:
-            sim_run(
-                simulator="verilator",  # simulator
-                verilog_sources=[filename],  # sources
-                toplevel=self.TOP,  # top level HDL
-                python_search=[str(Path(__name__).parent.absolute())],  # python search path
-                module=Path(__name__).name,  # name of cocotb test module
-                testcase="constant_test",  # name of test function
-                sim_build=temp_build_dir,  # temp build directory
-                work_dir=temp_build_dir,  # simulation  directory
-            )
+    def test_sv_constant_integers(self):
+        helper.simulate(
+            top_level_name=self.TOP,
+            hdl_modules=AssignmentModule(test_constants, name=self.TOP),
+            testcase="constant_test",
+            test_module=[Simulator.current_package()],
+            python_search_path=[Simulator.current_dir()],
+        )
 
-    @pytest.mark.parametrize("width, signed, expected", [
-        (8, False, "8'hX"),
-        (8, True, "8'shX"),
-        (16, False, "16'hX"),
-        (16, True, "16'shX"),
-        (32, False, "32'hX"),
-        (32, True, "32'shX"),
-        (64, False, "64'hX"),
-        (64, True, "64'shX"),
-    ])
-    def test_sv_constant_unknown(self, width, signed, expected):
-        assert Constant.sv_constant(None, width, signed) == expected
+        @pytest.mark.parametrize("width, signed, expected", [
+            (8, False, "8'hX"),
+            (8, True, "8'shX"),
+            (16, False, "16'hX"),
+            (16, True, "16'shX"),
+            (32, False, "32'hX"),
+            (32, True, "32'shX"),
+            (64, False, "64'hX"),
+            (64, True, "64'shX"),
+        ])
+        def test_sv_constant_unknown(self, width, signed, expected):
+            assert Constant.sv_constant(None, width, signed) == expected

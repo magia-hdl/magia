@@ -1,24 +1,14 @@
 import pytest
-from cocotb.runner import get_runner
+from magia_flow.simulation.general import Simulator
 
-import tests.helper as helper
 from magia import Input, Module, Output
 
 
 class TestSmokeCompile:
     TOP = "TopModule"
 
-    def compile_sv(self, sv_file: str, build_dir):
-        runner = get_runner("verilator")
-        runner.build(
-            verilog_sources=[sv_file],
-            hdl_toplevel=self.TOP,
-            always=True,
-            build_dir=build_dir,  # temp build directory
-        )
-
     @pytest.mark.parametrize("width", [8, 12, 16])
-    def test_comb_operators(self, width, temp_build_dir):
+    def test_comb_operators(self, width):
         class TopModule(Module):
             def __init__(self, width, **kwargs):
                 super().__init__(**kwargs)
@@ -53,13 +43,12 @@ class TestSmokeCompile:
                 accumulator += self.io.a
                 accumulator -= self.io.a
                 accumulator *= self.io.a
-                accumulator = accumulator[width-1:0]
+                accumulator = accumulator[width - 1:0]
                 accumulator |= self.io.a
                 accumulator &= self.io.a
                 accumulator ^= self.io.a
                 self.io.q_accumulated <<= accumulator
 
-        with helper.elaborate_to_file(
-                TopModule(width=width, name=self.TOP)
-        ) as filename:
-            self.compile_sv(filename, temp_build_dir)
+        sim = Simulator(self.TOP)
+        sim.add_magia_module(TopModule(width, name=self.TOP))
+        sim.compile()
