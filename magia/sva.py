@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from enum import Enum
 from string import Template
 from typing import Optional
@@ -134,6 +135,15 @@ class SVABlock(Synthesizable):
 
         self.properties.append(new_prop)
         self.property_names.add(new_prop.name)
+
+    def __iadd__(self, new_props):
+        if not isinstance(new_props, Iterable):
+            self.add(new_props)
+            return self
+
+        for new_prop in new_props:
+            self.add(new_prop)
+        return self
 
     def elaborate(self) -> str:
         return "\n".join([prop.elaborate() for prop in self.properties])
