@@ -28,15 +28,18 @@ def test_parse_sva():
     tree = parse_sv_code(statement, parse_as="concurrent_assertion_item")
 
     class TreeVerifier(SystemVerilogParserVisitor):
-        def visitConcurrent_assertion_item(self, ctx):
+        def visitConcurrent_assertion_item(self, ctx):  # noqa: N802
             assert ctx.identifier().getText() == "a1", "Except an assertion named as 'a1'."
             return self.visitChildren(ctx)
 
-        def visitConcurrent_assertion_statement(self, ctx: SystemVerilogParser.Concurrent_assertion_statementContext):
+        def visitConcurrent_assertion_statement(  # noqa: N802
+                self,
+                ctx: SystemVerilogParser.Concurrent_assertion_statementContext
+        ):
             assert ctx.getChild(0) == ctx.KW_ASSERT(), "Expect an 'assert' keyword at the beginning of the statement."
             return self.visitChildren(ctx)
 
-        def visitProperty_spec(self, ctx: SystemVerilogParser.Property_specContext):
+        def visitProperty_spec(self, ctx: SystemVerilogParser.Property_specContext):  # noqa: N802
             assert flatten_expression(ctx.clocking_event()) == "@ ( posedge clk )", "Expect a clocking event."
             assert ctx.getToken(SystemVerilogParser.KW_DISABLE, 0) is not None, "Expect a 'disable' keyword."
             assert ctx.getToken(SystemVerilogParser.KW_IFF, 0) is not None, "Expect a 'iff' keyword."
