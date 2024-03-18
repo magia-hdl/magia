@@ -13,6 +13,13 @@ lint.ignore = ["F821", "A003"]
 
 "tests/**" = ["S101", "S311"]
 
+[tool.coverage.run]
+omit = [
+    "tests/*",
+    "magia/utils/parsers/SystemVerilog*",
+    "magia/**/__init__.py",
+]
+
 [tool.poetry]
 name = "magia-hdl"
 version = "0.5.0"
@@ -50,9 +57,11 @@ cocotb-test = "*"
 pytest = "*"
 pytest-xdist = "*"
 pytest-github-report = "*"
-ruff = "*"
+ruff = "~0.3.3"
 hdlConvertor-binary = "~2.3"
 magia-flow = "^0.1"
+coverage = { extras = ["toml"], version = "^7.4.4" }
+pytest-cov = "^4.1.0"
 
 [tool.poetry.urls]
 Repository = "https://github.com/magia-hdl/magia"

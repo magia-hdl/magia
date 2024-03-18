@@ -1,0 +1,6 @@
+[run]
+branch = True
+omit =
+    tests/**/*
+    magia/utils/**/SystemVerilog*.py
+    **/__init__.py
