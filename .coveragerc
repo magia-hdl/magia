@@ -1,5 +1,4 @@
 [run]
-branch = True
 omit =
     tests/**/*
     magia/utils/**/SystemVerilog*.py

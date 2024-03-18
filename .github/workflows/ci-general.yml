@@ -73,7 +73,15 @@ jobs:
         env:
           pytest_github_report: true
         run: |
-          poetry run pytest -n auto tests
+          poetry run pytest --cache-clear -n auto \
+          --cov-config=.coveragerc --cov=magia --cov-report=term-missing:skip-covered \
+          --junitxml=pytest.xml tests | tee pytest-coverage.txt
+
+      - name: Pytest coverage comment
+        uses: MishaKav/pytest-coverage-comment@main
+        with:
+          pytest-coverage-path: ./pytest-coverage.txt
+          junitxml-path: ./pytest.xml
 
 
   Deploy:
