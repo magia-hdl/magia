@@ -700,5 +700,5 @@ full = ["hdlConvertor-binary"]
 
 [metadata]
 lock-version = "2.0"
-python-versions = "^3.9"
-content-hash = "775741c5285ed4461bcd2eba0baf0c8a9693c51cddbd617d3796c95c4e999030"
+python-versions = "^3.10"
+content-hash = "d9da39fbfe3f7b5354247852f621f3758ea393c62b029661ada6ebbf49d9134d"
