@@ -164,6 +164,7 @@ class Signal(Synthesizable):
 
     _new_signal_counter = count(0)
     _signal_decl_in_verilog = False
+    _str_with_net_name_only = False
 
     def __init__(
             self,
@@ -308,9 +309,9 @@ class Signal(Synthesizable):
         """
         A context manager to declare signals in Verilog style.
         """
-        cls._signal_decl_in_verilog = True
+        prev_value, cls._signal_decl_in_verilog = cls._signal_decl_in_verilog, True
         yield
-        cls._signal_decl_in_verilog = False
+        cls._signal_decl_in_verilog = prev_value
 
     def signal_decl(self) -> str:
         """
@@ -331,6 +332,24 @@ class Signal(Synthesizable):
         if self.annotated:
             decl += f"\n{self.elaborated_loc}"
         return decl
+
+    @classmethod
+    @contextmanager
+    def name_as_str(cls):
+        """
+        A context manager to only print the net name of the signal.
+        """
+        prev_value, cls._str_with_net_name_only = cls._str_with_net_name_only, True
+        yield
+        cls._str_with_net_name_only = prev_value
+
+    def __repr__(self):
+        return f"{type(self).__name__}({self.net_name}:{len(self)})"
+
+    def __str__(self):
+        if self._str_with_net_name_only:
+            return self.net_name
+        return repr(self)
 
     def elaborate(self) -> str:
         signal_decl = self.signal_decl()
