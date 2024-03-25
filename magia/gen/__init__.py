@@ -9,6 +9,6 @@ Include functions and classes here if:
 e.g. FSM Builder, Feed-forward Pipeline Generator, etc.
 """
 
-from .fsm import FSM
+from .fsm import FSM, FSMLogic
 
-__all__ = ["FSM"]
+__all__ = ["FSM", "FSMLogic"]
