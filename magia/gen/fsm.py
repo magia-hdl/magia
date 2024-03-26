@@ -22,16 +22,9 @@ class FSMLogic:
 
     def __init__(
             self,
-            clk: Signal,
-            reset_state: str,
-            reset: Optional[Signal] = None,
-            async_reset: Optional[Signal] = None,
             name: Optional[str] = None,
             **kwargs,
     ):
-        if async_reset is None and reset is None:
-            raise ValueError("Specify at least one of the reset/async_reset signal")
-
         self.states: dict[str, FSMLogic.State] = {}
         self.transitions: dict[str, list[FSMLogic.Transition]] = {}
         self.finalized = False
@@ -41,12 +34,6 @@ class FSMLogic:
         self.gen_id = 0
 
         self.state_width = 0
-        self.reset_state = reset_state
-        self._clocking = {
-            "clk": clk,
-            "reset": reset,
-            "async_reset": async_reset,
-        }
 
     @property
     def width(self):
@@ -105,10 +92,6 @@ class FSMLogic:
             raise ValueError("FSM is already finalized")
         self.finalized = True
 
-        # Check if reset state exists
-        if self.reset_state not in self.states:
-            raise ValueError(f"Reset state {self.reset_state} is not defined")
-
         # Fill in missing codes
         existing_code = {state.code for state in self.states.values() if state.code is not None}
         for state in self.states.values():
@@ -162,32 +145,53 @@ class FSMLogic:
         )
         return new_state
 
-    def generate(self) -> tuple[Signal, Signal]:  # (input, state register)
+    @property
+    def fsm_name_prefix(self):
+        return f"fsm_{self.fsm_name}_{self.gen_id}"
+
+    def generate(
+            self,
+            reset_state: Optional[str] = None,
+            clk: Optional[Signal] = None,
+            reset: Optional[Signal] = None,
+            async_reset: Optional[Signal] = None,
+    ) -> tuple[Signal, Signal]:  # (input, next_state / state_registered)
+        # Check if the output is registered
+        reg_output = clk is not None
+        if reg_output:
+            if async_reset is None and reset is None:
+                raise ValueError("Specify at least one of the reset/async_reset signal")
+            if reset_state is None:
+                raise ValueError("Specify the reset state")
+            if reset_state not in self.states:
+                raise ValueError(f"Reset state {reset_state} is not defined")
+
         if not self.finalized:
             self.finalize()
 
-        register_name = f"fsm_{self.fsm_name}_{self.gen_id}_state"
-        input_name = f"fsm_{self.fsm_name}_{self.gen_id}_input"
+        output_name = f"{self.fsm_name_prefix}_next"
+        input_name = f"{self.fsm_name_prefix}_input"
+        reg_name = f"{self.fsm_name_prefix}_state"
         self.gen_id += 1
 
-        reset_value = self.states[self.reset_state].code
-
         state_input = Signal(self.state_width, name=input_name)
-        state_register = self._gen_fsm_logic(state_input).reg(
-            name=register_name,
-            reset_value=reset_value,
-            async_reset_value=reset_value,
-            **self._clocking,
-        )
+        next_state = self._gen_fsm_logic(state_input)
+        next_state.set_name(output_name)
 
-        return state_input, state_register
+        if reg_output:
+            reset_value = self.states[reset_state].code
+            next_state = next_state.reg(
+                clk, name=reg_name,
+                reset=reset, async_reset=async_reset,
+                reset_value=reset_value, async_reset_value=reset_value,
+            )
+
+        return state_input, next_state
 
     def copy(self, name: Optional[str] = None, **kwargs) -> "FSMLogic":
         new_fsm = FSMLogic(
             **kwargs,
-            reset_state=self.reset_state,
             name=name,
-            **self._clocking,
         )
         new_fsm.states = copy.deepcopy(self.states)
         new_fsm.transitions = {
@@ -208,10 +212,18 @@ class FSM:
             fsm_stage: Optional[FSMLogic] = None,
             **kwargs,
     ):
-        self.fsm_logic = FSMLogic(
-            clk, reset_state, reset, async_reset, name, **kwargs
-        ) if fsm_stage is None else fsm_stage
+        if async_reset is None and reset is None:
+            raise ValueError("Specify at least one of the reset/async_reset signal")
+
+        self.fsm_logic = FSMLogic(name, **kwargs) if fsm_stage is None else fsm_stage
         self.state: Optional[Signal] = None
+
+        self.reset_state = reset_state
+        self._clocking = {
+            "clk": clk,
+            "reset": reset,
+            "async_reset": async_reset,
+        }
 
     @property
     def states(self):
@@ -255,6 +267,6 @@ class FSM:
         if self.state:
             raise ValueError("FSM has already been generated")
 
-        prev, self.state = self.fsm_logic.generate()
-        prev <<= self.state
+        prev_state, self.state = self.fsm_logic.generate(reset_state=self.reset_state, **self._clocking)
+        prev_state <<= self.state
         return self.state
