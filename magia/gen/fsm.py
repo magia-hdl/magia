@@ -29,8 +29,8 @@ class FSMLogic:
         self.transitions: dict[str, list[FSMLogic.Transition]] = {}
         self.finalized = False
 
-        self.fsm_name = f"{name if name else self.fsm_id}"
-        self.fsm_id += 1
+        self.fsm_name = f"{name if name is not None else FSMLogic.fsm_id}"
+        FSMLogic.fsm_id += 1
         self.gen_id = 0
 
         self.state_width = 0
