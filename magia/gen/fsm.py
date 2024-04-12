@@ -5,13 +5,12 @@ from typing import Optional
 from magia import Constant, Signal
 
 
-class FSMLogic:
+class FSM:
     @dataclass
     class State:
         name: str
         code: Optional[int]
         signal: Constant = field(repr=False)
-        desc: Optional[str] = field(default=None, repr=False)
 
     @dataclass
     class Transition:
@@ -25,12 +24,12 @@ class FSMLogic:
             name: Optional[str] = None,
             **kwargs,
     ):
-        self.states: dict[str, FSMLogic.State] = {}
-        self.transitions: dict[str, list[FSMLogic.Transition]] = {}
+        self.states: dict[str, FSM.State] = {}
+        self.transitions: dict[str, list[FSM.Transition]] = {}
         self.finalized = False
 
-        self.fsm_name = f"{name if name is not None else FSMLogic.fsm_id}"
-        FSMLogic.fsm_id += 1
+        self.fsm_name = f"{name if name is not None else FSM.fsm_id}"
+        FSM.fsm_id += 1
         self.gen_id = 0
 
         self.state_width = 0
@@ -186,10 +185,11 @@ class FSMLogic:
                 reset_value=reset_value, async_reset_value=reset_value,
             )
 
+        # TODO: Implement the Rolled FSM
         return state_input, next_state
 
-    def copy(self, name: Optional[str] = None, **kwargs) -> "FSMLogic":
-        new_fsm = FSMLogic(
+    def copy(self, name: Optional[str] = None, **kwargs) -> "FSM":
+        new_fsm = FSM(
             **kwargs,
             name=name,
         )
@@ -199,74 +199,3 @@ class FSMLogic:
             for state, transitions in self.transitions.items()
         }
         return new_fsm
-
-
-class FSM:
-    def __init__(
-            self,
-            clk: Signal,
-            reset_state: str,
-            reset: Optional[Signal] = None,
-            async_reset: Optional[Signal] = None,
-            name: Optional[str] = None,
-            fsm_stage: Optional[FSMLogic] = None,
-            **kwargs,
-    ):
-        if async_reset is None and reset is None:
-            raise ValueError("Specify at least one of the reset/async_reset signal")
-
-        self.fsm_logic = FSMLogic(name, **kwargs) if fsm_stage is None else fsm_stage
-        self.state: Optional[Signal] = None
-
-        self.reset_state = reset_state
-        self._clocking = {
-            "clk": clk,
-            "reset": reset,
-            "async_reset": async_reset,
-        }
-
-    @property
-    def states(self):
-        return self.fsm_logic.states
-
-    @property
-    def transitions(self):
-        return self.fsm_logic.transitions
-
-    @property
-    def width(self):
-        if not self.fsm_logic.finalized:
-            raise ValueError("FSM is not finalized")
-        return self.fsm_logic.state_width
-
-    def add_states(self, **states):
-        self.fsm_logic.add_states(**states)
-        return self
-
-    def add_state(self, name: str, code: Optional[int] = None):
-        self.fsm_logic.add_state(name, code)
-        return self
-
-    def add_transitions(self, *transitions: tuple[str, str, Optional[Signal]]):
-        self.fsm_logic.add_transitions(*transitions)
-        return self
-
-    def add_transition(self, src: str, dst: str, cond: Optional[Signal] = None):
-        self.fsm_logic.add_transition(src, dst, cond)
-        return self
-
-    def push_transition(self, src: str, dst: str, cond: Optional[Signal] = None):
-        self.fsm_logic.push_transition(src, dst, cond)
-        return self
-
-    def finalize(self):
-        self.fsm_logic.finalize()
-        return self
-
-    def generate(self) -> Signal:
-        if self.state:
-            raise ValueError("FSM has already been generated")
-
-        prev_state, self.state = self.fsm_logic.generate(reset_state=self.reset_state, **self._clocking)
-        prev_state <<= self.state
-        return self.state
