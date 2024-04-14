@@ -13,11 +13,11 @@ jobs:
       - uses: chartboost/ruff-action@v1
         with:
           src: "magia"
-          version: 0.2.1
+          version: 0.3.3
       - uses: chartboost/ruff-action@v1
         with:
           src: "tests"
-          version: 0.2.1
+          version: 0.3.3
 
   RunTests:
     needs:
