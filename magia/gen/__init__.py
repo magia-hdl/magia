@@ -8,3 +8,7 @@ Include functions and classes here if:
 
 e.g. FSM Builder, Feed-forward Pipeline Generator, etc.
 """
+
+from .fsm import FSM
+
+__all__ = ["FSM"]
