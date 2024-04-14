@@ -65,8 +65,10 @@ class RegisterConfig:
 class Synthesizable:
     """
     The base class of all synthesizable objects.
+
     They can be elaborated into SystemVerilog code.
     """
+
     _ANNOTATION_TEMPLATE = Template("/*\nNet name: $net_name\n$comment$loc\n*/")
 
     def __init__(self, **kwargs):
@@ -79,30 +81,28 @@ class Synthesizable:
 
     @property
     def net_name(self) -> str:
-        """
-        Full name of a signal, used for elaboration.
-        """
+        """Full name of a signal, used for elaboration."""
         raise NotImplementedError
 
     @property
     def name(self) -> str:
-        """
-        Short name of the signal, is used to identify the signal in a bundle / SignalDict
-        """
+        """Short name of the signal, is used to identify the signal in a bundle / SignalDict."""
         raise NotImplementedError
 
     @property
     def drivers(self) -> list[Signal]:
         """
         Get the drivers of a Synthesizable object.
-        :return: The driver signals.
+
+        :returns: The driver signals.
         """
         raise NotImplementedError
 
     @cached_property
     def loc(self) -> str:
         """
-        The location of the object in the code.
+        Get the location of the object in the code.
+
         This property only works if the object is annotated.
         """
         if not self.annotated:
@@ -123,15 +123,17 @@ class Synthesizable:
     def elaborate(self) -> str:
         """
         Elaborate the object into SystemVerilog code.
+
         All configuration should be resolved before calling this method.
-        :return: SystemVerilog code
+        :returns: SystemVerilog code.
         """
         return ""
 
     def annotate(self, comment: str | None = None) -> Synthesizable:
         """
         Annotate the object with a comment.
-        :return: The object itself.
+
+        :returns: The object itself.
         """
         self._annotated_from = inspect.stack()[1].filename
         self._comment = comment
@@ -139,16 +141,15 @@ class Synthesizable:
 
     @property
     def annotated(self) -> bool:
-        """
-        Whether the object is annotated.
-        """
+        """Determine if the object is annotated."""
         return self._annotated_from is not None
 
     @property
     def elaborated_loc(self) -> str:
         """
         Return the elaborated location of the object.
-        :return: SV comments with Line number of the object in the elaborated code.
+
+        :returns: SV comments with Line number of the object in the elaborated code.
         """
         return self._ANNOTATION_TEMPLATE.substitute(
             net_name=self.net_name,
@@ -160,8 +161,10 @@ class Synthesizable:
 class Signal(Synthesizable):
     """
     The general signal class. It has drivers, which is another signal.
+
     It can also drive other signals / module instances.
     """
+
     SINGLE_DRIVER_NAME: str = "d"
     _SIGNAL_DECL_TEMPLATE = Template("logic $signed $width $name;")
     _SIGNAL_DECL_VERILOG_TEMPLATE = Template("wire $signed $width $name;")
@@ -205,23 +208,17 @@ class Signal(Synthesizable):
 
     @property
     def net_name(self) -> str:
-        """
-        Full name of a signal, used for elaboration.
-        """
+        """Full name of a signal, used for elaboration."""
         return self.name
 
     @property
     def name(self) -> str:
-        """
-        Short name of the signal, is used to identify the signal in a bundle / SignalDict
-        """
+        """Short name of the signal, is used to identify the signal in a bundle / SignalDict."""
         return self._config.name
 
     @property
     def description(self) -> str:
-        """
-        Description of the signal
-        """
+        """Description of the signal."""
         return self._config.description
 
     @property
@@ -235,8 +232,9 @@ class Signal(Synthesizable):
     def driver(self, driver_name: str = SINGLE_DRIVER_NAME) -> Signal | None:
         """
         Get the driver of the signal.
+
         :param driver_name: The name of the driver. Default to the single driver.
-        :return: The driver signal.
+        :returns: The driver signal.
         """
         return self._drivers.get(driver_name)
 
@@ -244,7 +242,8 @@ class Signal(Synthesizable):
     def drivers(self) -> list[Signal]:
         """
         Get the drivers of the signal.
-        :return: The driver signals.
+
+        :returns: The driver signals.
         """
         return list(self._drivers.values())
 
@@ -252,6 +251,7 @@ class Signal(Synthesizable):
     def owner_instance(self) -> Instance | None:
         """
         Get the module instance that owns this signal.
+
         It is applicable to input / output signals only.
         """
         return self._config.owner_instance
@@ -271,11 +271,11 @@ class Signal(Synthesizable):
     def with_signed(self, signed: bool) -> Signal:
         """
         Create a new signal with the same configuration, but with a different signedness.
-        Connect the original signal to the new signal.
 
+        Connect the original signal to the new signal.
         New Signal is not added to the parent bundle.
 
-        :return: A new signal with the same configuration.
+        :returns: A new signal with the same configuration.
         """
         signal = Signal(
             width=len(self),
@@ -287,11 +287,11 @@ class Signal(Synthesizable):
     def with_width(self, width: int) -> Signal:
         """
         Create a new signal with the same configuration, but with a different width.
-        Connect the original signal to the new signal.
 
+        Connect the original signal to the new signal.
         New Signal is not added to the parent bundle.
 
-        :return: A new signal with the new configuration.
+        :returns: A new signal with the new configuration.
         """
         if width == len(self):
             signal = Signal(
@@ -312,9 +312,7 @@ class Signal(Synthesizable):
     @classmethod
     @contextmanager
     def decl_in_verilog(cls):
-        """
-        A context manager to declare signals in Verilog style.
-        """
+        """Declare a context to elaborate signals in Verilog style."""
         prev_value, cls._signal_decl_in_verilog = cls._signal_decl_in_verilog, True
         yield
         cls._signal_decl_in_verilog = prev_value
@@ -322,7 +320,8 @@ class Signal(Synthesizable):
     def signal_decl(self) -> str:
         """
         Declare the signal in the module implementation.
-        :return: logic (signed) [...]SIGNAL_NAME
+
+        :returns: logic (signed) [...]SIGNAL_NAME.
         """
         if self.net_name is None:
             raise ValueError("Signal name is not set")
@@ -342,9 +341,7 @@ class Signal(Synthesizable):
     @classmethod
     @contextmanager
     def name_as_str(cls):
-        """
-        A context manager to only print the net name of the signal.
-        """
+        """Declare a context that prints the net name of the signal only, but not the full representation."""
         prev_value, cls._str_with_net_name_only = cls._str_with_net_name_only, True
         yield
         cls._str_with_net_name_only = prev_value
@@ -372,7 +369,8 @@ class Signal(Synthesizable):
     def copy(self, owner_instance=None, **kwargs) -> Signal:
         """
         Copy the signal. Driver is discarded.
-        :return: A new signal with the same configuration.
+
+        :returns: A new signal with the same configuration.
         """
         return Signal(
             name=self.name,
@@ -385,8 +383,9 @@ class Signal(Synthesizable):
     def __ilshift__(self, other):
         """
         Connect the signal with the driver.
+
         :param other: Driving Signal
-        :return: Original Signal
+        :returns: Original Signal
         """
         if isinstance(other, (int, bytes)):
             other = Constant(other, len(self), self.signed)
@@ -517,7 +516,7 @@ class Signal(Synthesizable):
         raise NotImplementedError("`>>=` Operator is not defined.")
 
     def __getitem__(self, item) -> Signal:
-        """ The Slicing Operator """
+        """Slicing Operator."""
         # Return the concatenation of the sliced signals
         # If multiple slices are provided.
         if isinstance(item, Iterable):
@@ -544,7 +543,9 @@ class Signal(Synthesizable):
 
     def __matmul__(self, other) -> Signal:
         """
-        Special operation for the `@` operator, which is the concatenation operator.
+        Concatenate two signals.
+
+        This is a special operation for the `@`.
         """
         if isinstance(other, Signal):
             return Operation.create(OPType.CONCAT, self, other)
@@ -570,9 +571,7 @@ class Signal(Synthesizable):
             async_reset_value: bytes | int | None = None,
             name: str | None = None,
     ) -> Register:
-        """
-        Create a register from the signal.
-        """
+        """Create a register from the signal."""
         register = Register(
             width=len(self),
             enable=enable,
@@ -594,7 +593,8 @@ class Signal(Synthesizable):
     ) -> When:
         """
         Create a `Self if Condition else Else_` statement, similar to the ternary operator in C / Python.
-        E.g. `gated = data.when(enable)`, `default_2 = data.when(enable, 2)`
+
+        E.g. `gated = data.when(enable)`, `default_2 = data.when(enable, 2)`.
         """
         if else_ is None:
             else_ = 0
@@ -605,9 +605,7 @@ class Signal(Synthesizable):
         )
 
     def case(self, cases: dict[int, Signal | int], default: Signal | int | None = None, ) -> Case:
-        """
-        Create a `case` statement.
-        """
+        """Create a `case` statement."""
         return Case(
             selector=self,
             cases=cases,
@@ -615,27 +613,22 @@ class Signal(Synthesizable):
         )
 
     def any(self) -> Signal:
-        """
-        Create an `any` statement.
-        """
+        """Create an `any` statement."""
         return Operation.create(OPType.ANY, self, None)
 
     def all(self) -> Signal:
-        """
-        Create an `all` statement.
-        """
+        """Create an `all` statement."""
         return Operation.create(OPType.ALL, self, None)
 
     def parity(self) -> Signal:
-        """
-        Create an `parity` statement.
-        """
+        """Create an `parity` statement."""
         return Operation.create(OPType.PARITY, self, None)
 
 
 class SignalDict(UserDict):
     """
     Signal Dict contains a dictionary of signals keyed by their name / specific alias.
+
     They are read only after being assigned.
     """
 
@@ -665,6 +658,7 @@ class SignalDict(UserDict):
 class Input(Signal):
     """
     Representing an input signal.
+
     It has no driver, but it is driving other signals.
     It is used by both the module declaration and the module instance.
     """
@@ -675,9 +669,7 @@ class Input(Signal):
             owner_instance: Instance | None = None,
             **kwargs
     ):
-        """
-        I/O ports must have name and width well-defined by designers.
-        """
+        """I/O ports must have name and width well-defined by designers."""
         if name is None:
             raise ValueError("Input name is not set")
         if width == 0:
@@ -690,7 +682,8 @@ class Input(Signal):
     def elaborate(self) -> str:
         """
         Elaborate the input signal in the module declaration.
-        :return: input logic (signed) [...]PORT_NAME
+
+        :returns: input logic (signed) [...]PORT_NAME.
         """
         port_decl = self.signal_decl().rstrip(";")
         return f"input  {port_decl}"
@@ -699,6 +692,7 @@ class Input(Signal):
 class Output(Signal):
     """
     Representing an output signal.
+
     They are the starting points when we elaborate the module.
     It is used by both the module declaration and the module instance.
     """
@@ -709,9 +703,7 @@ class Output(Signal):
             owner_instance: Instance | None = None,
             **kwargs
     ):
-        """
-        I/O ports must have name and width well-defined by designers.
-        """
+        """I/O ports must have name and width well-defined by designers."""
         if name is None:
             raise ValueError("Output name is not set")
         if width == 0:
@@ -723,16 +715,16 @@ class Output(Signal):
     def elaborate(self) -> str:
         """
         Elaborate the output signal in the module declaration.
-        :return: output logic (signed) [...]PORT_NAME
+
+        :returns: output logic (signed) [...]PORT_NAME.
         """
         port_decl = self.signal_decl().rstrip(";")
         return f"output {port_decl}"
 
 
 class Constant(Signal):
-    """
-    Representing a constant signal. The value stored in bytes representing the constance driver.
-    """
+    """Representing a constant signal. The value stored in bytes representing the constance driver."""
+
     new_const_counter = count(0)
 
     def __init__(
@@ -760,7 +752,12 @@ class Constant(Signal):
     def sv_constant(value: int | bytes | None, width: int, signed: bool = False) -> str:
         """
         Convert a Python integer or bytes object to a SystemVerilog constant expression.
+
         If value is None, return "X", the SystemVerilog constant for an unknown value.
+        :param value: The value to convert.
+        :param width: The width of the constant.
+        :param signed: If the constant is signed.
+        :returns: The SystemVerilog constant expression.
         """
         byte_cnt = ceil(width / 8)
         if value is not None:
@@ -776,9 +773,8 @@ class Constant(Signal):
 
 
 class Operation(Signal):
-    """
-    Representing an operation, most likely a combination logic
-    """
+    """Representing an operation, most likely a combination logic."""
+
     _OP_IMPL_TEMPLATE = {
         OPType.NOT: Template("$output = ~$a;"),
         OPType.OR: Template("$output = $a | $b;"),
@@ -870,9 +866,7 @@ class Operation(Signal):
         )
 
     def elaborate(self) -> str:
-        """
-        Declare the signal and elaborate the operation in the module implementation.
-        """
+        """Declare the signal and elaborate the operation in the module implementation."""
         signal_decl = self.signal_decl()
         op_impl = ""
         if self._op_config.op_type in self._OP_IMPL_TEMPLATE:
@@ -900,9 +894,7 @@ class Operation(Signal):
 
     @staticmethod
     def create(op_type: OPType, x: Signal, y: Signal | slice | int | bytes | None) -> Operation:
-        """
-        Factory method to create common operation with single / two arguments.
-        """
+        """Create common operation with single / two arguments."""
         if not isinstance(x, Signal):
             raise TypeError(f"Cannot perform operation on {type(x)}")
 
@@ -978,9 +970,8 @@ class Operation(Signal):
 
 
 class When(Operation):
-    """
-    Representing an if-else statement.
-    """
+    """Representing an if-else statement."""
+
     _IF_ELSE_TEMPLATE = Template(
         "always_comb\n"
         "  if ($condition) $output = $if_true;\n"
@@ -1025,6 +1016,7 @@ class Case(Operation):
     The Case Operation requires all the width of the input signals are defined,
     before the creation of the Operation.
     """
+
     _CASE_TEMPLATE = Template(
         "always_comb\n"
         "  $unique case ($selector)\n"
@@ -1131,9 +1123,8 @@ class Case(Operation):
 
 
 class Register(Operation):
-    """
-    Representing a register, most likely DFF
-    """
+    """Representing a register, most likely DFF."""
+
     _REG_TEMPLATE = {
         RegType.DFF: Template("always_ff @(posedge $clk) begin\n  $output <= $driver;\nend"),
         RegType.DFF_EN: Template("always_ff @(posedge $clk) begin\n  if ($enable) $output <= $driver;\nend"),

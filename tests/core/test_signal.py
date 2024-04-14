@@ -30,9 +30,7 @@ class TestSignalManipulate:
     }
 
     def test_naming(self):
-        """
-        Specifying a name for a signal should be reflected in the code generated
-        """
+        """Specifying a name for a signal should be reflected in the code generated."""
 
         class Top(Module):
             def __init__(self, **kwargs):
@@ -53,9 +51,7 @@ class TestSignalManipulate:
         assert "next_one = intermediate" in result
 
     def test_width(self):
-        """
-        Signal width can be changed by `signal.set_width()`
-        """
+        """Signal width can be changed by `signal.set_width()`."""
 
         class Top(Module):
             def __init__(self, **kwargs):
@@ -73,9 +69,7 @@ class TestSignalManipulate:
         )
 
     def test_signed(self):
-        """
-        Signal sign can be changed by `signal.set_signed()`
-        """
+        """Signal sign can be changed by `signal.set_signed()`."""
 
         class Top(Module):
             def __init__(self, **kwargs):
@@ -90,9 +84,7 @@ class TestSignalManipulate:
         assert "logic signed [4:0] next_one;" in result
 
     def test_annotate(self):
-        """
-        Signal can be annotated by `signal.annotate()` with comment
-        """
+        """Signal can be annotated by `signal.annotate()` with comment."""
         signal = Signal(8, name="a").annotate("This is a comment")
         signal <<= signal  # Stub just for elaboration
         result = signal.elaborate()
@@ -101,9 +93,7 @@ class TestSignalManipulate:
         assert __file__ in result, "The file name does not exists in the elaboration result"
 
     def test_annotate_without_comment(self):
-        """
-        Signal can be annotated by `signal.annotate()` without comment
-        """
+        """Signal can be annotated by `signal.annotate()` without comment."""
         signal = Signal(8, name="a").annotate()
         signal <<= signal  # Stub just for elaboration
         result = signal.elaborate()

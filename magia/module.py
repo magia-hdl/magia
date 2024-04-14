@@ -36,7 +36,8 @@ class ModuleInstanceConfig:
 
 class IOPorts:
     """
-    Define a bundle of I/O, which can be used as the input or output of a module.
+    Define a set of I/O, which can be used as the input or output of a module.
+
     An IOPorts can be added with Input and Output.
     However, the bundle cannot be used as normal signals.
     The actual signals can be accessed from `input` and `output` of the instance instead.
@@ -155,6 +156,7 @@ class IOPorts:
 class Module(Synthesizable):
     """
     A module is a collection of signals and operations. It can also include other modules.
+
     The module is the base class of specialized modules.
     Developers can define the generic behavior of the module in a dynamic way,
     while each `Module` objects is a specialized module initialized with specific parameters.
@@ -175,6 +177,7 @@ class Module(Synthesizable):
     def implement(self):
         self.io.q <<= self.io.a + 1
     """
+
     _MOD_DECL_TEMPLATE = Template("module $name (\n$io\n);")
     _new_module_counter = count(0)
     output_file: PathLike | None = None
@@ -228,10 +231,10 @@ class Module(Synthesizable):
 
     def elaborate(self) -> tuple[str, set[Module]]:
         """
-        Trace nets and operations from output ports
-        This method generates the SystemVerilog code for the module.
+        Trace nets and operations from output ports.
 
-        :return: The SystemVerilog code for the module, and the list of submodules of the instance in the module.
+        This method generates the SystemVerilog code for the module.
+        :returns: The SystemVerilog code for the module, and the list of submodules of the instance in the module.
         """
         violations = self.validate()
         if violations:
@@ -272,19 +275,16 @@ class Module(Synthesizable):
     def post_elaborate(self) -> str:
         """
         Override this method to add extra code to the module.
+
         The code will be added after the elaboration of the module.
-
         Adding assertions to the module is a typical use case.
-
-        :return: The extra code to be added to the module.
+        :returns: The extra code to be added to the module.
         """
         _ = self  # Stub to avoid IDE/Lint warning
         return ""
 
     def trace(self) -> tuple[list[Signal | Memory], list[Instance]]:
-        """
-        Trace nets and instances from output ports
-        """
+        """Trace nets and instances from output ports."""
         traced_sig_id: set[int] = set()
         traced_inst_id: set[int] = set()
         traced_signal: list[Signal | Memory] = []
@@ -360,8 +360,9 @@ class Module(Synthesizable):
             io: dict[str, Signal] | None = None
     ) -> Instance:
         """
-        Create an instance of the module
-        :return: The created instance
+        Create an instance of the module.
+
+        :returns: The created instance.
         """
         return Instance(
             module=self,
@@ -375,15 +376,14 @@ class Module(Synthesizable):
 
     @property
     def params(self) -> dict[str, object]:
-        """
-        Return the parameters used to specialize this module.
-        """
+        """Return the parameters used to specialize this module."""
         return self._mod_params
 
     @property
     def _module_elab_doc(self) -> str:
         """
         Generate the summary of a module and register it to the module.
+
         It will be written into the SystemVerilog code during elaboration.
         """
         doc = self._module_doc_str
@@ -427,7 +427,8 @@ class Module(Synthesizable):
     @property
     def spec(self) -> dict[str, object]:
         """
-        Return the "Specification" of a specialized Module.
+        Returns the "Specification" of a specialized Module.
+
         It is a dictionary which can be further processed.
         """
         return {
@@ -455,9 +456,8 @@ class Module(Synthesizable):
 
 
 class Instance(Synthesizable):
-    """
-    An instance of a module
-    """
+    """An instance of a module."""
+
     _INST_TEMPLATE = Template("$module_name $inst_name (\n$io\n);")
     _IO_TEMPLATE = Template(".$port_name($signal_name)")
 
@@ -577,12 +577,18 @@ class Blackbox(Module):
 
 class VerilogWrapper(Module):
     """
-    VerilogWrapper Creates a module that wraps a module in a Verilog Format.
+    VerilogWrapper creates a module that wraps a module in a Verilog Format.
+
     Some EDA tools do not support SystemVerilog as the top level or integrable IP.
     Wrapping the SV module in Verilog allows strict integration with those EDA tools.
     """
 
     def __init__(self, module: Module, **kwargs):
+        """
+        Create a Verilog Wrapper for a module.
+
+        :param module: The module to be wrapped.
+        """
         if kwargs.get("name") is None and module.name is not None:
             kwargs["name"] = f"{module.name}Wrapper"
         super().__init__(**kwargs)
@@ -599,9 +605,8 @@ class VerilogWrapper(Module):
 
 
 class Elaborator:
-    """
-    Elaborator is a helper class to elaborate modules.
-    """
+    """Elaborator is a helper class to elaborate modules."""
+
     name_to_module: dict[str, Module] = {}
 
     def __init__(self):
@@ -611,13 +616,14 @@ class Elaborator:
     def to_dict(cls, *modules: Module, top_only: bool = False) -> dict[str, str]:
         """
         Elaborate all modules in the list.
+
         Each module will be elaborated only once and return the SystemVerilog code, plus a list of submodules
         Duplicated submodules will not be elaborated again.
         The elaboration is done recursively, until all submodules are elaborated.
 
         :param modules: The modules to be elaborated.
         :param top_only: If True, Elaborator will skip the submodules instantiated by `modules`
-        :return: A dictionary of the SystemVerilog code for each module.
+        :returns: A dictionary of the SystemVerilog code for each module.
         """
         cls.name_to_module = {}
         modules = list(modules)
@@ -634,16 +640,12 @@ class Elaborator:
 
     @classmethod
     def to_string(cls, *modules: Module, top_only: bool = False) -> str:
-        """
-        Elaborate all modules in the list and return the SystemVerilog code as a string.
-        """
+        """Elaborate all modules in the list and return the SystemVerilog code as a string."""
         return "\n\n".join(cls.to_dict(*modules, top_only=top_only).values())
 
     @classmethod
     def to_file(cls, filename: PathLike, *modules: Module, top_only: bool = False):
-        """
-        Elaborate all modules in the list and write the SystemVerilog code to a file.
-        """
+        """Elaborate all modules in the list and write the SystemVerilog code to a file."""
         sv_code = cls.to_string(*modules, top_only=top_only)
         Path(filename).write_text(sv_code)
 
@@ -656,6 +658,7 @@ class Elaborator:
     ) -> list[Path]:
         """
         Elaborate all modules in the list and write the SystemVerilog code to files.
+
         The files are written to the output directory.
 
         :param output_dir: The output directory.
@@ -663,7 +666,7 @@ class Elaborator:
         :param force: If True, files in the output directory will be overwritten if it exists.
         :param top_only: If True, Elaborator will skip the submodules instantiated by `modules`
 
-        :return: A list of Path objects of the files written.
+        :returns: A list of Path objects of the files written.
         """
         output_dir = Path(output_dir)
         if not force and output_dir.is_dir() and any(output_dir.iterdir()):
@@ -693,6 +696,7 @@ class Elaborator:
     def file(fname: PathLike):
         """
         Return a class decorator to register the filename of generated code to a Module.
+
         The effect is employed by the `to_files` method only.
 
         Example:

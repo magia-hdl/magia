@@ -149,9 +149,7 @@ class TestFixedPoint:
         (-0.50 - 0.126, 0b111101),
     ])
     def test_rounding(self, src, expected):
-        """
-        Rounding occur at LSB/2. Different from Python's round() function.
-        """
+        """Rounding occur at LSB/2. Different from Python's round() function."""
         fp_fmt = FixedPoint(4, 2, signed=True)
         assert fp_fmt(src) == expected
 

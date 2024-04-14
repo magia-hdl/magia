@@ -2,15 +2,13 @@ from magia import Constant, Signal
 
 
 def binary_to_onehot(binary_input: Signal, max_value: int | None = None) -> Signal:
-    """Converts a binary input to a one-hot output.
+    """
+    Convert a binary input to a one-hot output.
 
-    Args:
-        binary_input (Signal): A binary input signal.
-        max_value (int, optional): The maximum value of the binary input.
-          Defaults is the maximum value represented by the binary_input.
-
-    Returns:
-        Signal: A one-hot output signal.
+    :param binary_input: A binary input signal.
+    :param max_value: The maximum value of the binary input.
+        Defaults is the maximum value represented by the binary_input.
+    :returns: A one-hot output signal.
     """
     if max_value is None:
         max_value = 2 ** len(binary_input) - 1
@@ -23,13 +21,11 @@ def binary_to_onehot(binary_input: Signal, max_value: int | None = None) -> Sign
 
 
 def onehot_to_binary(onehot_input: Signal) -> Signal:
-    """Converts a one-hot input to a binary output.
+    """
+    Convert a one-hot input to a binary output.
 
-    Args:
-        onehot_input (Signal): A one_hot input signal.
-
-    Returns:
-        Signal: A binary output signal.
+    :param onehot_input: A one-hot input signal.
+    :returns: A binary output signal.
     """
     binary_width = (len(onehot_input) - 1).bit_length()
     conversion_table = [

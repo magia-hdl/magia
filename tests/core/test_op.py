@@ -15,7 +15,7 @@ from magia import Elaborator, Input, Module, Output
 
 @cocotb.test()
 async def when_as_mux_test(dut):
-    """ Test if the `when` operator works as a mux """
+    """Test if the `when` operator works as a mux."""
     for _ in range(50):
         a = random.randint(0, 0xFF)
         b = random.randint(0, 0xFF)
@@ -35,7 +35,7 @@ async def when_as_mux_test(dut):
 
 @cocotb.test()
 async def when_as_mux_comp(dut):
-    """ Test if the `when` operator works as a Comparator """
+    """Test if the `when` operator works as a Comparator."""
     for _ in range(16 * 16):
         a = random.randint(0, 0xF)
         b = random.randint(0, 0xF)
@@ -53,7 +53,7 @@ async def when_as_mux_comp(dut):
 
 @cocotb.test()
 async def case_as_mux(dut, selector, selection: dict[int, int]):
-    """ Test if the `case` operator works as a mux """
+    """Test if the `case` operator works as a mux."""
     for _ in range(50):
 
         sel = random.randint(0, 2 ** selector - 1)
@@ -86,7 +86,7 @@ gen_test()
 
 @cocotb.test()
 async def case_as_lut(dut):
-    """ Test if the `case` operator works as a LUT """
+    """Test if the `case` operator works as a LUT."""
     for i in range(256 * 4):
         a = random.randint(0, 255)
         dut.a.value = a
@@ -115,7 +115,7 @@ def assert_not_extended(a, b, dut):
 
 @cocotb.test()
 async def unsigned_op(dut):
-    """ Test if the unsigned arithmetic works """
+    """Test if the unsigned arithmetic works."""
     for a, b in product(range(256), range(256)):
         dut.a.value = a
         dut.b.value = b
@@ -126,7 +126,7 @@ async def unsigned_op(dut):
 
 @cocotb.test()
 async def signed_op(dut):
-    """ Test if the signed arithmetic works """
+    """Test if the signed arithmetic works."""
     for a, b in product(range(-128, 128), range(-128, 128)):
         dut.a.value = a
         dut.b.value = b
@@ -137,7 +137,7 @@ async def signed_op(dut):
 
 @cocotb.test()
 async def unsigned_op_extended(dut):
-    """ Test if the unsigned arithmetic works """
+    """Test if the unsigned arithmetic works."""
     for a, b in product(range(256), range(256)):
         dut.a.value = a
         dut.b.value = b
@@ -150,7 +150,7 @@ async def unsigned_op_extended(dut):
 
 @cocotb.test()
 async def signed_op_extended(dut):
-    """ Test if the signed arithmetic works """
+    """Test if the signed arithmetic works."""
     for a, b in product(range(-128, 128), range(-128, 128)):
         dut.a.value = a
         dut.b.value = b
@@ -163,7 +163,7 @@ async def signed_op_extended(dut):
 
 @cocotb.test()
 async def bitwise_op(dut):
-    """ Test all bitwise operator """
+    """Test all bitwise operator."""
     for a, b in product(range(256), range(256)):
         dut.a.value = a
         dut.b.value = b

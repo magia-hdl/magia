@@ -13,8 +13,8 @@ COCOTB_TEST_PREFIX = "coco_"
 def parameterized_testbench(test_function, test_opts_val) -> tuple[Callable, list, list]:
     """
     Create a set of parameterized testbench for cocotb.
-    Generated testbench will be named as `coco_<test_function>_<index>`, starting from 001.
 
+    Generated testbench will be named as `coco_<test_function>_<index>`, starting from 001.
     Parameters of the test function are inferred from the function signature.
 
     Caller has to call the returned generator function to populate the tests in the caller's module.

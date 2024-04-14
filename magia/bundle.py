@@ -17,6 +17,7 @@ class BundleType(enum.Enum):
 class BundleSpec:
     """
     Specification of a signal bundle.
+
     Use to spin up a bundle / IO ports
     """
 
@@ -33,6 +34,7 @@ class BundleSpec:
     def add_common(self, signal: Signal):
         """
         Adding a common signal into the bundle spec.
+
         Common signals are always with same direction on both master and slave.
         (e.g. Clocks, Resets, etc.)
         """
@@ -54,6 +56,7 @@ class BundleSpec:
     def add_signal(self, signal: Signal):
         """
         Adding an Input/Output into the bundle spec.
+
         These signals will flip direction on master and slave.
         The direction of the signal is in the perspective of the master.
         """
@@ -89,9 +92,9 @@ class BundleSpec:
     def route_ports(self, src: str, dst: str):
         """
         Specify a connection between two signals, when they have different names on master and slave.
+
         e.g. connect("data_in", "data_out") will connect the signal "data_in" on master to "data_out" on slave,
         and vice versa.
-
         These signals must be specified as common signals in the bundle spec.
         """
         if src not in self.common or dst not in self.common:
@@ -195,9 +198,7 @@ class BundleSpec:
 
 
 class Bundle:
-    """
-    A signal bundle, containing a set of signals
-    """
+    """A signal bundle, containing a set of signals."""
 
     def __init__(
             self, spec: BundleSpec, name: str | None = None,
@@ -251,8 +252,8 @@ class Bundle:
     def with_name(self, prefix: str | None = None, suffix: str | None = None) -> Bundle:
         """
         Create a view of bundle with different signal names.
-        The signals are not copied, only the names are changed.
 
+        The signals are not copied, only the names are changed.
         It is used to connect to IOPorts with multiple bundles with different names.
         """
         new_bundle = Bundle(self._spec, self._name, prefix, suffix)
@@ -260,9 +261,7 @@ class Bundle:
         return new_bundle
 
     def _connection_map(self, bundle_type: BundleType, connecting_instance: bool) -> dict[str, str]:
-        """
-        Return a map of signal names within the bundle to their target signal names on a module's IOPort.
-        """
+        """Return a map of signal names within the bundle to their target signal names on a module's IOPort."""
         bundle_names = list(self._signals.keys())
         port_names = {
             name: f"{self.prefix}{name}{self.suffix}"
@@ -281,9 +280,7 @@ class Bundle:
         }
 
     def connect_to(self, target_io: IOPorts | Instance):
-        """
-        Connect the bundle to an IOPorts, owned by an Instance / Module.
-        """
+        """Connect the bundle to an IOPorts, owned by an Instance / Module."""
         if not isinstance(target_io, (IOPorts, Instance)):
             raise ValueError(f"Target must be an IOPorts or an Instance, got {type(target_io)}")
 

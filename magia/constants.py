@@ -2,9 +2,8 @@ from enum import Enum, IntEnum, auto
 
 
 class SignalType(Enum):
-    """
-    Kinds of signals
-    """
+    """Kinds of signals."""
+
     WIRE = 0
     INPUT = 1
     OUTPUT = 2
@@ -13,9 +12,8 @@ class SignalType(Enum):
 
 
 class OPType(IntEnum):
-    """
-    List of operations that can be performed on signals
-    """
+    """List of operations that can be performed on signals."""
+
     ANY = auto()
     ALL = auto()
     PARITY = auto()

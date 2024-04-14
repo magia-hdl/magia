@@ -16,8 +16,7 @@ ASYNC_RESET_VALUE = 0xEE
 
 @cocotb.test()
 async def reg_feature_test(dut, enable, reset, async_reset):
-    """ Test that d propagates to q """
-
+    """Test that d propagates to q."""
     clock = Clock(dut.clk, 10, units="ns")
     cocotb.start_soon(clock.start())  # Start the clock
 
@@ -79,8 +78,7 @@ test_gen()
 
 @cocotb.test()
 async def reg_multi_reg_test(dut):
-    """ Test that d propagates to q """
-
+    """Test that d propagates to q."""
     clock = Clock(dut.clk, 10, units="ns")
     cocotb.start_soon(clock.start())
 

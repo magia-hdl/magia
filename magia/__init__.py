@@ -1,7 +1,7 @@
 """
-Core Magia package
-This index shall only import modules from this level of the package.
+Core Magia package.
 
+This index shall only import modules from this level of the package.
 Sub-packages (e.g. magia.std, etc.) shall be imported in their respective __init__.py files.
 """
 

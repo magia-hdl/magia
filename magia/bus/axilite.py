@@ -1,8 +1,9 @@
 """
 Factory methods that generate BundleSpec for AXI-Lite interface.
+
 Details of the AXI-Lite interface can be found in the AMBA AXI and ACE Protocol Specification.
 https://developer.arm.com/documentation/ihi0022/latest/
-https://developer.arm.com/-/media/Arm%20Developer%20Community/PDF/IHI0022H_amba_axi_protocol_spec.pdf
+https://developer.arm.com/-/media/Arm%20Developer%20Community/PDF/IHI0022H_amba_axi_protocol_spec.pdf.
 """
 from magia import BundleSpec, Input, Output
 from magia.std.bundles import decoupled_bundle
@@ -14,6 +15,7 @@ def axi4lite(
 ) -> BundleSpec:
     """
     Create a BundleSpec for an AXI4-Lite interface.
+
     :param data_width: The width of the data signal, default is 32.
     :param addr_width: The width of the address signal, default is 32.
     """

@@ -48,7 +48,8 @@ class FSM:
     @property
     def width(self):
         """
-        Return the width of the state signal.
+        Returns the width of the state signal.
+
         It is only available after the FSM is finalized.
         """
         if not self.finalized:
@@ -58,6 +59,7 @@ class FSM:
     def add_states(self, **states):
         """
         Add multiple states to the FSM.
+
         The code name are specified as the key of the arguments.
         Code will be automatically assigned if None is passed as the value.
         """
@@ -69,8 +71,8 @@ class FSM:
         """
         Add a state to the FSM.
 
-        @param name: The name of the state
-        @param code: The code of the state, if None, it will be automatically assigned
+        :param name: The name of the state
+        :param code: The code of the state, if None, it will be automatically assigned
         """
         if self.finalized:
             raise ValueError("FSM is already finalized")
@@ -91,7 +93,7 @@ class FSM:
         """
         Add multiple transitions to the FSM.
 
-        @param transitions: Tuples contain the source state, destination state, and the transition condition
+        :param transitions: Tuples contain the source state, destination state, and the transition condition
         """
         for src, dst, cond in transitions:
             self.add_transition(src, dst, cond)
@@ -101,9 +103,9 @@ class FSM:
         """
         Add a transition to the FSM.
 
-        @param src: The source state
-        @param dst: The destination state
-        @param cond: A single bit transition condition. None for unconditional transition.
+        :param src: The source state
+        :param dst: The destination state
+        :param cond: A single bit transition condition. None for unconditional transition.
         """
         if self.finalized:
             raise ValueError("FSM is already finalized")
@@ -188,10 +190,11 @@ class FSM:
         """
         Generate the FSM and return the current state signal.
 
-        @param reset_state: The initial state of the FSM
-        @param clk: The clock signal
-        @param reset: The synchronous reset signal
-        @param async_reset: The asynchronous reset signal
+        :param reset_state: The initial state of the FSM
+        :param clk: The clock signal
+        :param reset: The synchronous reset signal
+        :param async_reset: The asynchronous reset signal
+        :returns: The current state signal
         """
         input_state, state = self.generate_unrolled(
             reset_state=reset_state,
@@ -218,11 +221,11 @@ class FSM:
         If clk is not provided, only the next state logic is generated but not the output register.
         In this case, reset_state and reset signals are not required.
 
-        @param reset_state: The initial state of the FSM
-        @param clk: The clock signal
-        @param reset: The synchronous reset signal
-        @param async_reset: The asynchronous reset signal
-        @return: The input state and the next state
+        :param reset_state: The initial state of the FSM
+        :param clk: The clock signal
+        :param reset: The synchronous reset signal
+        :param async_reset: The asynchronous reset signal
+        :returns: The input state and the next state
         """
         reg_output = clk is not None
         if reg_output:

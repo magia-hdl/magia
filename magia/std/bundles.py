@@ -1,6 +1,4 @@
-"""
-This module provides factory functions to create common BundleSpec objects.
-"""
+"""This module provides factory functions to create common BundleSpec objects."""
 
 from typing import Union
 
