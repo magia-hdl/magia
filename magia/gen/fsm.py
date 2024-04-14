@@ -1,4 +1,3 @@
-import copy
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -6,6 +5,15 @@ from magia import Constant, Signal
 
 
 class FSM:
+    """
+    A Finite State Machine (FSM) generator.
+
+    Developers can define the states and transitions of the FSM using the add_states and add_transitions methods.
+    The state logic and output state can be generated using the generate methods.
+
+    Once the state logic is generated, the FSM is finalized and no more states or transitions can be added.
+    """
+
     @dataclass
     class State:
         name: str
@@ -35,17 +43,36 @@ class FSM:
         self.state_width = 0
 
     @property
+    def fsm_name_prefix(self):
+        return f"fsm_{self.fsm_name}_{self.gen_id}"
+
+    @property
     def width(self):
+        """
+        Return the width of the state signal.
+        It is only available after the FSM is finalized.
+        """
         if not self.finalized:
             raise ValueError("FSM is not finalized")
         return self.state_width
 
     def add_states(self, **states):
+        """
+        Add multiple states to the FSM.
+        The code name are specified as the key of the arguments.
+        Code will be automatically assigned if None is passed as the value.
+        """
         for name, code in states.items():
             self.add_state(name, code)
         return self
 
     def add_state(self, name: str, code: Optional[int] = None):
+        """
+        Add a state to the FSM.
+
+        @param name: The name of the state
+        @param code: The code of the state, if None, it will be automatically assigned
+        """
         if self.finalized:
             raise ValueError("FSM is already finalized")
 
@@ -62,8 +89,28 @@ class FSM:
         return self
 
     def add_transitions(self, *transitions: tuple[str, str, Optional[Signal]]):
+        """
+        Add multiple transitions to the FSM.
+
+        @param transitions: Tuples contain the source state, destination state, and the transition condition
+        """
         for src, dst, cond in transitions:
             self.add_transition(src, dst, cond)
+        return self
+
+    def add_transition(self, src: str, dst: str, cond: Optional[Signal] = None):
+        """
+        Add a transition to the FSM.
+
+        @param src: The source state
+        @param dst: The destination state
+        @param cond: A single bit transition condition. None for unconditional transition.
+        """
+        if self.finalized:
+            raise ValueError("FSM is already finalized")
+
+        self._check_transition(src, dst, cond)
+        self.transitions[src].append(self.Transition(dst, cond))
         return self
 
     def _check_transition(self, src: str, dst: str, cond: Optional[Signal] = None):
@@ -76,17 +123,7 @@ class FSM:
         if dst not in self.states:
             raise ValueError(f"State {dst} is not defined")
 
-    def add_transition(self, src: str, dst: str, cond: Optional[Signal] = None):
-        self._check_transition(src, dst, cond)
-        self.transitions[src].append(self.Transition(dst, cond))
-        return self
-
-    def push_transition(self, src: str, dst: str, cond: Optional[Signal] = None):
-        self._check_transition(src, dst, cond)
-        self.transitions[src].insert(0, self.Transition(dst, cond))
-        return self
-
-    def finalize(self):
+    def _finalize(self):
         if self.finalized:
             raise ValueError("FSM is already finalized")
         self.finalized = True
@@ -135,27 +172,59 @@ class FSM:
             state: self._fsm_logic_one_state(transitions, prev_state)
             for state, transitions in self.transitions.items()
         }
-        new_state = prev_state.case(
+        return prev_state.case(
             {
                 self.states[state].code: next_state
                 for state, next_state in new_state_logics.items()
             },
             default=prev_state,
         )
-        return new_state
-
-    @property
-    def fsm_name_prefix(self):
-        return f"fsm_{self.fsm_name}_{self.gen_id}"
 
     def generate(
+            self,
+            reset_state: str, clk: Signal,
+            reset: Optional[Signal] = None,
+            async_reset: Optional[Signal] = None,
+    ) -> Signal:
+        """
+        Generate the FSM and return the current state signal.
+
+        @param reset_state: The initial state of the FSM
+        @param clk: The clock signal
+        @param reset: The synchronous reset signal
+        @param async_reset: The asynchronous reset signal
+        """
+        input_state, state = self.generate_unrolled(
+            reset_state=reset_state,
+            clk=clk,
+            reset=reset,
+            async_reset=async_reset,
+        )
+        input_state <<= state
+        return state
+
+    def generate_unrolled(
             self,
             reset_state: Optional[str] = None,
             clk: Optional[Signal] = None,
             reset: Optional[Signal] = None,
             async_reset: Optional[Signal] = None,
-    ) -> tuple[Signal, Signal]:  # (input, next_state / state_registered)
-        # Check if the output is registered
+    ) -> tuple[Signal, Signal]:  # Input state, Next state
+        """
+        Generate the FSM logic and optionally register the output state in an unrolled manner.
+
+        If clk is provided, the output state is registered and either reset or async_reset must be provided.
+        The reset_state must be provided as well to specify the initial state of the FSM.
+
+        If clk is not provided, only the next state logic is generated but not the output register.
+        In this case, reset_state and reset signals are not required.
+
+        @param reset_state: The initial state of the FSM
+        @param clk: The clock signal
+        @param reset: The synchronous reset signal
+        @param async_reset: The asynchronous reset signal
+        @return: The input state and the next state
+        """
         reg_output = clk is not None
         if reg_output:
             if async_reset is None and reset is None:
@@ -166,7 +235,7 @@ class FSM:
                 raise ValueError(f"Reset state {reset_state} is not defined")
 
         if not self.finalized:
-            self.finalize()
+            self._finalize()
 
         output_name = f"{self.fsm_name_prefix}_next"
         input_name = f"{self.fsm_name_prefix}_input"
@@ -185,17 +254,4 @@ class FSM:
                 reset_value=reset_value, async_reset_value=reset_value,
             )
 
-        # TODO: Implement the Rolled FSM
         return state_input, next_state
-
-    def copy(self, name: Optional[str] = None, **kwargs) -> "FSM":
-        new_fsm = FSM(
-            **kwargs,
-            name=name,
-        )
-        new_fsm.states = copy.deepcopy(self.states)
-        new_fsm.transitions = {
-            state: [(src, dst, cond) for src, dst, cond in transitions]
-            for state, transitions in self.transitions.items()
-        }
-        return new_fsm
