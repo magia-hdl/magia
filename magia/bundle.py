@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import enum
 from copy import deepcopy
-from typing import Optional, Union
 
 from .constants import SignalType
 from .core import Input, Output, Signal, SignalConfig, SignalDict
@@ -76,7 +77,7 @@ class BundleSpec:
             signal_type=signal.type,
         )
 
-    def __iadd__(self, other: Union[Signal, list[Signal], IOPorts]):
+    def __iadd__(self, other: Signal | list[Signal] | IOPorts):
         if isinstance(other, Signal):
             other = [other]
         elif isinstance(other, IOPorts):
@@ -99,7 +100,7 @@ class BundleSpec:
         self.routing_map[src] = dst
         self.routing_map[dst] = src
 
-    def _spec_gen(self, prefix: Optional[str] = None, suffix: Optional[str] = None) -> "BundleSpec":
+    def _spec_gen(self, prefix: str | None = None, suffix: str | None = None) -> BundleSpec:
         new_spec = deepcopy(self)
         if prefix is not None:
             new_spec.prefix = prefix
@@ -110,7 +111,7 @@ class BundleSpec:
     # IO Ports factory methods
     def _create_ports(
             self,
-            prefix: Optional[str], suffix: Optional[str],
+            prefix: str | None, suffix: str | None,
             inputs: list[SignalConfig], outputs: list[SignalConfig],
             bundle_type: BundleType,
     ) -> IOPorts:
@@ -142,7 +143,7 @@ class BundleSpec:
         ]
         return new_ports
 
-    def master_ports(self, prefix: Optional[str] = None, suffix: Optional[str] = None) -> IOPorts:
+    def master_ports(self, prefix: str | None = None, suffix: str | None = None) -> IOPorts:
         input_configs = [
             config
             for config in self.common.values()
@@ -157,7 +158,7 @@ class BundleSpec:
         output_configs += list(self.forward.values())
         return self._create_ports(prefix, suffix, input_configs, output_configs, BundleType.MASTER)
 
-    def slave_ports(self, prefix: Optional[str] = None, suffix: Optional[str] = None) -> IOPorts:
+    def slave_ports(self, prefix: str | None = None, suffix: str | None = None) -> IOPorts:
         input_configs = [
             config
             for config in self.common.values()
@@ -172,13 +173,13 @@ class BundleSpec:
         output_configs += list(self.backward.values())
         return self._create_ports(prefix, suffix, input_configs, output_configs, BundleType.SLAVE)
 
-    def monitor_ports(self, prefix: Optional[str] = None, suffix: Optional[str] = None) -> IOPorts:
+    def monitor_ports(self, prefix: str | None = None, suffix: str | None = None) -> IOPorts:
         input_configs = list(self.common.values()) + list(self.forward.values()) + list(self.backward.values())
         output_configs = []
         return self._create_ports(prefix, suffix, input_configs, output_configs, BundleType.MONITOR)
 
     # Signal Bundle factory method
-    def bundle(self, name: Optional[str] = None) -> "Bundle":
+    def bundle(self, name: str | None = None) -> Bundle:
         new_bundle = Bundle(new_spec := self._spec_gen(), name)
         signal_configs = list(self.common.values()) + list(self.forward.values()) + list(self.backward.values())
         for config in signal_configs:
@@ -199,9 +200,9 @@ class Bundle:
     """
 
     def __init__(
-            self, spec: BundleSpec, name: Optional[str] = None,
-            prefix: Optional[str] = None,
-            suffix: Optional[str] = None,
+            self, spec: BundleSpec, name: str | None = None,
+            prefix: str | None = None,
+            suffix: str | None = None,
             **kwargs
     ):
         self._spec = spec
@@ -216,14 +217,14 @@ class Bundle:
     def __setitem__(self, key, value):
         self._signals[key] = value
 
-    def __getattr__(self, name: str) -> Union[Input, Output]:
+    def __getattr__(self, name: str) -> Input | Output:
         if name.startswith("_"):
             return super().__getattribute__(name)
         if name in self.signals:
             return self.__getitem__(name)
         return super().__getattribute__(name)
 
-    def __setattr__(self, name: str, value: Union[Input, Output]):
+    def __setattr__(self, name: str, value: Input | Output):
         if name.startswith("_"):
             super().__setattr__(name, value)
         if isinstance(value, Signal):
@@ -247,7 +248,7 @@ class Bundle:
     def suffix(self) -> str:
         return self._suffix
 
-    def with_name(self, prefix: Optional[str] = None, suffix: Optional[str] = None) -> "Bundle":
+    def with_name(self, prefix: str | None = None, suffix: str | None = None) -> Bundle:
         """
         Create a view of bundle with different signal names.
         The signals are not copied, only the names are changed.
@@ -279,7 +280,7 @@ class Bundle:
             for name in bundle_names
         }
 
-    def connect_to(self, target_io: Union[IOPorts, Instance]):
+    def connect_to(self, target_io: IOPorts | Instance):
         """
         Connect the bundle to an IOPorts, owned by an Instance / Module.
         """

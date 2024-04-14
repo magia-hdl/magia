@@ -1,10 +1,11 @@
 """
 Memory object
 """
+from __future__ import annotations
+
 import string
 from dataclasses import dataclass
 from itertools import count
-from typing import Optional
 
 from .constants import SignalType
 from .core import Input, Output, Signal, SignalDict, Synthesizable
@@ -26,14 +27,14 @@ class MemorySignal(Signal):
         name (str, optional): The name of the signal. Defaults to None.
     """
 
-    def __init__(self, memory: "Memory", name: str, width: int, drive_by_mem: bool = False, **kwargs):
+    def __init__(self, memory: Memory, name: str, width: int, drive_by_mem: bool = False, **kwargs):
         super().__init__(name=name, width=width, **kwargs)
         self._config.signal_type = SignalType.MEMORY
         self._memory = memory
         self._drive_by_mem = drive_by_mem
 
     @property
-    def memory(self) -> "Memory":
+    def memory(self) -> Memory:
         return self._memory
 
     @property
@@ -49,7 +50,7 @@ class MemorySignal(Signal):
             return self.memory.drivers
         return super().drivers
 
-    def driver(self, driver_name: str = Signal.SINGLE_DRIVER_NAME) -> Optional["Signal"]:
+    def driver(self, driver_name: str = Signal.SINGLE_DRIVER_NAME) -> Signal | None:
         """
         Get the driver of the signal.
         :param driver_name: The name of the driver. Default to the single driver.
@@ -68,14 +69,14 @@ class MemPort:
         name (str, optional): The name of the write port.
     """
 
-    def __init__(self, memory: "Memory", name: str, **kwargs):
+    def __init__(self, memory: Memory, name: str, **kwargs):
         super().__init__(**kwargs)
         self._memory = memory
         self._name = name
         self._signals = SignalDict()
 
     @property
-    def memory(self) -> "Memory":
+    def memory(self) -> Memory:
         return self._memory
 
     @property
@@ -129,7 +130,7 @@ class MemWritePort(MemPort):
         "end"
     )
 
-    def __init__(self, memory: "Memory", name: str, **kwargs):
+    def __init__(self, memory: Memory, name: str, **kwargs):
         super().__init__(memory=memory, name=name, **kwargs)
         self._signals = SignalDict(
             din=MemorySignal(memory, f"{memory.name}_w_data_{name}", memory.data_width),
@@ -168,7 +169,7 @@ class MemReadPort(MemPort):
         "end"
     )
 
-    def __init__(self, memory: "Memory", name: str, registered: bool = False, **kwargs):
+    def __init__(self, memory: Memory, name: str, registered: bool = False, **kwargs):
         super().__init__(memory=memory, name=name, **kwargs)
         self._signals = SignalDict(
             dout=MemorySignal(memory, f"{memory.name}_r_data_{name}", memory.data_width, True),
@@ -208,7 +209,7 @@ class MemRWPort(MemPort):
         "end\n"
     )
 
-    def __init__(self, memory: "Memory", name: str, write_through: bool = True, **kwargs):
+    def __init__(self, memory: Memory, name: str, write_through: bool = True, **kwargs):
         super().__init__(memory=memory, name=name, **kwargs)
         self._write_through = write_through
         self._signals = SignalDict(
@@ -262,7 +263,7 @@ class Memory(Synthesizable):
     def __init__(
             self,
             clk: Input, address_width: int, data_width: int,
-            name: Optional[str] = None,
+            name: str | None = None,
             r_port: int = 0,
             w_port: int = 0,
             rw_port: int = 0,
@@ -362,21 +363,21 @@ class Memory(Synthesizable):
         return self._config.name
 
     @classmethod
-    def sdp(cls, clk: Input, address_width: int, data_width: int, **kwargs) -> "Memory":
+    def sdp(cls, clk: Input, address_width: int, data_width: int, **kwargs) -> Memory:
         """
         Create a Simple Dual Port memory.
         """
         return cls(clk, address_width, data_width, r_port=1, w_port=1, **kwargs)
 
     @classmethod
-    def tdp(cls, clk: Input, address_width: int, data_width: int, **kwargs) -> "Memory":
+    def tdp(cls, clk: Input, address_width: int, data_width: int, **kwargs) -> Memory:
         """
         Create a True Dual Port memory.
         """
         return cls(clk, address_width, data_width, rw_port=2, registered_read=True, **kwargs)
 
     @classmethod
-    def sp(cls, clk: Input, address_width: int, data_width: int, **kwargs) -> "Memory":
+    def sp(cls, clk: Input, address_width: int, data_width: int, **kwargs) -> Memory:
         """
         Create a Single Port memory.
         """

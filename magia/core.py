@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import inspect
 from collections import UserDict
 from collections.abc import Iterable
@@ -8,16 +10,20 @@ from itertools import count
 from math import ceil
 from pathlib import Path
 from string import Template
-from typing import Optional, Union
+from typing import TYPE_CHECKING
 
 from .constants import OPType, RegType, SignalType
+
+if TYPE_CHECKING:
+    from .bundle import Bundle, BundleSpec, BundleType
+    from .module import Instance
 
 CURRENT_DIR = Path(__file__).parent
 
 
 @dataclass
 class SignalConfig:
-    name: Optional[str] = None
+    name: str | None = None
     width: int = 0
     signed: bool = False
     signal_type: SignalType = SignalType.WIRE
@@ -25,26 +31,26 @@ class SignalConfig:
 
     # The module instance that owns this signal
     # Applicable to input / output ports only
-    owner_instance: Optional["Instance"] = None
+    owner_instance: Instance | None = None
 
     # Specification of the bundle, if the signal is part of it
-    bundle: Optional["Bundle"] = None
-    bundle_spec: Optional["BundleSpec"] = None
-    bundle_alias: Optional[str] = None
-    bundle_type: Optional["BundleType"] = None
+    bundle: Bundle | None = None
+    bundle_spec: BundleSpec | None = None
+    bundle_alias: str | None = None
+    bundle_type: BundleType | None = None
 
 
 @dataclass
 class OperationConfig:
     op_type: OPType
-    slicing: Optional[slice] = None
-    shifting: Optional[int] = None
+    slicing: slice | None = None
+    shifting: int | None = None
 
 
 @dataclass
 class CaseConfig:
     unique: bool = False
-    default: Optional["Signal"] = None
+    default: Signal | None = None
 
 
 @dataclass
@@ -52,8 +58,8 @@ class RegisterConfig:
     enable: bool
     reset: bool
     async_reset: bool
-    reset_value: Optional[Union[bytes, int]] = None
-    async_reset_value: Optional[Union[bytes, int]] = None
+    reset_value: bytes | int | None = None
+    async_reset_value: bytes | int | None = None
 
 
 class Synthesizable:
@@ -86,7 +92,7 @@ class Synthesizable:
         raise NotImplementedError
 
     @property
-    def drivers(self) -> list["Signal"]:
+    def drivers(self) -> list[Signal]:
         """
         Get the drivers of a Synthesizable object.
         :return: The driver signals.
@@ -122,7 +128,7 @@ class Synthesizable:
         """
         return ""
 
-    def annotate(self, comment: Optional[str] = None) -> "Synthesizable":
+    def annotate(self, comment: str | None = None) -> Synthesizable:
         """
         Annotate the object with a comment.
         :return: The object itself.
@@ -169,12 +175,12 @@ class Signal(Synthesizable):
     def __init__(
             self,
             width: int = 0, signed: bool = False,
-            name: Optional[str] = None,
-            description: Optional[str] = None,
-            bundle: Optional["Bundle"] = None,
-            bundle_spec: Optional["BundleSpec"] = None,
-            bundle_alias: Optional[str] = None,
-            bundle_type: Optional["BundleType"] = None,
+            name: str | None = None,
+            description: str | None = None,
+            bundle: Bundle | None = None,
+            bundle_spec: BundleSpec | None = None,
+            bundle_alias: str | None = None,
+            bundle_type: BundleType | None = None,
             **kwargs
     ):
         if name is None:
@@ -226,7 +232,7 @@ class Signal(Synthesizable):
     def signed(self) -> bool:
         return self._config.signed
 
-    def driver(self, driver_name: str = SINGLE_DRIVER_NAME) -> Optional["Signal"]:
+    def driver(self, driver_name: str = SINGLE_DRIVER_NAME) -> Signal | None:
         """
         Get the driver of the signal.
         :param driver_name: The name of the driver. Default to the single driver.
@@ -235,7 +241,7 @@ class Signal(Synthesizable):
         return self._drivers.get(driver_name)
 
     @property
-    def drivers(self) -> list["Signal"]:
+    def drivers(self) -> list[Signal]:
         """
         Get the drivers of the signal.
         :return: The driver signals.
@@ -243,7 +249,7 @@ class Signal(Synthesizable):
         return list(self._drivers.values())
 
     @property
-    def owner_instance(self) -> Optional["Instance"]:
+    def owner_instance(self) -> Instance | None:
         """
         Get the module instance that owns this signal.
         It is applicable to input / output signals only.
@@ -262,7 +268,7 @@ class Signal(Synthesizable):
         self._config.name = name
         return self
 
-    def with_signed(self, signed: bool) -> "Signal":
+    def with_signed(self, signed: bool) -> Signal:
         """
         Create a new signal with the same configuration, but with a different signedness.
         Connect the original signal to the new signal.
@@ -278,7 +284,7 @@ class Signal(Synthesizable):
         signal <<= self
         return signal
 
-    def with_width(self, width: int) -> "Signal":
+    def with_width(self, width: int) -> Signal:
         """
         Create a new signal with the same configuration, but with a different width.
         Connect the original signal to the new signal.
@@ -363,7 +369,7 @@ class Signal(Synthesizable):
             return "\n".join((signal_decl, assignment))
         return signal_decl
 
-    def copy(self, owner_instance=None, **kwargs) -> "Signal":
+    def copy(self, owner_instance=None, **kwargs) -> Signal:
         """
         Copy the signal. Driver is discarded.
         :return: A new signal with the same configuration.
@@ -406,111 +412,111 @@ class Signal(Synthesizable):
             other.set_width(len(self))
         return self
 
-    def __add__(self, other) -> "Signal":
+    def __add__(self, other) -> Signal:
         return Operation.create(OPType.ADD, self, other)
 
-    def __iadd__(self, other) -> "Signal":
+    def __iadd__(self, other) -> Signal:
         return self.__add__(other)
 
-    def __sub__(self, other) -> "Signal":
+    def __sub__(self, other) -> Signal:
         return Operation.create(OPType.MINUS, self, other)
 
-    def __isub__(self, other) -> "Signal":
+    def __isub__(self, other) -> Signal:
         return self.__sub__(other)
 
-    def __neg__(self) -> "Signal":
+    def __neg__(self) -> Signal:
         return Operation.create(
             OPType.MINUS,
             Constant(0, len(self), self.signed),
             self
         )
 
-    def __mul__(self, other) -> "Signal":
+    def __mul__(self, other) -> Signal:
         if isinstance(other, int):
             other = Constant(other, len(self), self.signed)
         return Operation.create(OPType.MUL, self, other)
 
-    def __imul__(self, other) -> "Signal":
+    def __imul__(self, other) -> Signal:
         return self.__mul__(other)
 
-    def __eq__(self, other) -> "Signal":
+    def __eq__(self, other) -> Signal:
         if isinstance(other, int):
             other = Constant(other, len(self), self.signed)
         return Operation.create(OPType.EQ, self, other)
 
-    def __ne__(self, other) -> "Signal":
+    def __ne__(self, other) -> Signal:
         if isinstance(other, int):
             other = Constant(other, len(self), self.signed)
         return Operation.create(OPType.NEQ, self, other)
 
-    def __ge__(self, other) -> "Signal":
+    def __ge__(self, other) -> Signal:
         if isinstance(other, int):
             other = Constant(other, len(self), self.signed)
         return Operation.create(OPType.GE, self, other)
 
-    def __gt__(self, other) -> "Signal":
+    def __gt__(self, other) -> Signal:
         if isinstance(other, int):
             other = Constant(other, len(self), self.signed)
         return Operation.create(OPType.GT, self, other)
 
-    def __le__(self, other) -> "Signal":
+    def __le__(self, other) -> Signal:
         if isinstance(other, int):
             other = Constant(other, len(self), self.signed)
         return Operation.create(OPType.LE, self, other)
 
-    def __lt__(self, other) -> "Signal":
+    def __lt__(self, other) -> Signal:
         if isinstance(other, int):
             other = Constant(other, len(self), self.signed)
         return Operation.create(OPType.LT, self, other)
 
-    def __and__(self, other) -> "Signal":
+    def __and__(self, other) -> Signal:
         if isinstance(other, int):
             other = Constant(other, len(self), self.signed)
         return Operation.create(OPType.AND, self, other)
 
-    def __iand__(self, other) -> "Signal":
+    def __iand__(self, other) -> Signal:
         return self.__and__(other)
 
-    def __or__(self, other) -> "Signal":
+    def __or__(self, other) -> Signal:
         if isinstance(other, int):
             other = Constant(other, len(self), self.signed)
         return Operation.create(OPType.OR, self, other)
 
-    def __ior__(self, other) -> "Signal":
+    def __ior__(self, other) -> Signal:
         return self.__or__(other)
 
-    def __xor__(self, other) -> "Signal":
+    def __xor__(self, other) -> Signal:
         if isinstance(other, int):
             other = Constant(other, len(self), self.signed)
         return Operation.create(OPType.XOR, self, other)
 
-    def __ixor__(self, other) -> "Signal":
+    def __ixor__(self, other) -> Signal:
         return self.__xor__(other)
 
-    def __invert__(self) -> "Signal":
+    def __invert__(self) -> Signal:
         return Operation.create(OPType.NOT, self, None)
 
-    def __cmp__(self, other) -> "Signal":
+    def __cmp__(self, other) -> Signal:
         raise NotImplementedError("Comparison Operator is not implemented.")
 
-    def __lshift__(self, other) -> "Signal":
+    def __lshift__(self, other) -> Signal:
         if isinstance(other, int):
             op = Operation.create(OPType.LSHIFT, self, other)
             op._op_config.shifting = other
             return op
         raise NotImplementedError("Only Constant Shift is not implemented.")
 
-    def __rshift__(self, other) -> "Signal":
+    def __rshift__(self, other) -> Signal:
         if isinstance(other, int):
             op = Operation.create(OPType.RSHIFT, self, other)
             op._op_config.shifting = other
             return op
         raise NotImplementedError("Only Constant Shift is not implemented.")
 
-    def __irshift__(self, other) -> "Signal":
+    def __irshift__(self, other) -> Signal:
         raise NotImplementedError("`>>=` Operator is not defined.")
 
-    def __getitem__(self, item) -> "Signal":
+    def __getitem__(self, item) -> Signal:
         """ The Slicing Operator """
         # Return the concatenation of the sliced signals
         # If multiple slices are provided.
@@ -536,7 +542,7 @@ class Signal(Synthesizable):
 
         return Operation.create(OPType.SLICE, self, item)
 
-    def __matmul__(self, other) -> "Signal":
+    def __matmul__(self, other) -> Signal:
         """
         Special operation for the `@` operator, which is the concatenation operator.
         """
@@ -544,7 +550,7 @@ class Signal(Synthesizable):
             return Operation.create(OPType.CONCAT, self, other)
         raise TypeError(f"Cannot perform operation on {type(other)}")
 
-    def __imatmul__(self, other) -> "Signal":
+    def __imatmul__(self, other) -> Signal:
         return self.__matmul__(other)
 
     def __len__(self):
@@ -556,14 +562,14 @@ class Signal(Synthesizable):
 
     def reg(
             self,
-            clk: Optional["Input"] = None,
-            enable: Optional["Signal"] = None,
-            reset: Optional["Signal"] = None,
-            async_reset: Optional["Signal"] = None,
-            reset_value: Optional[Union[bytes, int]] = None,
-            async_reset_value: Optional[Union[bytes, int]] = None,
-            name: Optional[str] = None,
-    ) -> "Register":
+            clk: Input | None = None,
+            enable: Signal | None = None,
+            reset: Signal | None = None,
+            async_reset: Signal | None = None,
+            reset_value: bytes | int | None = None,
+            async_reset_value: bytes | int | None = None,
+            name: str | None = None,
+    ) -> Register:
         """
         Create a register from the signal.
         """
@@ -583,9 +589,9 @@ class Signal(Synthesizable):
 
     def when(
             self,
-            condition: "Signal",
-            else_: Optional["Signal"] = None,
-    ) -> "When":
+            condition: Signal,
+            else_: Signal | None = None,
+    ) -> When:
         """
         Create a `Self if Condition else Else_` statement, similar to the ternary operator in C / Python.
         E.g. `gated = data.when(enable)`, `default_2 = data.when(enable, 2)`
@@ -598,7 +604,7 @@ class Signal(Synthesizable):
             if_false=else_,
         )
 
-    def case(self, cases: dict[int, Union["Signal", int]], default: Optional[Union["Signal", int]] = None, ) -> "Case":
+    def case(self, cases: dict[int, Signal | int], default: Signal | int | None = None, ) -> Case:
         """
         Create a `case` statement.
         """
@@ -608,19 +614,19 @@ class Signal(Synthesizable):
             default=default,
         )
 
-    def any(self) -> "Signal":
+    def any(self) -> Signal:
         """
         Create an `any` statement.
         """
         return Operation.create(OPType.ANY, self, None)
 
-    def all(self) -> "Signal":
+    def all(self) -> Signal:
         """
         Create an `all` statement.
         """
         return Operation.create(OPType.ALL, self, None)
 
-    def parity(self) -> "Signal":
+    def parity(self) -> Signal:
         """
         Create an `parity` statement.
         """
@@ -666,7 +672,7 @@ class Input(Signal):
     def __init__(
             self,
             name: str, width: int, signed: bool = False,
-            owner_instance: Optional["Instance"] = None,
+            owner_instance: Instance | None = None,
             **kwargs
     ):
         """
@@ -700,7 +706,7 @@ class Output(Signal):
     def __init__(
             self,
             name: str, width: int, signed: bool = False,
-            owner_instance: Optional["Instance"] = None,
+            owner_instance: Instance | None = None,
             **kwargs
     ):
         """
@@ -732,7 +738,7 @@ class Constant(Signal):
     def __init__(
             self,
             value, width: int, signed: bool = False,
-            name: Optional[str] = None,
+            name: str | None = None,
             **kwargs
     ):
         if name is None:
@@ -751,7 +757,7 @@ class Constant(Signal):
         return "\n".join((signal_decl, assignment))
 
     @staticmethod
-    def sv_constant(value: Optional[Union[int, bytes]], width: int, signed: bool = False) -> str:
+    def sv_constant(value: int | bytes | None, width: int, signed: bool = False) -> str:
         """
         Convert a Python integer or bytes object to a SystemVerilog constant expression.
         If value is None, return "X", the SystemVerilog constant for an unknown value.
@@ -893,7 +899,7 @@ class Operation(Signal):
         return "\n".join((signal_decl, op_impl))
 
     @staticmethod
-    def create(op_type: OPType, x: Signal, y: Optional[Union[Signal, slice, int, bytes]]) -> "Operation":
+    def create(op_type: OPType, x: Signal, y: Signal | slice | int | bytes | None) -> Operation:
         """
         Factory method to create common operation with single / two arguments.
         """
@@ -981,7 +987,7 @@ class When(Operation):
         "  else $output = $if_false;"
     )
 
-    def __init__(self, condition: Signal, if_true: Signal, if_false: Optional[Union[Signal, int, bytes]], **kwargs):
+    def __init__(self, condition: Signal, if_true: Signal, if_false: Signal | int | bytes | None, **kwargs):
         super().__init__(op_type=OPType.WHEN, width=len(if_true), signed=if_true.signed, **kwargs)
 
         if if_false is None:
@@ -1031,8 +1037,8 @@ class Case(Operation):
     _DEFAULT_DRIVER_NAME = "default"
 
     def __init__(
-            self, selector: Signal, cases: dict[Union[int], Union[Signal, int]],
-            default: Optional[Union[Signal, int]] = None,
+            self, selector: Signal, cases: dict[int, Signal | int],
+            default: Signal | int | None = None,
             **kwargs
     ):
         # Validate input before calling super().__init__()
@@ -1085,7 +1091,7 @@ class Case(Operation):
         return f"case_{case}"
 
     def elaborate(self) -> str:
-        def driver_value(sig_or_const: Optional[Union[Signal, int]]) -> str:
+        def driver_value(sig_or_const: Signal | int | None) -> str:
             if isinstance(sig_or_const, Signal):
                 return sig_or_const.net_name
             return Constant.sv_constant(sig_or_const, len(self), self.signed)
@@ -1174,13 +1180,13 @@ class Register(Operation):
     _new_reg_counter = count(0)
 
     def __init__(self, width: int,
-                 enable: Optional[Signal] = None,
-                 reset: Optional[Signal] = None,
-                 reset_value: Optional[Union[bytes, int]] = None,
-                 async_reset: Optional[Signal] = None,
-                 async_reset_value: Optional[Union[bytes, int]] = None,
-                 clk: Optional[Input] = None,
-                 name: Optional[str] = None,
+                 enable: Signal | None = None,
+                 reset: Signal | None = None,
+                 reset_value: bytes | int | None = None,
+                 async_reset: Signal | None = None,
+                 async_reset_value: bytes | int | None = None,
+                 clk: Input | None = None,
+                 name: str | None = None,
                  **kwargs
                  ):
         if name is None:

@@ -1,9 +1,7 @@
-from typing import Optional
-
 from magia import Constant, Signal
 
 
-def binary_to_onehot(binary_input: Signal, max_value: Optional[int] = None) -> Signal:
+def binary_to_onehot(binary_input: Signal, max_value: int | None = None) -> Signal:
     """Converts a binary input to a one-hot output.
 
     Args:

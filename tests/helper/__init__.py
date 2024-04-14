@@ -1,6 +1,6 @@
 import functools
 import inspect
-from typing import Callable, Optional, Sequence, Union
+from typing import Callable, Sequence
 
 from cocotb.regression import TestFactory
 from magia_flow.simulation.general import Simulator
@@ -42,9 +42,9 @@ def parameterized_testbench(test_function, test_opts_val) -> tuple[Callable, lis
 def simulate(
         top_level_name: str,
         hdl_modules: Module,
-        test_module: Union[str, Sequence[str]],
-        python_search_path: Optional[Union[str, Sequence[str]]] = None,
-        testcase: Optional[Union[str, Sequence[str]]] = None,
+        test_module: str | Sequence[str],
+        python_search_path: str | Sequence[str] | None = None,
+        testcase: str | Sequence[str] | None = None,
 ):
     sim = Simulator(top_level_name)
     sim.add_magia_module(hdl_modules)

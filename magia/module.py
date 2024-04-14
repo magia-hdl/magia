@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import inspect
 import logging
 from collections import Counter, OrderedDict
@@ -7,11 +9,15 @@ from itertools import count
 from os import PathLike
 from pathlib import Path
 from string import Template
-from typing import Optional, Union
+from typing import TYPE_CHECKING
 
 from .constants import SignalType
 from .core import Input, Output, Signal, SignalDict, Synthesizable
 from .memory import Memory, MemorySignal
+
+if TYPE_CHECKING:
+    from .bundle import Bundle
+    from .module import Instance, Module
 
 logger = logging.getLogger(__name__)
 
@@ -19,13 +25,13 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ModuleConfig:
     module_class: type
-    name: Optional[str] = None
+    name: str | None = None
 
 
 @dataclass
 class ModuleInstanceConfig:
-    module: "Module"
-    name: Optional[str] = None
+    module: Module
+    name: str | None = None
 
 
 class IOPorts:
@@ -40,17 +46,17 @@ class IOPorts:
     It can be accessed by individual port by attributes, or connect to multiple instance directly.
     """
 
-    def __init__(self, owner_instance: Optional["Instance"] = None, **kwargs):
+    def __init__(self, owner_instance: Instance | None = None, **kwargs):
         self._signals = SignalDict()
-        self._owner_instance: Optional["Instance"] = owner_instance
+        self._owner_instance: Instance | None = owner_instance
 
-    def __add__(self, other: Union["IOPorts", list[Union[Input, Output, "IOPorts"]], Input, Output]) -> "IOPorts":
+    def __add__(self, other: IOPorts | list[Input | Output | IOPorts] | Input | Output) -> IOPorts:
         new_ports = IOPorts()
         new_ports += self
         new_ports += other
         return new_ports
 
-    def __iadd__(self, other: Union["IOPorts", list[Union[Input, Output, "IOPorts"]], Input, Output]) -> "IOPorts":
+    def __iadd__(self, other: IOPorts | list[Input | Output | IOPorts] | Input | Output) -> IOPorts:
         if isinstance(other, list):
             flatten = []
             for ports in other:
@@ -70,7 +76,7 @@ class IOPorts:
 
         return self
 
-    def _add_port(self, port: Union[Input, Output]):
+    def _add_port(self, port: Input | Output):
         if port.name in self.signals:
             raise KeyError(f"Port {port.name} is already defined.")
 
@@ -86,14 +92,14 @@ class IOPorts:
             owner_instance=self._owner_instance,
         )
 
-    def __getattr__(self, name: str) -> Union[Input, Output]:
+    def __getattr__(self, name: str) -> Input | Output:
         if name.startswith("_"):
             return super().__getattribute__(name)
         if name in self.signals:
             return self.__getitem__(name)
         return super().__getattribute__(name)
 
-    def __setattr__(self, name: str, value: Union[Input, Output]):
+    def __setattr__(self, name: str, value: Input | Output):
         if name.startswith("_"):
             super().__setattr__(name, value)
         if isinstance(value, Signal):
@@ -101,7 +107,7 @@ class IOPorts:
         else:
             super().__setattr__(name, value)
 
-    def __getitem__(self, item: str) -> Union[Input, Output]:
+    def __getitem__(self, item: str) -> Input | Output:
         return self._signals[item]
 
     def __setitem__(self, key, value):
@@ -139,7 +145,7 @@ class IOPorts:
     def signals(self) -> SignalDict:
         return self._signals
 
-    def __ilshift__(self, other: "Bundle"):
+    def __ilshift__(self, other: Bundle):
         if self._owner_instance is not None:
             raise TypeError("Connect the bundle to an Instance directly, instead of `Instance.io <<= Bundle`.")
         other.connect_to(self)
@@ -171,9 +177,9 @@ class Module(Synthesizable):
     """
     _MOD_DECL_TEMPLATE = Template("module $name (\n$io\n);")
     _new_module_counter = count(0)
-    output_file: Optional[PathLike] = None
+    output_file: PathLike | None = None
 
-    def __init__(self, name: Optional[str] = None, **kwargs):
+    def __init__(self, name: str | None = None, **kwargs):
         super().__init__(**kwargs)
 
         # Get the arguments passed to the __init__ method of the inherited class
@@ -220,7 +226,7 @@ class Module(Synthesizable):
         )
         return "\n".join((mod_decl, self._module_elab_doc))
 
-    def elaborate(self) -> tuple[str, set["Module"]]:
+    def elaborate(self) -> tuple[str, set[Module]]:
         """
         Trace nets and operations from output ports
         This method generates the SystemVerilog code for the module.
@@ -275,13 +281,13 @@ class Module(Synthesizable):
         _ = self  # Stub to avoid IDE/Lint warning
         return ""
 
-    def trace(self) -> tuple[list[Union[Signal, Memory]], list["Instance"]]:
+    def trace(self) -> tuple[list[Signal | Memory], list[Instance]]:
         """
         Trace nets and instances from output ports
         """
         traced_sig_id: set[int] = set()
         traced_inst_id: set[int] = set()
-        traced_signal: list[Union[Signal, Memory]] = []
+        traced_signal: list[Signal | Memory] = []
         traced_inst: list[Instance] = []
         sig_to_be_traced: dict[int, Signal] = {}
 
@@ -296,7 +302,7 @@ class Module(Synthesizable):
 
                 # Tracing Instances with Output connected
                 if signal.type == SignalType.OUTPUT:
-                    inst: Optional[Instance] = signal.owner_instance
+                    inst: Instance | None = signal.owner_instance
                     if inst is not None and id(inst) not in traced_inst_id:
                         traced_inst_id.add(id(inst))
                         traced_inst.append(inst)
@@ -350,9 +356,9 @@ class Module(Synthesizable):
         return traced_signal, traced_inst
 
     def instance(
-            self, name: Optional[str] = None,
-            io: Optional[dict[str, Signal]] = None
-    ) -> "Instance":
+            self, name: str | None = None,
+            io: dict[str, Signal] | None = None
+    ) -> Instance:
         """
         Create an instance of the module
         :return: The created instance
@@ -458,8 +464,8 @@ class Instance(Synthesizable):
     _new_inst_counter = count(0)
 
     def __init__(self,
-                 module: "Module", name: Optional[str] = None,
-                 io: Optional[dict[str, Signal]] = None,
+                 module: Module, name: str | None = None,
+                 io: dict[str, Signal] | None = None,
                  **kwargs
                  ):
         if name is None:
@@ -548,7 +554,7 @@ class Instance(Synthesizable):
             io=io_list,
         )
 
-    def __ilshift__(self, other: "Bundle"):
+    def __ilshift__(self, other: Bundle):
         other.connect_to(self)
         return self
 
