@@ -8,7 +8,8 @@ Sub-packages (e.g. magia.std, etc.) shall be imported in their respective __init
 from importlib.util import find_spec
 
 from .bundle import Bundle, BundleSpec, BundleType
-from .core import Constant, Input, Output, Register, Signal
+from .core import Constant, Register, Signal
+from .io_signal import Input, Output
 from .memory import Memory
 from .module import Blackbox, Elaborator, Instance, IOPorts, Module, VerilogWrapper
 

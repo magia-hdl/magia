@@ -6,7 +6,7 @@ import hdlConvertorAst.hdlAst as Ast
 from hdlConvertor import HdlConvertor
 from hdlConvertorAst.language import Language
 
-from .core import Input, Output
+from .io_signal import Input, Output
 from .module import Module
 
 _ACCEPTABLE_BINARY_OPS = {

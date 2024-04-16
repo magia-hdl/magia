@@ -12,7 +12,8 @@ from string import Template
 from typing import TYPE_CHECKING
 
 from .constants import SignalType
-from .core import Input, Output, Signal, SignalDict, Synthesizable
+from .core import Signal, SignalDict, Synthesizable
+from .io_signal import Input, Output
 from .memory import Memory, MemorySignal
 
 if TYPE_CHECKING:

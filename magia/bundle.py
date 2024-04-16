@@ -4,7 +4,8 @@ import enum
 from copy import deepcopy
 
 from .constants import SignalType
-from .core import Input, Output, Signal, SignalConfig, SignalDict
+from .core import Signal, SignalConfig, SignalDict
+from .io_signal import Input, Output
 from .module import Instance, IOPorts
 
 
