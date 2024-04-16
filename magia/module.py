@@ -12,7 +12,8 @@ from string import Template
 from typing import TYPE_CHECKING
 
 from .constants import SignalType
-from .core import Signal, SignalDict, Synthesizable
+from .core import Signal, Synthesizable
+from .data_struct import SignalDict
 from .io_signal import Input, Output
 from .memory import Memory, MemorySignal
 

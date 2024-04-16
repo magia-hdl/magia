@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import inspect
-from collections import UserDict
 from collections.abc import Iterable
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -13,6 +12,7 @@ from string import Template
 from typing import TYPE_CHECKING
 
 from .constants import OPType, RegType, SignalType
+from .data_struct import SignalDict
 
 if TYPE_CHECKING:
     from .bundle import Bundle, BundleSpec, BundleType
@@ -623,36 +623,6 @@ class Signal(Synthesizable):
     def parity(self) -> Signal:
         """Create an `parity` statement."""
         return Operation.create(OPType.PARITY, self, None)
-
-
-class SignalDict(UserDict):
-    """
-    Signal Dict contains a dictionary of signals keyed by their name / specific alias.
-
-    They are read only after being assigned.
-    """
-
-    def __getattr__(self, alias):
-        if alias.startswith("_"):
-            return super().__getattribute__(alias)
-        if alias not in self.data:
-            raise KeyError(f"Signal {alias} is not defined.")
-        return self.data[alias]
-
-    def __getitem__(self, alias):
-        if alias not in self.data:
-            raise KeyError(f"Signal {alias} is not defined.")
-        return self.data[alias]
-
-    def __setitem__(self, alias, value):
-        cur = self.data.get(alias)
-        if not isinstance(value, Signal) and value is not None:
-            raise KeyError(f"Object {alias} is not a Signal.")
-        if cur is not None and value is not cur:
-            raise KeyError(f"Signal {alias} is read only. Are you trying to connect it with <<= Operator?")
-
-        if value is not None:
-            self.data[alias] = value
 
 
 class Constant(Signal):
