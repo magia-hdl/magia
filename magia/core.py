@@ -11,8 +11,7 @@ from pathlib import Path
 from string import Template
 from typing import TYPE_CHECKING
 
-from .constants import OPType, RegType, SignalType
-from .data_struct import SignalDict
+from .data_struct import OPType, RegType, SignalDict, SignalType
 
 if TYPE_CHECKING:
     from .bundle import Bundle, BundleSpec, BundleType

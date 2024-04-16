@@ -11,9 +11,8 @@ from pathlib import Path
 from string import Template
 from typing import TYPE_CHECKING
 
-from .constants import SignalType
 from .core import Signal, Synthesizable
-from .data_struct import SignalDict
+from .data_struct import SignalDict, SignalType
 from .io_signal import Input, Output
 from .memory import Memory, MemorySignal
 
