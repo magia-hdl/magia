@@ -138,11 +138,11 @@ class MemWritePort(MemPort):
 
     def elaborate(self) -> str:
         return self._IMPL_TEMPLATE.substitute(
-            mem=self.memory.net_name,
-            clk=self.memory.clk.net_name,
-            din=self.din.net_name,
-            addr=self.addr.net_name,
-            wen=self.wen.net_name,
+            mem=self.memory.name,
+            clk=self.memory.clk.name,
+            din=self.din.name,
+            addr=self.addr.name,
+            wen=self.wen.name,
         )
 
 
@@ -180,11 +180,11 @@ class MemReadPort(MemPort):
     def elaborate(self) -> str:
         template = self._IMPL_REG_TEMPLATE if self._registered else self._IMPL_COMB_TEMPLATE
         return template.substitute(
-            mem=self.memory.net_name,
-            clk=self.memory.clk.net_name,
-            addr=self.addr.net_name,
-            dout=self.dout.net_name,
-            en=self.en.net_name if self._registered else "NONE",
+            mem=self.memory.name,
+            clk=self.memory.clk.name,
+            addr=self.addr.name,
+            dout=self.dout.name,
+            en=self.en.name if self._registered else "NONE",
         )
 
 
@@ -224,14 +224,14 @@ class MemRWPort(MemPort):
 
     def elaborate(self) -> str:
         return self._IMPL_TEMPLATE.substitute(
-            mem=self.memory.net_name,
-            clk=self.memory.clk.net_name,
+            mem=self.memory.name,
+            clk=self.memory.clk.name,
             assignment="=" if self._write_through else "<=",
-            addr=self.addr.net_name,
-            din=self.din.net_name,
-            dout=self.dout.net_name,
-            wen=self.wen.net_name,
-            en=self.en.net_name,
+            addr=self.addr.name,
+            din=self.din.name,
+            dout=self.dout.name,
+            wen=self.wen.name,
+            en=self.en.name,
         )
 
 
@@ -339,7 +339,7 @@ class Memory(Synthesizable):
     def elaborate(self) -> str:
         mem_decl = self._MEM_DECL_TEMPLATE.substitute(
             width=f"[{self.data_width - 1}:0]",
-            name=self.net_name,
+            name=self.name,
             size=f"[0:{self.size - 1}]",
         )
         port_impl = "\n".join(port.elaborate() for port in self._write_ports + self._rw_ports + self._read_ports)
@@ -359,15 +359,6 @@ class Memory(Synthesizable):
 
     @property
     def name(self) -> str:
-        return self._config.name
-
-    @property
-    def net_name(self) -> str:
-        """
-        Memory does not belong to any bundle.
-
-        net_name is the same as name.
-        """
         return self._config.name
 
     @classmethod

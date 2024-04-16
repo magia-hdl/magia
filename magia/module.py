@@ -209,7 +209,7 @@ class Module(Synthesizable):
 
     def validate(self) -> list[Exception]:
         undriven_outputs = [
-            output.net_name
+            output.name
             for output in self.io.outputs
             if output.driver() is None
         ]
@@ -258,8 +258,8 @@ class Module(Synthesizable):
 
         mod_output_assignment = "\n".join(
             Signal._SIGNAL_ASSIGN_TEMPLATE.substitute(
-                name=output.net_name,
-                driver=output.driver().net_name,
+                name=output.name,
+                driver=output.driver().name,
             )
             for output in self.io.outputs
         )
@@ -345,7 +345,7 @@ class Module(Synthesizable):
         traced_inst.reverse()
 
         # Check if we have name conflict on the signals and instances
-        sig_name_counter = Counter(sig.net_name for sig in traced_signal)
+        sig_name_counter = Counter(sig.name for sig in traced_signal)
         inst_name_counter = Counter(inst.name for inst in traced_inst)
         sig_conflicts = [name for name, cnt in sig_name_counter.items() if cnt > 1]
         inst_conflicts = [name for name, cnt in inst_name_counter.items() if cnt > 1]
@@ -539,13 +539,13 @@ class Instance(Synthesizable):
         io_list = []
         for port in self._io.inputs:
             io_list.append(self._IO_TEMPLATE.substitute(
-                port_name=port.net_name,
-                signal_name=port.driver().net_name,
+                port_name=port.name,
+                signal_name=port.driver().name,
             ))
         for port in self._io.outputs:
             io_list.append(self._IO_TEMPLATE.substitute(
-                port_name=port.net_name,
-                signal_name=self.outputs[port.net_name].net_name,
+                port_name=port.name,
+                signal_name=self.outputs[port.name].name,
             ))
 
         io_list = ",\n".join(io_list)

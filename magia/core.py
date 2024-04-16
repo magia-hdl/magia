@@ -79,13 +79,8 @@ class Synthesizable:
         self._comment = None
 
     @property
-    def net_name(self) -> str:
-        """Full name of a signal, used for elaboration."""
-        raise NotImplementedError
-
-    @property
     def name(self) -> str:
-        """Short name of the signal, is used to identify the signal in a bundle / SignalDict."""
+        """Full name of a signal, used for elaboration."""
         raise NotImplementedError
 
     @property
@@ -151,7 +146,7 @@ class Synthesizable:
         :returns: SV comments with Line number of the object in the elaborated code.
         """
         return self._ANNOTATION_TEMPLATE.substitute(
-            net_name=self.net_name,
+            net_name=self.name,
             comment=f"{self._comment}\n" if self._comment else "",
             loc=self.loc,
         )
@@ -206,13 +201,8 @@ class Signal(Synthesizable):
         return self._config
 
     @property
-    def net_name(self) -> str:
-        """Full name of a signal, used for elaboration."""
-        return self.name
-
-    @property
     def name(self) -> str:
-        """Short name of the signal, is used to identify the signal in a bundle / SignalDict."""
+        """Full name of a signal, used for elaboration."""
         return self._config.name
 
     @property
@@ -322,7 +312,7 @@ class Signal(Synthesizable):
 
         :returns: logic (signed) [...]SIGNAL_NAME.
         """
-        if self.net_name is None:
+        if self.name is None:
             raise ValueError("Signal name is not set")
         if len(self) == 0:
             raise ValueError("Signal width is not set and cannot be inferred")
@@ -331,7 +321,7 @@ class Signal(Synthesizable):
         decl = template.substitute(
             signed="signed" if self.signed else "",
             width=f"[{width - 1}:0]" if (width := len(self)) > 1 else "",
-            name=self.net_name,
+            name=self.name,
         )
         if self.annotated:
             decl += f"\n{self.elaborated_loc}"
@@ -346,11 +336,11 @@ class Signal(Synthesizable):
         cls._str_with_net_name_only = prev_value
 
     def __repr__(self):
-        return f"{type(self).__name__}({self.net_name}:{len(self)})"
+        return f"{type(self).__name__}({self.name}:{len(self)})"
 
     def __str__(self):
         if self._str_with_net_name_only:
-            return self.net_name
+            return self.name
         return repr(self)
 
     def elaborate(self) -> str:
@@ -359,8 +349,8 @@ class Signal(Synthesizable):
         # Ignore assignment signal if it is driven by an output of a module instance
         if self.driver().type != SignalType.OUTPUT:
             assignment = self._SIGNAL_ASSIGN_TEMPLATE.substitute(
-                name=self.net_name,
-                driver=self.driver().net_name,
+                name=self.name,
+                driver=self.driver().name,
             )
             return "\n".join((signal_decl, assignment))
         return signal_decl
@@ -645,7 +635,7 @@ class Constant(Signal):
     def elaborate(self) -> str:
         signal_decl = self.signal_decl()
         assignment = self._SIGNAL_ASSIGN_TEMPLATE.substitute(
-            name=self.net_name,
+            name=self.name,
             driver=self.sv_constant(self.value, len(self), self.signed),
         )
         return "\n".join((signal_decl, assignment))
@@ -773,12 +763,12 @@ class Operation(Signal):
         op_impl = ""
         if self._op_config.op_type in self._OP_IMPL_TEMPLATE:
             impl_params = {
-                "output": self.net_name,
-                "a": self._drivers["a"].net_name,
+                "output": self.name,
+                "a": self._drivers["a"].name,
             }
 
             if self._drivers.get("b") is not None:
-                impl_params["b"] = self._drivers["b"].net_name
+                impl_params["b"] = self._drivers["b"].name
 
             # Slicing Operator
             if self._op_config.slicing is not None:
@@ -898,10 +888,10 @@ class When(Operation):
     def elaborate(self) -> str:
         signal_decl = self.signal_decl()
         if_else = self._IF_ELSE_TEMPLATE.substitute(
-            output=self.net_name,
-            condition=self._drivers["condition"].net_name,
-            if_true=self._drivers[self.SINGLE_DRIVER_NAME].net_name,
-            if_false=self._drivers["d_false"].net_name,
+            output=self.name,
+            condition=self._drivers["condition"].name,
+            if_true=self._drivers[self.SINGLE_DRIVER_NAME].name,
+            if_false=self._drivers["d_false"].name,
         )
         return "\n".join((signal_decl, if_else))
 
@@ -987,22 +977,22 @@ class Case(Operation):
     def elaborate(self) -> str:
         def driver_value(sig_or_const: Signal | int | None) -> str:
             if isinstance(sig_or_const, Signal):
-                return sig_or_const.net_name
+                return sig_or_const.name
             return Constant.sv_constant(sig_or_const, len(self), self.signed)
 
         signal_decl = self.signal_decl()
         case_table = []
 
         for selector_value, driver in self._cases.items():
-            driver = driver.net_name if isinstance(driver, Signal) else Constant.sv_constant(driver, len(self),
-                                                                                             self.signed)
+            driver = driver.name if isinstance(driver, Signal) else Constant.sv_constant(driver, len(self),
+                                                                                         self.signed)
             case_table.append(
                 self._CASE_ITEM_TEMPLATE.substitute(
                     selector_value=Constant.sv_constant(
                         selector_value,
                         len(self._drivers[self.SINGLE_DRIVER_NAME]), False
                     ),
-                    output=self.net_name,
+                    output=self.name,
                     driver=driver,
                 )
             )
@@ -1011,13 +1001,13 @@ class Case(Operation):
             case_table.append(
                 self._CASE_ITEM_TEMPLATE.substitute(
                     selector_value="default",
-                    output=self.net_name,
+                    output=self.name,
                     driver=driver_value(self._case_config.default),
                 )
             )
 
         case_impl = self._CASE_TEMPLATE.substitute(
-            selector=self._drivers[self.SINGLE_DRIVER_NAME].net_name,
+            selector=self._drivers[self.SINGLE_DRIVER_NAME].name,
             cases="\n".join(case_table),
             unique="unique" if self._case_config.unique else "",
         )
@@ -1145,7 +1135,7 @@ class Register(Operation):
     def elaborate(self) -> str:
         errors = self.validate()
         if errors:
-            raise ValueError(f"Register {self.net_name} is not valid.", errors)
+            raise ValueError(f"Register {self.name} is not valid.", errors)
 
         reg_decl = self.signal_decl()
 
@@ -1161,19 +1151,19 @@ class Register(Operation):
         }[(self._reg_config.enable, self._reg_config.reset, self._reg_config.async_reset)]
 
         connections = {
-            "output": self.net_name,
-            "driver": self._drivers[Signal.SINGLE_DRIVER_NAME].net_name,
-            "clk": self._drivers["clk"].net_name,
+            "output": self.name,
+            "driver": self._drivers[Signal.SINGLE_DRIVER_NAME].name,
+            "clk": self._drivers["clk"].name,
         }
         if self._reg_config.enable:
-            connections["enable"] = self._drivers["enable"].net_name
+            connections["enable"] = self._drivers["enable"].name
         if self._reg_config.reset:
-            connections["reset"] = self._drivers["reset"].net_name
+            connections["reset"] = self._drivers["reset"].name
             connections["reset_value"] = Constant.sv_constant(
                 self._reg_config.reset_value, len(self), self._config.signed
             )
         if self._reg_config.async_reset:
-            connections["async_reset"] = self._drivers["async_reset"].net_name
+            connections["async_reset"] = self._drivers["async_reset"].name
             connections["async_reset_value"] = Constant.sv_constant(
                 self._reg_config.async_reset_value, len(self), self._config.signed
             )
