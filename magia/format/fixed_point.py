@@ -18,9 +18,6 @@ class FixedPoint:
         self.m = m
         self.n = n
 
-    def __len__(self):
-        return self.width
-
     @property
     def width(self):
         return self.m + self.n

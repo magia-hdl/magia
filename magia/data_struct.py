@@ -9,6 +9,10 @@ from __future__ import annotations
 
 from collections import UserDict
 from enum import Enum, IntEnum, auto
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .core import Signal
 
 
 class SignalDict(UserDict):
@@ -26,7 +30,7 @@ class SignalDict(UserDict):
             raise KeyError(f"Signal {alias} is not defined.")
         return self.data[alias]
 
-    def __getitem__(self, alias):
+    def __getitem__(self, alias) -> None | Signal:
         if alias not in self.data:
             raise KeyError(f"Signal {alias} is not defined.")
         return self.data[alias]

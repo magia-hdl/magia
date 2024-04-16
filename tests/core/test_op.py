@@ -242,7 +242,7 @@ class TestWhenCase:
 
                 cases = {i: i + 1 for i in range(cases)}
                 case_logic = self.io.a.case(cases)
-                self.io += Output("q", len(case_logic))
+                self.io += Output("q", case_logic.width)
                 self.io.q <<= case_logic
 
         sv_code = Elaborator.to_string(CaseModule(width=width, cases=cases))

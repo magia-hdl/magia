@@ -267,7 +267,7 @@ class Signal(Synthesizable):
         :returns: A new signal with the same configuration.
         """
         signal = Signal(
-            width=len(self),
+            width=self.width,
             signed=signed,
         )
         signal <<= self
@@ -282,18 +282,18 @@ class Signal(Synthesizable):
 
         :returns: A new signal with the new configuration.
         """
-        if width == len(self):
+        if width == self.width:
             signal = Signal(
                 width=width,
                 signed=self.signed,
             )
             signal <<= self
             return signal
-        if width < len(self):
+        if width < self.width:
             return self[width - 1:]
 
         # Perform sign extension / padding according to the signedness of the signal
-        padding_size = (width - len(self))
+        padding_size = (width - self.width)
         if self.signed:
             return self[(-1,) * padding_size, :]
         return Constant(0, padding_size) @ self
@@ -314,13 +314,13 @@ class Signal(Synthesizable):
         """
         if self.name is None:
             raise ValueError("Signal name is not set")
-        if len(self) == 0:
+        if self.width == 0:
             raise ValueError("Signal width is not set and cannot be inferred")
 
         template = self._SIGNAL_DECL_VERILOG_TEMPLATE if self._signal_decl_in_verilog else self._SIGNAL_DECL_TEMPLATE
         decl = template.substitute(
             signed="signed" if self.signed else "",
-            width=f"[{width - 1}:0]" if (width := len(self)) > 1 else "",
+            width=f"[{width - 1}:0]" if (width := self.width) > 1 else "",
             name=self.name,
         )
         if self.annotated:
@@ -336,7 +336,7 @@ class Signal(Synthesizable):
         cls._str_with_net_name_only = prev_value
 
     def __repr__(self):
-        return f"{type(self).__name__}({self.name}:{len(self)})"
+        return f"{type(self).__name__}({self.name}:{self.width})"
 
     def __str__(self):
         if self._str_with_net_name_only:
@@ -363,7 +363,7 @@ class Signal(Synthesizable):
         """
         return Signal(
             name=self.name,
-            width=len(self),
+            width=self.width,
             signed=self.signed,
             owner_instance=owner_instance,
             description=self.description,
@@ -377,7 +377,7 @@ class Signal(Synthesizable):
         :returns: Original Signal
         """
         if isinstance(other, (int, bytes)):
-            other = Constant(other, len(self), self.signed)
+            other = Constant(other, self.width, self.signed)
         if not isinstance(other, Signal):
             raise TypeError(f"Cannot assign {type(other)} to drive {type(self)}")
         if self._drivers.get(self.SINGLE_DRIVER_NAME) is not None:
@@ -394,10 +394,10 @@ class Signal(Synthesizable):
             raise ValueError("Constant signal cannot be driven.")
 
         self._drivers[self.SINGLE_DRIVER_NAME] = other
-        if len(self) == 0:
-            self.set_width(len(other))
-        elif len(other) == 0:
-            other.set_width(len(self))
+        if self.width == 0:
+            self.set_width(other.width)
+        elif other.width == 0:
+            other.set_width(self.width)
         return self
 
     def __add__(self, other) -> Signal:
@@ -415,13 +415,13 @@ class Signal(Synthesizable):
     def __neg__(self) -> Signal:
         return Operation.create(
             OPType.MINUS,
-            Constant(0, len(self), self.signed),
+            Constant(0, self.width, self.signed),
             self
         )
 
     def __mul__(self, other) -> Signal:
         if isinstance(other, int):
-            other = Constant(other, len(self), self.signed)
+            other = Constant(other, self.width, self.signed)
         return Operation.create(OPType.MUL, self, other)
 
     def __imul__(self, other) -> Signal:
@@ -429,37 +429,37 @@ class Signal(Synthesizable):
 
     def __eq__(self, other) -> Signal:
         if isinstance(other, int):
-            other = Constant(other, len(self), self.signed)
+            other = Constant(other, self.width, self.signed)
         return Operation.create(OPType.EQ, self, other)
 
     def __ne__(self, other) -> Signal:
         if isinstance(other, int):
-            other = Constant(other, len(self), self.signed)
+            other = Constant(other, self.width, self.signed)
         return Operation.create(OPType.NEQ, self, other)
 
     def __ge__(self, other) -> Signal:
         if isinstance(other, int):
-            other = Constant(other, len(self), self.signed)
+            other = Constant(other, self.width, self.signed)
         return Operation.create(OPType.GE, self, other)
 
     def __gt__(self, other) -> Signal:
         if isinstance(other, int):
-            other = Constant(other, len(self), self.signed)
+            other = Constant(other, self.width, self.signed)
         return Operation.create(OPType.GT, self, other)
 
     def __le__(self, other) -> Signal:
         if isinstance(other, int):
-            other = Constant(other, len(self), self.signed)
+            other = Constant(other, self.width, self.signed)
         return Operation.create(OPType.LE, self, other)
 
     def __lt__(self, other) -> Signal:
         if isinstance(other, int):
-            other = Constant(other, len(self), self.signed)
+            other = Constant(other, self.width, self.signed)
         return Operation.create(OPType.LT, self, other)
 
     def __and__(self, other) -> Signal:
         if isinstance(other, int):
-            other = Constant(other, len(self), self.signed)
+            other = Constant(other, self.width, self.signed)
         return Operation.create(OPType.AND, self, other)
 
     def __iand__(self, other) -> Signal:
@@ -467,7 +467,7 @@ class Signal(Synthesizable):
 
     def __or__(self, other) -> Signal:
         if isinstance(other, int):
-            other = Constant(other, len(self), self.signed)
+            other = Constant(other, self.width, self.signed)
         return Operation.create(OPType.OR, self, other)
 
     def __ior__(self, other) -> Signal:
@@ -475,7 +475,7 @@ class Signal(Synthesizable):
 
     def __xor__(self, other) -> Signal:
         if isinstance(other, int):
-            other = Constant(other, len(self), self.signed)
+            other = Constant(other, self.width, self.signed)
         return Operation.create(OPType.XOR, self, other)
 
     def __ixor__(self, other) -> Signal:
@@ -543,9 +543,6 @@ class Signal(Synthesizable):
     def __imatmul__(self, other) -> Signal:
         return self.__matmul__(other)
 
-    def __len__(self):
-        return self.width
-
     @property
     def width(self):
         return self._config.width
@@ -562,7 +559,7 @@ class Signal(Synthesizable):
     ) -> Register:
         """Create a register from the signal."""
         register = Register(
-            width=len(self),
+            width=self.width,
             enable=enable,
             reset=reset,
             async_reset=async_reset,
@@ -636,7 +633,7 @@ class Constant(Signal):
         signal_decl = self.signal_decl()
         assignment = self._SIGNAL_ASSIGN_TEMPLATE.substitute(
             name=self.name,
-            driver=self.sv_constant(self.value, len(self), self.signed),
+            driver=self.sv_constant(self.value, self.width, self.signed),
         )
         return "\n".join((signal_decl, assignment))
 
@@ -697,13 +694,13 @@ class Operation(Signal):
 
     }
     _OP_WIDTH_INFERENCE = {
-        OPType.NOT: lambda x, y: len(x),
-        OPType.OR: lambda x, y: max(len(x), len(y)),
-        OPType.AND: lambda x, y: max(len(x), len(y)),
-        OPType.XOR: lambda x, y: max(len(x), len(y)),
-        OPType.ADD: lambda x, y: max(len(x), len(y)),
-        OPType.MINUS: lambda x, y: max(len(x), len(y)),
-        OPType.MUL: lambda x, y: len(x) + len(y),
+        OPType.NOT: lambda x, y: x.width,
+        OPType.OR: lambda x, y: max(x.width, y.width),
+        OPType.AND: lambda x, y: max(x.width, y.width),
+        OPType.XOR: lambda x, y: max(x.width, y.width),
+        OPType.ADD: lambda x, y: max(x.width, y.width),
+        OPType.MINUS: lambda x, y: max(x.width, y.width),
+        OPType.MUL: lambda x, y: x.width + y.width,
         OPType.EQ: lambda x, y: 1,
         OPType.NEQ: lambda x, y: 1,
         OPType.LT: lambda x, y: 1,
@@ -711,14 +708,14 @@ class Operation(Signal):
         OPType.GT: lambda x, y: 1,
         OPType.GE: lambda x, y: 1,
 
-        OPType.LSHIFT: lambda x, s: len(x),
-        OPType.RSHIFT: lambda x, s: len(x),
+        OPType.LSHIFT: lambda x, s: x.width,
+        OPType.RSHIFT: lambda x, s: x.width,
 
         OPType.ANY: lambda x, y: 1,
         OPType.ALL: lambda x, y: 1,
         OPType.PARITY: lambda x, y: 1,
 
-        OPType.CONCAT: lambda x, y: len(x) + len(y),
+        OPType.CONCAT: lambda x, y: x.width + y.width,
 
         OPType.SLICE: lambda x, s: abs(s.stop - s.start) + 1,
 
@@ -803,7 +800,7 @@ class Operation(Signal):
                 raise TypeError("Shifting Operator only support constant shifting with integer.")
         else:
             if isinstance(y, (int, bytes)):
-                y = Constant(y, len(x), x.signed)
+                y = Constant(y, x.width, x.signed)
             if not isinstance(y, Signal) and y is not None:
                 raise TypeError(f"Cannot perform operation on {type(y)}")
 
@@ -849,14 +846,14 @@ class Operation(Signal):
             raise ValueError("Slice step is not implement.")
 
         if slice_.start is None:
-            slice_ = slice(len(driver) - 1, slice_.stop, None)
+            slice_ = slice(driver.width - 1, slice_.stop, None)
         if slice_.stop is None:
             slice_ = slice(slice_.start, 0, None)
 
         if slice_.start < 0:
-            slice_ = slice(slice_.start + len(driver), slice_.stop, None)
+            slice_ = slice(slice_.start + driver.width, slice_.stop, None)
         if slice_.stop < 0:
-            slice_ = slice(slice_.start, slice_.stop + len(driver), None)
+            slice_ = slice(slice_.start, slice_.stop + driver.width, None)
 
         return slice_
 
@@ -870,15 +867,15 @@ class When(Operation):
         "  else $output = $if_false;"
     )
 
-    def __init__(self, condition: Signal, if_true: Signal, if_false: Signal | int | bytes | None, **kwargs):
-        super().__init__(op_type=OPType.WHEN, width=len(if_true), signed=if_true.signed, **kwargs)
+    def __init__(self, condition: Signal, if_true: Signal, if_false: None | Signal | int | bytes, **kwargs):
+        super().__init__(op_type=OPType.WHEN, width=if_true.width, signed=if_true.signed, **kwargs)
 
         if if_false is None:
             if_false = 0
         if isinstance(if_false, (int, bytes)):
-            if_false = Constant(if_false, len(if_true), if_true.signed)
+            if_false = Constant(if_false, if_true.width, if_true.signed)
 
-        if len(condition) != 1:
+        if condition.width != 1:
             raise ValueError("Condition has to be a single bit signal.")
 
         self._drivers["condition"] = condition
@@ -930,13 +927,13 @@ class Case(Operation):
             raise ValueError("Selector cannot be signed.")
         if any(not isinstance(k, int) for k in cases):
             raise ValueError("Selector value can only be int.")
-        if any(k >= 2 ** len(selector) for k in cases):
+        if any(k >= 2 ** selector.width for k in cases):
             raise ValueError("Selector value is out of range.")
 
         # Infer the width of the output signal
         output_signals = list(cases.values()) + ([] if default is None else [default])
         if any(isinstance(v, Signal) for v in output_signals):
-            signal_width = {len(sig) for sig in output_signals if isinstance(sig, Signal)}
+            signal_width = {sig.width for sig in output_signals if isinstance(sig, Signal)}
             signal_signed = {sig.signed for sig in output_signals if isinstance(sig, Signal)}
             if len(signal_width) != 1:
                 raise ValueError("All drivers must have the same width.")
@@ -957,7 +954,7 @@ class Case(Operation):
         # Make a shallow copy of the cases
         self._cases = dict(cases.items())
         self._case_config = CaseConfig(
-            unique=len(cases) == 2 ** len(selector),
+            unique=len(cases) == 2 ** selector.width,
             default=default,
         )
 
@@ -978,19 +975,19 @@ class Case(Operation):
         def driver_value(sig_or_const: Signal | int | None) -> str:
             if isinstance(sig_or_const, Signal):
                 return sig_or_const.name
-            return Constant.sv_constant(sig_or_const, len(self), self.signed)
+            return Constant.sv_constant(sig_or_const, self.width, self.signed)
 
         signal_decl = self.signal_decl()
         case_table = []
 
         for selector_value, driver in self._cases.items():
-            driver = driver.name if isinstance(driver, Signal) else Constant.sv_constant(driver, len(self),
+            driver = driver.name if isinstance(driver, Signal) else Constant.sv_constant(driver, self.width,
                                                                                          self.signed)
             case_table.append(
                 self._CASE_ITEM_TEMPLATE.substitute(
                     selector_value=Constant.sv_constant(
                         selector_value,
-                        len(self._drivers[self.SINGLE_DRIVER_NAME]), False
+                        self._drivers[self.SINGLE_DRIVER_NAME].width, False
                     ),
                     output=self.name,
                     driver=driver,
@@ -1106,7 +1103,7 @@ class Register(Operation):
         errors = []
         if self._drivers["clk"] is None:
             errors.append(ValueError("Register requires a clock signal."))
-        if len(self._drivers["clk"]) != 1:
+        if self._drivers["clk"].width != 1:
             errors.append(ValueError("Clock has to be a single bit."))
 
         if self._drivers[Signal.SINGLE_DRIVER_NAME] is None:
@@ -1115,19 +1112,19 @@ class Register(Operation):
         if self._reg_config.enable:
             if self._drivers["enable"] is None:
                 errors.append(ValueError("Register requires an enable signal."))
-            if len(self._drivers["enable"]) != 1:
+            if self._drivers["enable"].width != 1:
                 errors.append(ValueError("Enable signal has to be a single bit."))
 
         if self._reg_config.reset:
             if self._drivers["reset"] is None:
                 errors.append(ValueError("Register requires a reset signal."))
-            if len(self._drivers["reset"]) != 1:
+            if self._drivers["reset"].width != 1:
                 errors.append(ValueError("Reset signal has to be a single bit."))
 
         if self._reg_config.async_reset:
             if self._drivers["async_reset"] is None:
                 errors.append(ValueError("Register requires an async reset signal."))
-            if len(self._drivers["async_reset"]) != 1:
+            if self._drivers["async_reset"].width != 1:
                 errors.append(ValueError("Async Reset signal has to be a single bit."))
 
         return errors
@@ -1160,12 +1157,12 @@ class Register(Operation):
         if self._reg_config.reset:
             connections["reset"] = self._drivers["reset"].name
             connections["reset_value"] = Constant.sv_constant(
-                self._reg_config.reset_value, len(self), self._config.signed
+                self._reg_config.reset_value, self.width, self._config.signed
             )
         if self._reg_config.async_reset:
             connections["async_reset"] = self._drivers["async_reset"].name
             connections["async_reset_value"] = Constant.sv_constant(
-                self._reg_config.async_reset_value, len(self), self._config.signed
+                self._reg_config.async_reset_value, self.width, self._config.signed
             )
 
         reg_impl = self._REG_TEMPLATE[reg_type].substitute(**connections)

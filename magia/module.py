@@ -447,7 +447,7 @@ class Module(Synthesizable):
                 {
                     "name": alias,
                     "direction": signal.type.name,
-                    "width": len(signal),
+                    "width": signal.width,
                     "signed": signal.signed,
                     "description": signal.description,
                 }
@@ -487,7 +487,7 @@ class Instance(Synthesizable):
 
         for output_port in module.io.output_names:
             self.outputs[output_port] = Signal(
-                width=len(self._io[output_port]),
+                width=self._io[output_port].width,
                 signed=self._io[output_port].signed
             )
             self.outputs[output_port] <<= self._io[output_port]
