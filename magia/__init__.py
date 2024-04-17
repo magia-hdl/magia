@@ -11,7 +11,7 @@ from .bundle import Bundle, BundleSpec, BundleType
 from .core import Constant, Register, Signal
 from .io_signal import Input, Output
 from .memory import Memory
-from .module import Blackbox, Elaborator, Instance, IOPorts, Module, VerilogWrapper
+from .module import Elaborator, Instance, IOPorts, Module, VerilogWrapper
 
 if find_spec("hdlConvertor") is not None:
     from .external import ExternalModule
@@ -58,7 +58,6 @@ __all__ += [
     "IOPorts",
     "Module",
     "Instance",
-    "Blackbox",
     "Elaborator",
     "ExternalModule",
     "VerilogWrapper",
