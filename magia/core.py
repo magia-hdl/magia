@@ -1060,13 +1060,13 @@ class Register(Operation):
     _new_reg_counter = count(0)
 
     def __init__(self, width: int,
-                 enable: Signal | None = None,
-                 reset: Signal | None = None,
-                 reset_value: bytes | int | None = None,
-                 async_reset: Signal | None = None,
-                 async_reset_value: bytes | int | None = None,
-                 clk: Signal | None = None,
-                 name: str | None = None,
+                 enable: None | Signal = None,
+                 reset: None | Signal = None,
+                 reset_value: None | bytes | int = None,
+                 async_reset: None | Signal = None,
+                 async_reset_value: None | bytes | int = None,
+                 clk: None | Signal = None,
+                 name: None | str = None,
                  **kwargs
                  ):
         if name is None:
@@ -1101,30 +1101,35 @@ class Register(Operation):
 
     def validate(self) -> list[Exception]:
         errors = []
-        if self._drivers["clk"] is None:
-            errors.append(ValueError("Register requires a clock signal."))
-        if self._drivers["clk"].width != 1:
-            errors.append(ValueError("Clock has to be a single bit."))
+        clk = self.driver("clk")
+        enable = self.driver("enable")
+        reset = self.driver("reset")
+        async_reset = self.driver("async_reset")
 
-        if self._drivers[Signal.SINGLE_DRIVER_NAME] is None:
+        if self.driver() is None:
             errors.append(ValueError("Register requires a driver."))
 
+        if clk is None:
+            errors.append(ValueError("Register requires a clock signal."))
+        if clk.width != 1:
+            errors.append(ValueError("Clock has to be a single bit."))
+
         if self._reg_config.enable:
-            if self._drivers["enable"] is None:
+            if enable is None:
                 errors.append(ValueError("Register requires an enable signal."))
-            if self._drivers["enable"].width != 1:
+            if enable.width != 1:
                 errors.append(ValueError("Enable signal has to be a single bit."))
 
         if self._reg_config.reset:
-            if self._drivers["reset"] is None:
+            if reset is None:
                 errors.append(ValueError("Register requires a reset signal."))
-            if self._drivers["reset"].width != 1:
+            if reset.width != 1:
                 errors.append(ValueError("Reset signal has to be a single bit."))
 
         if self._reg_config.async_reset:
-            if self._drivers["async_reset"] is None:
+            if async_reset is None:
                 errors.append(ValueError("Register requires an async reset signal."))
-            if self._drivers["async_reset"].width != 1:
+            if async_reset.width != 1:
                 errors.append(ValueError("Async Reset signal has to be a single bit."))
 
         return errors
@@ -1136,33 +1141,39 @@ class Register(Operation):
 
         reg_decl = self.signal_decl()
 
-        reg_type = {
-            (False, False, False): RegType.DFF,
-            (True, False, False): RegType.DFF_EN,
-            (False, True, False): RegType.DFF_RST,
-            (True, True, False): RegType.DFF_EN_RST,
-            (False, False, True): RegType.DFF_ASYNC_RST,
-            (True, False, True): RegType.DFF_EN_ASYNC_RST,
-            (False, True, True): RegType.DFF_BOTH_RST,
-            (True, True, True): RegType.DFF_EN_BOTH_RST,
-        }[(self._reg_config.enable, self._reg_config.reset, self._reg_config.async_reset)]
+        match self._reg_config.enable, self._reg_config.reset, self._reg_config.async_reset:
+            case (False, False, False):
+                reg_type = RegType.DFF
+            case (True, False, False):
+                reg_type = RegType.DFF_EN
+            case (False, True, False):
+                reg_type = RegType.DFF_RST
+            case (True, True, False):
+                reg_type = RegType.DFF_EN_RST
+            case (False, False, True):
+                reg_type = RegType.DFF_ASYNC_RST
+            case (True, False, True):
+                reg_type = RegType.DFF_EN_ASYNC_RST
+            case (False, True, True):
+                reg_type = RegType.DFF_BOTH_RST
+            case (True, True, True):
+                reg_type = RegType.DFF_EN_BOTH_RST
 
         connections = {
             "output": self.name,
-            "driver": self._drivers[Signal.SINGLE_DRIVER_NAME].name,
-            "clk": self._drivers["clk"].name,
+            "driver": self.driver().name,
+            "clk": self.driver("clk").name,
         }
-        if self._reg_config.enable:
-            connections["enable"] = self._drivers["enable"].name
+        for control_signals in ("enable", "reset", "async_reset"):
+            if (control := self.driver(control_signals)) is not None:
+                connections[control_signals] = control.name
         if self._reg_config.reset:
-            connections["reset"] = self._drivers["reset"].name
             connections["reset_value"] = Constant.sv_constant(
-                self._reg_config.reset_value, self.width, self._config.signed
+                self._reg_config.reset_value, self.width, self.signed
             )
         if self._reg_config.async_reset:
-            connections["async_reset"] = self._drivers["async_reset"].name
             connections["async_reset_value"] = Constant.sv_constant(
-                self._reg_config.async_reset_value, self.width, self._config.signed
+                self._reg_config.async_reset_value, self.width, self.signed
             )
 
         reg_impl = self._REG_TEMPLATE[reg_type].substitute(**connections)
