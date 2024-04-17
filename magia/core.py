@@ -218,7 +218,7 @@ class Signal(Synthesizable):
     def signed(self) -> bool:
         return self._config.signed
 
-    def driver(self, driver_name: str = SINGLE_DRIVER_NAME) -> Signal | None:
+    def driver(self, driver_name: str = SINGLE_DRIVER_NAME) -> None | Signal:
         """
         Get the driver of the signal.
 
@@ -237,7 +237,7 @@ class Signal(Synthesizable):
         return list(self._drivers.values())
 
     @property
-    def owner_instance(self) -> Instance | None:
+    def owner_instance(self) -> None | Instance:
         """
         Get the module instance that owns this signal.
 

@@ -310,15 +310,18 @@ class Bundle:
             # IO ports owned by instance
             # Inputs are load, outputs are drivers
             for src_name, dst_name in connection_map.items():
-                if mod_io[dst_name].type == SignalType.INPUT:
-                    target_io.inputs[dst_name] <<= self[src_name]
-                else:
-                    self[src_name] <<= target_io.outputs[dst_name]
+                match mod_io[dst_name].type:
+                    case SignalType.INPUT:
+                        target_io.io[dst_name] <<= self[src_name]
+                    case SignalType.OUTPUT:
+                        self[src_name] <<= target_io.io[dst_name]
+
         else:
             # IO ports owned by module
             # Inputs are drivers, outputs are loads
             for src_name, dst_name in connection_map.items():
-                if target_io[dst_name].type == SignalType.INPUT:
-                    self[src_name] <<= target_io[dst_name]
-                else:
-                    target_io[dst_name] <<= self[src_name]
+                match target_io[dst_name].type:
+                    case SignalType.INPUT:
+                        self[src_name] <<= target_io[dst_name]
+                    case SignalType.OUTPUT:
+                        target_io[dst_name] <<= self[src_name]

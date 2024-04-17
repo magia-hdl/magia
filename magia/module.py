@@ -26,13 +26,13 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ModuleConfig:
     module_class: type
-    name: str | None = None
+    name: None | str = None
 
 
 @dataclass
 class ModuleInstanceConfig:
     module: Module
-    name: str | None = None
+    name: None | str = None
 
 
 class IOPorts:
@@ -48,9 +48,9 @@ class IOPorts:
     It can be accessed by individual port by attributes, or connect to multiple instance directly.
     """
 
-    def __init__(self, owner_instance: Instance | None = None, **kwargs):
-        self._signals = SignalDict()
-        self._owner_instance: Instance | None = owner_instance
+    def __init__(self, owner_instance: None | Instance = None, **kwargs):
+        self.signals = SignalDict()
+        self._owner_instance = owner_instance
 
     def __add__(self, other: IOPorts | list[Input | Output | IOPorts] | Input | Output) -> IOPorts:
         new_ports = IOPorts()
@@ -79,13 +79,14 @@ class IOPorts:
         return self
 
     def _add_port(self, port: Input | Output):
+        """Copy the given port and add it into current IOPorts."""
         if port.name in self.signals:
             raise KeyError(f"Port {port.name} is already defined.")
 
         if port.type not in (SignalType.INPUT, SignalType.OUTPUT):
             raise TypeError(f"Signal Type {port.type} is forbidden in IOPorts.")
 
-        self._signals[port.name] = port.__class__(
+        self.signals[port.name] = port.__class__(
             **{
                 k: v
                 for k, v in asdict(port.signal_config).items()
@@ -110,42 +111,38 @@ class IOPorts:
             super().__setattr__(name, value)
 
     def __getitem__(self, item: str) -> Input | Output:
-        return self._signals[item]
+        return self.signals[item]
 
     def __setitem__(self, key, value):
-        self._signals[key] = value
+        self.signals[key] = value
 
     @property
     def inputs(self) -> list[Signal]:
         return [
-            signal for signal in self._signals.values()
+            signal for signal in self.signals.values()
             if signal.type == SignalType.INPUT
         ]
 
     @property
     def outputs(self) -> list[Signal]:
         return [
-            signal for signal in self._signals.values()
+            signal for signal in self.signals.values()
             if signal.type == SignalType.OUTPUT
         ]
 
     @property
     def input_names(self) -> list[str]:
         return [
-            name for name, port in self._signals.items()
+            name for name, port in self.signals.items()
             if port.type == SignalType.INPUT
         ]
 
     @property
     def output_names(self) -> list[str]:
         return [
-            name for name, port in self._signals.items()
+            name for name, port in self.signals.items()
             if port.type == SignalType.OUTPUT
         ]
-
-    @property
-    def signals(self) -> SignalDict:
-        return self._signals
 
     def __ilshift__(self, other: Bundle):
         if self._owner_instance is not None:
@@ -181,9 +178,9 @@ class Module(Synthesizable):
 
     _MOD_DECL_TEMPLATE = Template("module $name (\n$io\n);")
     _new_module_counter = count(0)
-    output_file: PathLike | None = None
+    output_file: None | PathLike = None
 
-    def __init__(self, name: str | None = None, **kwargs):
+    def __init__(self, name: None | str = None, **kwargs):
         super().__init__(**kwargs)
 
         # Get the arguments passed to the __init__ method of the inherited class
@@ -303,14 +300,18 @@ class Module(Synthesizable):
 
                 # Tracing Instances with Output connected
                 if signal.type == SignalType.OUTPUT:
-                    inst: Instance | None = signal.owner_instance
+                    inst = signal.owner_instance
                     if inst is not None and id(inst) not in traced_inst_id:
                         traced_inst_id.add(id(inst))
                         traced_inst.append(inst)
 
                         # The Input port of the instance is skipped
                         # We will go directly to the driver as it must be driven by another signal.
-                        input_drivers = [i.driver() for i in inst.inputs.values()]
+                        input_drivers = [
+                            i.driver()
+                            for i in inst.io.values()
+                            if i.type == SignalType.INPUT
+                        ]
                         next_trace |= {
                             id_sig: sig
                             for sig in input_drivers
@@ -476,36 +477,36 @@ class Instance(Synthesizable):
             module=module,
             name=name,
         )
-        self._io = IOPorts(owner_instance=self)
-        self.outputs = SignalDict()
-        self.inputs = SignalDict()
+        self._io_ports = IOPorts(owner_instance=self)
+        self._io_ports += module.io
+        self.io = SignalDict()
 
-        self._io += module.io
-
-        for input_port in module.io.input_names:
-            self.inputs[input_port] = self._io[input_port]
-
-        for output_port in module.io.output_names:
-            self.outputs[output_port] = Signal(
-                width=self._io[output_port].width,
-                signed=self._io[output_port].signed
-            )
-            self.outputs[output_port] <<= self._io[output_port]
+        for port_name, port in self._io_ports.signals.items():
+            match port.type:
+                case SignalType.INPUT:
+                    self.io[port_name] = port
+                case SignalType.OUTPUT:
+                    self.io[port_name] = Signal(
+                        width=port.width,
+                        signed=port.signed,
+                    )
+                    self.io[port_name] <<= port
 
         if io is not None:
             for name, signal in io.items():
-                if self._io[name].type == SignalType.INPUT:
-                    self.inputs[name] <<= signal
-                if self._io[name].type == SignalType.OUTPUT:
-                    signal <<= self.outputs[name]
+                match signal.type:
+                    case SignalType.INPUT:
+                        self.io[name] <<= signal
+                    case SignalType.OUTPUT:
+                        signal <<= self.io[name]
 
     @property
     def input_names(self) -> list[str]:
-        return self._io.input_names
+        return self._io_ports.input_names
 
     @property
     def output_names(self) -> list[str]:
-        return self._io.output_names
+        return self._io_ports.output_names
 
     @property
     def name(self) -> str:
@@ -517,14 +518,14 @@ class Instance(Synthesizable):
 
     def validate(self) -> list[Exception]:
         errors = []
-        for signal in self.inputs.values():
-            if signal.driver() is None:
+        for signal in self.io.values():
+            if signal.type == SignalType.INPUT and signal.driver() is None:
                 errors.append(ValueError(f"Input {signal.name} is not connected."))
         return errors
 
     def _fix_output_name(self):
-        for port, signal in self.outputs.items():
-            if signal.name is None:
+        for port, signal in self.io.items():
+            if signal.type != SignalType.INPUT and signal.name is None:
                 signal.set_name(f"{self._inst_config.name}_output_{port}")
 
     def elaborate(self) -> str:
@@ -537,16 +538,12 @@ class Instance(Synthesizable):
         inst_name = self.name
 
         io_list = []
-        for port in self._io.inputs:
-            io_list.append(self._IO_TEMPLATE.substitute(
-                port_name=port.name,
-                signal_name=port.driver().name,
-            ))
-        for port in self._io.outputs:
-            io_list.append(self._IO_TEMPLATE.substitute(
-                port_name=port.name,
-                signal_name=self.outputs[port.name].name,
-            ))
+        for port_name, port in self._io_ports.signals.items():
+            signal_name = self.io[port_name].name
+            if port.type == SignalType.INPUT:
+                signal_name = port.driver().name
+
+            io_list.append(self._IO_TEMPLATE.substitute(port_name=port_name, signal_name=signal_name))
 
         io_list = ",\n".join(io_list)
         return self._INST_TEMPLATE.substitute(
