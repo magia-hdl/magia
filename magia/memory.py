@@ -46,7 +46,7 @@ class MemorySignal(Signal):
             return self.memory.drivers
         return super().drivers
 
-    def driver(self, driver_name: str = Signal.SINGLE_DRIVER_NAME) -> Signal | None:
+    def driver(self, driver_name: str = Signal.DEFAULT_DRIVER) -> Signal | None:
         """
         Get the driver of the signal.
 

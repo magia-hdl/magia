@@ -49,7 +49,7 @@ class SignalDict(UserDict):
 class SignalType(Enum):
     """Kinds of signals."""
 
-    WIRE = 0
+    SIGNAL = 0
     INPUT = 1
     OUTPUT = 2
     MEMORY = 3
@@ -58,6 +58,8 @@ class SignalType(Enum):
 
 class OPType(IntEnum):
     """List of operations that can be performed on signals."""
+
+    WIRE = auto()
 
     ANY = auto()
     ALL = auto()

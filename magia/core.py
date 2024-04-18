@@ -25,7 +25,8 @@ class SignalConfig:
     name: str | None = None
     width: int = 0
     signed: bool = False
-    signal_type: SignalType = SignalType.WIRE
+    signal_type: SignalType = SignalType.SIGNAL
+    op_type: OPType = OPType.WIRE
     description: str = ""
 
     # The module instance that owns this signal
@@ -41,7 +42,6 @@ class SignalConfig:
 
 @dataclass
 class OperationConfig:
-    op_type: OPType
     slicing: slice | None = None
     shifting: int | None = None
 
@@ -159,7 +159,7 @@ class Signal(Synthesizable):
     It can also drive other signals / module instances.
     """
 
-    SINGLE_DRIVER_NAME: str = "d"
+    DEFAULT_DRIVER: str = "d"
     _SIGNAL_DECL_TEMPLATE = Template("logic $signed $width $name;")
     _SIGNAL_DECL_VERILOG_TEMPLATE = Template("wire $signed $width $name;")
     _SIGNAL_CONNECT_TEMPLATE = Template("always_comb\n  $name = $driver;")
@@ -218,7 +218,7 @@ class Signal(Synthesizable):
     def signed(self) -> bool:
         return self._config.signed
 
-    def driver(self, driver_name: str = SINGLE_DRIVER_NAME) -> None | Signal:
+    def driver(self, driver_name: str = DEFAULT_DRIVER) -> None | Signal:
         """
         Get the driver of the signal.
 
@@ -380,7 +380,7 @@ class Signal(Synthesizable):
             other = Constant(other, self.width, self.signed)
         if not isinstance(other, Signal):
             raise TypeError(f"Cannot assign {type(other)} to drive {type(self)}")
-        if self._drivers.get(self.SINGLE_DRIVER_NAME) is not None:
+        if self._drivers.get(self.DEFAULT_DRIVER) is not None:
             raise ValueError(f"Multiple driver on Signal {self.name}.")
         if self.type == SignalType.OUTPUT and self.owner_instance is not None:
             raise ValueError("Cannot drive output of a module instance.")
@@ -393,7 +393,7 @@ class Signal(Synthesizable):
         if self.type == SignalType.CONSTANT:
             raise ValueError("Constant signal cannot be driven.")
 
-        self._drivers[self.SINGLE_DRIVER_NAME] = other
+        self._drivers[self.DEFAULT_DRIVER] = other
         if self.width == 0:
             self.set_width(other.width)
         elif other.width == 0:
@@ -750,15 +750,14 @@ class Operation(Signal):
 
     def __init__(self, width: int, op_type: OPType, signed: bool = False, **kwargs):
         super().__init__(width=width, signed=signed, **kwargs)
-        self._op_config = OperationConfig(
-            op_type=op_type,
-        )
+        self.signal_config.op_type = op_type
+        self._op_config = OperationConfig()
 
     def elaborate(self) -> str:
         """Declare the signal and elaborate the operation in the module implementation."""
         signal_decl = self.signal_decl()
         op_impl = ""
-        if self._op_config.op_type in self._OP_IMPL_TEMPLATE:
+        if self.signal_config.op_type in self._OP_IMPL_TEMPLATE:
             impl_params = {
                 "output": self.name,
                 "a": self._drivers["a"].name,
@@ -776,7 +775,7 @@ class Operation(Signal):
             if self._op_config.shifting is not None:
                 impl_params["b"] = self._op_config.shifting
 
-            op_impl = self._OP_IMPL_TEMPLATE[self._op_config.op_type].substitute(**impl_params)
+            op_impl = self._OP_IMPL_TEMPLATE[self.signal_config.op_type].substitute(**impl_params)
             op_impl = self._OP_BLOCK_TEMPLATE.substitute(op_impl=op_impl)
 
         return "\n".join((signal_decl, op_impl))
@@ -879,7 +878,7 @@ class When(Operation):
             raise ValueError("Condition has to be a single bit signal.")
 
         self._drivers["condition"] = condition
-        self._drivers[self.SINGLE_DRIVER_NAME] = if_true
+        self._drivers[self.DEFAULT_DRIVER] = if_true
         self._drivers["d_false"] = if_false
 
     def elaborate(self) -> str:
@@ -887,7 +886,7 @@ class When(Operation):
         if_else = self._IF_ELSE_TEMPLATE.substitute(
             output=self.name,
             condition=self._drivers["condition"].name,
-            if_true=self._drivers[self.SINGLE_DRIVER_NAME].name,
+            if_true=self._drivers[self.DEFAULT_DRIVER].name,
             if_false=self._drivers["d_false"].name,
         )
         return "\n".join((signal_decl, if_else))
@@ -959,7 +958,7 @@ class Case(Operation):
         )
 
         # Assign the Drivers
-        self._drivers[self.SINGLE_DRIVER_NAME] = selector
+        self._drivers[self.DEFAULT_DRIVER] = selector
         for sel_value, driver in self._cases.items():
             driver_name = self._driver_name(sel_value)
             if isinstance(driver, Signal):
@@ -987,7 +986,7 @@ class Case(Operation):
                 self._CASE_ITEM_TEMPLATE.substitute(
                     selector_value=Constant.sv_constant(
                         selector_value,
-                        self._drivers[self.SINGLE_DRIVER_NAME].width, False
+                        self._drivers[self.DEFAULT_DRIVER].width, False
                     ),
                     output=self.name,
                     driver=driver,
@@ -1004,7 +1003,7 @@ class Case(Operation):
             )
 
         case_impl = self._CASE_TEMPLATE.substitute(
-            selector=self._drivers[self.SINGLE_DRIVER_NAME].name,
+            selector=self._drivers[self.DEFAULT_DRIVER].name,
             cases="\n".join(case_table),
             unique="unique" if self._case_config.unique else "",
         )
@@ -1090,7 +1089,7 @@ class Register(Operation):
             raise ValueError("Register requires a clock signal.")
 
         self._drivers["clk"] = clk
-        self._drivers[Signal.SINGLE_DRIVER_NAME] = None
+        self._drivers[Signal.DEFAULT_DRIVER] = None
 
         if self._reg_config.enable:
             self._drivers["enable"] = enable
