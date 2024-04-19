@@ -4,9 +4,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from string import Template
 
-from data_struct import OPType
-
 from .constant import Constant
+from .data_struct import OPType
 from .signal import Signal
 
 
