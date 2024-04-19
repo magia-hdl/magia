@@ -6,12 +6,12 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from functools import cached_property
 from itertools import count
-from math import ceil
 from pathlib import Path
 from string import Template
 from typing import TYPE_CHECKING
 
 from .data_struct import OPType, RegType, SignalDict, SignalType
+from .factory import constant, constant_like, sv_constant
 
 if TYPE_CHECKING:
     from .bundle import Bundle, BundleSpec, BundleType
@@ -296,7 +296,7 @@ class Signal(Synthesizable):
         padding_size = (width - self.width)
         if self.signed:
             return self[(-1,) * padding_size, :]
-        return Constant(0, padding_size) @ self
+        return constant(0, padding_size, False) @ self
 
     @classmethod
     @contextmanager
@@ -377,7 +377,7 @@ class Signal(Synthesizable):
         :returns: Original Signal
         """
         if isinstance(other, (int, bytes)):
-            other = Constant(other, self.width, self.signed)
+            other = constant_like(other, self)
         if not isinstance(other, Signal):
             raise TypeError(f"Cannot assign {type(other)} to drive {type(self)}")
         if self._drivers.get(self.DEFAULT_DRIVER) is not None:
@@ -415,13 +415,13 @@ class Signal(Synthesizable):
     def __neg__(self) -> Signal:
         return Operation.create(
             OPType.MINUS,
-            Constant(0, self.width, self.signed),
+            constant_like(0, self),
             self
         )
 
     def __mul__(self, other) -> Signal:
         if isinstance(other, int):
-            other = Constant(other, self.width, self.signed)
+            other = constant_like(other, self)
         return Operation.create(OPType.MUL, self, other)
 
     def __imul__(self, other) -> Signal:
@@ -429,37 +429,37 @@ class Signal(Synthesizable):
 
     def __eq__(self, other) -> Signal:
         if isinstance(other, int):
-            other = Constant(other, self.width, self.signed)
+            other = constant_like(other, self)
         return Operation.create(OPType.EQ, self, other)
 
     def __ne__(self, other) -> Signal:
         if isinstance(other, int):
-            other = Constant(other, self.width, self.signed)
+            other = constant_like(other, self)
         return Operation.create(OPType.NEQ, self, other)
 
     def __ge__(self, other) -> Signal:
         if isinstance(other, int):
-            other = Constant(other, self.width, self.signed)
+            other = constant_like(other, self)
         return Operation.create(OPType.GE, self, other)
 
     def __gt__(self, other) -> Signal:
         if isinstance(other, int):
-            other = Constant(other, self.width, self.signed)
+            other = constant_like(other, self)
         return Operation.create(OPType.GT, self, other)
 
     def __le__(self, other) -> Signal:
         if isinstance(other, int):
-            other = Constant(other, self.width, self.signed)
+            other = constant_like(other, self)
         return Operation.create(OPType.LE, self, other)
 
     def __lt__(self, other) -> Signal:
         if isinstance(other, int):
-            other = Constant(other, self.width, self.signed)
+            other = constant_like(other, self)
         return Operation.create(OPType.LT, self, other)
 
     def __and__(self, other) -> Signal:
         if isinstance(other, int):
-            other = Constant(other, self.width, self.signed)
+            other = constant_like(other, self)
         return Operation.create(OPType.AND, self, other)
 
     def __iand__(self, other) -> Signal:
@@ -467,7 +467,7 @@ class Signal(Synthesizable):
 
     def __or__(self, other) -> Signal:
         if isinstance(other, int):
-            other = Constant(other, self.width, self.signed)
+            other = constant_like(other, self)
         return Operation.create(OPType.OR, self, other)
 
     def __ior__(self, other) -> Signal:
@@ -475,7 +475,7 @@ class Signal(Synthesizable):
 
     def __xor__(self, other) -> Signal:
         if isinstance(other, int):
-            other = Constant(other, self.width, self.signed)
+            other = constant_like(other, self)
         return Operation.create(OPType.XOR, self, other)
 
     def __ixor__(self, other) -> Signal:
@@ -605,56 +605,6 @@ class Signal(Synthesizable):
     def parity(self) -> Signal:
         """Create an `parity` statement."""
         return Operation.create(OPType.PARITY, self, None)
-
-
-class Constant(Signal):
-    """Representing a constant signal. The value stored in bytes representing the constance driver."""
-
-    new_const_counter = count(0)
-
-    def __init__(
-            self,
-            value, width: int, signed: bool = False,
-            name: str | None = None,
-            **kwargs
-    ):
-        if name is None:
-            name = f"const_{next(self.new_const_counter)}"
-
-        super().__init__(width=width, signed=signed, name=name, **kwargs)
-        self.signal_config.signal_type = SignalType.CONSTANT
-        self.value: bytes = value
-
-    def elaborate(self) -> str:
-        signal_decl = self.signal_decl()
-        assignment = self._SIGNAL_ASSIGN_TEMPLATE.substitute(
-            name=self.name,
-            driver=self.sv_constant(self.value, self.width, self.signed),
-        )
-        return "\n".join((signal_decl, assignment))
-
-    @staticmethod
-    def sv_constant(value: int | bytes | None, width: int, signed: bool = False) -> str:
-        """
-        Convert a Python integer or bytes object to a SystemVerilog constant expression.
-
-        If value is None, return "X", the SystemVerilog constant for an unknown value.
-        :param value: The value to convert.
-        :param width: The width of the constant.
-        :param signed: If the constant is signed.
-        :returns: The SystemVerilog constant expression.
-        """
-        byte_cnt = ceil(width / 8)
-        if value is not None:
-            if isinstance(value, int):
-                value = value.to_bytes(byte_cnt, byteorder="big", signed=signed)
-            byte_mask = (2 ** width - 1).to_bytes(byte_cnt, byteorder="big")
-            value = bytes([x & y for x, y in zip(value, byte_mask)])
-            value = value.hex()[-(ceil(width / 4)):].upper()
-        else:
-            value = "X"
-        sign = "s" if signed else ""
-        return f"{width}'{sign}h{value}"
 
 
 class Operation(Signal):
@@ -795,7 +745,7 @@ class Operation(Signal):
                 raise TypeError("Shifting Operator only support constant shifting with integer.")
         else:
             if isinstance(y, (int, bytes)):
-                y = Constant(y, x.width, x.signed)
+                y = constant_like(y, x)
             if not isinstance(y, Signal) and y is not None:
                 raise TypeError(f"Cannot perform operation on {type(y)}")
 
@@ -868,7 +818,7 @@ class When(Operation):
         if if_false is None:
             if_false = 0
         if isinstance(if_false, (int, bytes)):
-            if_false = Constant(if_false, if_true.width, if_true.signed)
+            if_false = constant_like(if_false, if_true)
 
         if condition.width != 1:
             raise ValueError("Condition has to be a single bit signal.")
@@ -970,17 +920,17 @@ class Case(Operation):
         def driver_value(sig_or_const: Signal | int | None) -> str:
             if isinstance(sig_or_const, Signal):
                 return sig_or_const.name
-            return Constant.sv_constant(sig_or_const, self.width, self.signed)
+            return sv_constant(sig_or_const, self.width, self.signed)
 
         signal_decl = self.signal_decl()
         case_table = []
 
         for selector_value, driver in self._cases.items():
-            driver = driver.name if isinstance(driver, Signal) else Constant.sv_constant(driver, self.width,
-                                                                                         self.signed)
+            driver = driver.name if isinstance(driver, Signal) else sv_constant(driver, self.width,
+                                                                                self.signed)
             case_table.append(
                 self._CASE_ITEM_TEMPLATE.substitute(
-                    selector_value=Constant.sv_constant(
+                    selector_value=sv_constant(
                         selector_value,
                         self._drivers[self.DEFAULT_DRIVER].width, False
                     ),
@@ -1163,11 +1113,11 @@ class Register(Operation):
             if (control := self.driver(control_signals)) is not None:
                 connections[control_signals] = control.name
         if self._reg_config.reset:
-            connections["reset_value"] = Constant.sv_constant(
+            connections["reset_value"] = sv_constant(
                 self._reg_config.reset_value, self.width, self.signed
             )
         if self._reg_config.async_reset:
-            connections["async_reset_value"] = Constant.sv_constant(
+            connections["async_reset_value"] = sv_constant(
                 self._reg_config.async_reset_value, self.width, self.signed
             )
 
