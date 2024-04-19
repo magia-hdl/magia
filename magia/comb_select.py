@@ -6,7 +6,7 @@ from string import Template
 from .constant import Constant
 from .data_struct import OPType
 from .factory import constant_like
-from .signal import Signal
+from .signals import Signal
 
 IF_ELSE_TEMPLATE = Template(
     "always_comb\n"

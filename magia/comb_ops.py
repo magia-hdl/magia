@@ -6,7 +6,7 @@ from string import Template
 
 from .constant import Constant
 from .data_struct import OPType
-from .signal import Signal
+from .signals import Signal
 
 
 @dataclass

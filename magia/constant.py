@@ -9,7 +9,7 @@ from itertools import count
 from math import ceil
 
 from .data_struct import SignalType
-from .signal import Signal
+from .signals import Signal
 
 
 class Constant(Signal):

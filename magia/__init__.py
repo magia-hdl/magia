@@ -14,7 +14,7 @@ from .io_signal import Input, Output
 from .memory import Memory
 from .module import Elaborator, Instance, IOPorts, Module, VerilogWrapper
 from .register import Register
-from .signal import Signal
+from .signals import Signal
 
 if find_spec("hdlConvertor") is not None:
     from .external import ExternalModule

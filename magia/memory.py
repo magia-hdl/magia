@@ -7,7 +7,7 @@ from itertools import count
 
 from .data_struct import SignalDict, SignalType
 from .io_signal import Input, Output
-from .signal import Signal, Synthesizable
+from .signals import Signal, Synthesizable
 
 
 @dataclass

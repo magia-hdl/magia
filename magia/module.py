@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 from .data_struct import SignalDict, SignalType
 from .io_signal import Input, Output
 from .memory import Memory, MemorySignal
-from .signal import Signal, Synthesizable
+from .signals import Signal, Synthesizable
 
 if TYPE_CHECKING:
     from .bundle import Bundle

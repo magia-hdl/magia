@@ -6,7 +6,7 @@ from copy import deepcopy
 from .data_struct import SignalDict, SignalType
 from .io_signal import Input, Output
 from .module import Instance, IOPorts
-from .signal import Signal, SignalConfig
+from .signals import Signal, SignalConfig
 
 
 class BundleType(enum.Enum):

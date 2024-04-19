@@ -12,7 +12,7 @@ from enum import Enum, IntEnum, auto
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .signal import Signal
+    from .signals import Signal
 
 
 class SignalDict(UserDict):
