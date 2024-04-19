@@ -184,7 +184,7 @@ class Signal(Synthesizable):
             name = f"net_{next(self._new_signal_counter)}"
 
         super().__init__(**kwargs)
-        self._config = SignalConfig(
+        self.signal_config = SignalConfig(
             name=name,
             width=width,
             signed=signed,
@@ -197,26 +197,26 @@ class Signal(Synthesizable):
         self._drivers = SignalDict()
 
     @property
-    def signal_config(self) -> SignalConfig:
-        return self._config
-
-    @property
     def name(self) -> str:
         """Full name of a signal, used for elaboration."""
-        return self._config.name
+        return self.signal_config.name
 
     @property
     def description(self) -> str:
         """Description of the signal."""
-        return self._config.description
+        return self.signal_config.description
 
     @property
     def type(self) -> SignalType:
-        return self._config.signal_type
+        return self.signal_config.signal_type
+
+    @property
+    def width(self):
+        return self.signal_config.width
 
     @property
     def signed(self) -> bool:
-        return self._config.signed
+        return self.signal_config.signed
 
     def driver(self, driver_name: str = DEFAULT_DRIVER) -> None | Signal:
         """
@@ -243,18 +243,18 @@ class Signal(Synthesizable):
 
         It is applicable to input / output signals only.
         """
-        return self._config.owner_instance
+        return self.signal_config.owner_instance
 
     def set_width(self, width: int):
-        self._config.width = width
+        self.signal_config.width = width
         return self
 
     def set_signed(self, signed: bool):
-        self._config.signed = signed
+        self.signal_config.signed = signed
         return self
 
     def set_name(self, name: str):
-        self._config.name = name
+        self.signal_config.name = name
         return self
 
     def with_signed(self, signed: bool) -> Signal:
@@ -395,9 +395,9 @@ class Signal(Synthesizable):
 
         self._drivers[self.DEFAULT_DRIVER] = other
         if self.width == 0:
-            self.set_width(other.width)
+            self.signal_config.width = other.width
         elif other.width == 0:
-            other.set_width(self.width)
+            other.signal_config.width = self.width
         return self
 
     def __add__(self, other) -> Signal:
@@ -543,10 +543,6 @@ class Signal(Synthesizable):
     def __imatmul__(self, other) -> Signal:
         return self.__matmul__(other)
 
-    @property
-    def width(self):
-        return self._config.width
-
     def reg(
             self,
             clk: Signal | None = None,
@@ -626,7 +622,7 @@ class Constant(Signal):
             name = f"const_{next(self.new_const_counter)}"
 
         super().__init__(width=width, signed=signed, name=name, **kwargs)
-        self._config.signal_type = SignalType.CONSTANT
+        self.signal_config.signal_type = SignalType.CONSTANT
         self.value: bytes = value
 
     def elaborate(self) -> str:

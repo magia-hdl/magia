@@ -30,8 +30,8 @@ class Input(Signal):
             raise ValueError("Input width is not set")
 
         super().__init__(name=name, width=width, signed=signed, **kwargs)
-        self._config.signal_type = SignalType.INPUT
-        self._config.owner_instance = owner_instance
+        self.signal_config.signal_type = SignalType.INPUT
+        self.signal_config.owner_instance = owner_instance
 
     def elaborate(self) -> str:
         """
@@ -63,8 +63,8 @@ class Output(Signal):
         if width == 0:
             raise ValueError("Output width is not set")
         super().__init__(name=name, width=width, signed=signed, **kwargs)
-        self._config.signal_type = SignalType.OUTPUT
-        self._config.owner_instance = owner_instance
+        self.signal_config.signal_type = SignalType.OUTPUT
+        self.signal_config.owner_instance = owner_instance
 
     def elaborate(self) -> str:
         """

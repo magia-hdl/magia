@@ -27,7 +27,7 @@ class MemorySignal(Signal):
 
     def __init__(self, memory: Memory, name: str, width: int, drive_by_mem: bool = False, **kwargs):
         super().__init__(name=name, width=width, **kwargs)
-        self._config.signal_type = SignalType.MEMORY
+        self.signal_config.signal_type = SignalType.MEMORY
         self._memory = memory
         self._drive_by_mem = drive_by_mem
 
