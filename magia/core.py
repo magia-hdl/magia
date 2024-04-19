@@ -11,7 +11,7 @@ from string import Template
 from typing import TYPE_CHECKING
 
 from .data_struct import OPType, RegType, SignalDict, SignalType
-from .factory import constant, constant_like, sv_constant
+from .factory import constant, constant_like, create_comb_op, sv_constant
 
 if TYPE_CHECKING:
     from .bundle import Bundle, BundleSpec, BundleType
@@ -38,12 +38,6 @@ class SignalConfig:
     bundle_spec: BundleSpec | None = None
     bundle_alias: str | None = None
     bundle_type: BundleType | None = None
-
-
-@dataclass
-class OperationConfig:
-    slicing: slice | None = None
-    shifting: int | None = None
 
 
 @dataclass
@@ -401,19 +395,19 @@ class Signal(Synthesizable):
         return self
 
     def __add__(self, other) -> Signal:
-        return Operation.create(OPType.ADD, self, other)
+        return create_comb_op(OPType.ADD, self, other)
 
     def __iadd__(self, other) -> Signal:
         return self.__add__(other)
 
     def __sub__(self, other) -> Signal:
-        return Operation.create(OPType.MINUS, self, other)
+        return create_comb_op(OPType.MINUS, self, other)
 
     def __isub__(self, other) -> Signal:
         return self.__sub__(other)
 
     def __neg__(self) -> Signal:
-        return Operation.create(
+        return create_comb_op(
             OPType.MINUS,
             constant_like(0, self),
             self
@@ -422,7 +416,7 @@ class Signal(Synthesizable):
     def __mul__(self, other) -> Signal:
         if isinstance(other, int):
             other = constant_like(other, self)
-        return Operation.create(OPType.MUL, self, other)
+        return create_comb_op(OPType.MUL, self, other)
 
     def __imul__(self, other) -> Signal:
         return self.__mul__(other)
@@ -430,37 +424,37 @@ class Signal(Synthesizable):
     def __eq__(self, other) -> Signal:
         if isinstance(other, int):
             other = constant_like(other, self)
-        return Operation.create(OPType.EQ, self, other)
+        return create_comb_op(OPType.EQ, self, other)
 
     def __ne__(self, other) -> Signal:
         if isinstance(other, int):
             other = constant_like(other, self)
-        return Operation.create(OPType.NEQ, self, other)
+        return create_comb_op(OPType.NEQ, self, other)
 
     def __ge__(self, other) -> Signal:
         if isinstance(other, int):
             other = constant_like(other, self)
-        return Operation.create(OPType.GE, self, other)
+        return create_comb_op(OPType.GE, self, other)
 
     def __gt__(self, other) -> Signal:
         if isinstance(other, int):
             other = constant_like(other, self)
-        return Operation.create(OPType.GT, self, other)
+        return create_comb_op(OPType.GT, self, other)
 
     def __le__(self, other) -> Signal:
         if isinstance(other, int):
             other = constant_like(other, self)
-        return Operation.create(OPType.LE, self, other)
+        return create_comb_op(OPType.LE, self, other)
 
     def __lt__(self, other) -> Signal:
         if isinstance(other, int):
             other = constant_like(other, self)
-        return Operation.create(OPType.LT, self, other)
+        return create_comb_op(OPType.LT, self, other)
 
     def __and__(self, other) -> Signal:
         if isinstance(other, int):
             other = constant_like(other, self)
-        return Operation.create(OPType.AND, self, other)
+        return create_comb_op(OPType.AND, self, other)
 
     def __iand__(self, other) -> Signal:
         return self.__and__(other)
@@ -468,7 +462,7 @@ class Signal(Synthesizable):
     def __or__(self, other) -> Signal:
         if isinstance(other, int):
             other = constant_like(other, self)
-        return Operation.create(OPType.OR, self, other)
+        return create_comb_op(OPType.OR, self, other)
 
     def __ior__(self, other) -> Signal:
         return self.__or__(other)
@@ -476,30 +470,26 @@ class Signal(Synthesizable):
     def __xor__(self, other) -> Signal:
         if isinstance(other, int):
             other = constant_like(other, self)
-        return Operation.create(OPType.XOR, self, other)
+        return create_comb_op(OPType.XOR, self, other)
 
     def __ixor__(self, other) -> Signal:
         return self.__xor__(other)
 
     def __invert__(self) -> Signal:
-        return Operation.create(OPType.NOT, self, None)
+        return create_comb_op(OPType.NOT, self, None)
 
     def __cmp__(self, other) -> Signal:
         raise NotImplementedError("Comparison Operator is not implemented.")
 
     def __lshift__(self, other) -> Signal:
         if isinstance(other, int):
-            op = Operation.create(OPType.LSHIFT, self, other)
-            op._op_config.shifting = other
-            return op
-        raise NotImplementedError("Only Constant Shift is not implemented.")
+            return create_comb_op(OPType.LSHIFT, self, other)
+        raise NotImplementedError("Only Constant Shift is implemented.")
 
     def __rshift__(self, other) -> Signal:
         if isinstance(other, int):
-            op = Operation.create(OPType.RSHIFT, self, other)
-            op._op_config.shifting = other
-            return op
-        raise NotImplementedError("Only Constant Shift is not implemented.")
+            return create_comb_op(OPType.RSHIFT, self, other)
+        raise NotImplementedError("Only Constant Shift is implemented.")
 
     def __irshift__(self, other) -> Signal:
         raise NotImplementedError("`>>=` Operator is not defined.")
@@ -528,7 +518,7 @@ class Signal(Synthesizable):
         if item.step is not None:
             raise ValueError("Slice step is not implement.")
 
-        return Operation.create(OPType.SLICE, self, item)
+        return create_comb_op(OPType.SLICE, self, item)
 
     def __matmul__(self, other) -> Signal:
         """
@@ -537,7 +527,7 @@ class Signal(Synthesizable):
         This is a special operation for the `@`.
         """
         if isinstance(other, Signal):
-            return Operation.create(OPType.CONCAT, self, other)
+            return create_comb_op(OPType.CONCAT, self, other)
         raise TypeError(f"Cannot perform operation on {type(other)}")
 
     def __imatmul__(self, other) -> Signal:
@@ -596,214 +586,18 @@ class Signal(Synthesizable):
 
     def any(self) -> Signal:
         """Create an `any` statement."""
-        return Operation.create(OPType.ANY, self, None)
+        return create_comb_op(OPType.ANY, self, None)
 
     def all(self) -> Signal:
         """Create an `all` statement."""
-        return Operation.create(OPType.ALL, self, None)
+        return create_comb_op(OPType.ALL, self, None)
 
     def parity(self) -> Signal:
         """Create an `parity` statement."""
-        return Operation.create(OPType.PARITY, self, None)
+        return create_comb_op(OPType.PARITY, self, None)
 
 
-class Operation(Signal):
-    """Representing an operation, most likely a combination logic."""
-
-    _OP_IMPL_TEMPLATE = {
-        OPType.NOT: Template("$output = ~$a;"),
-        OPType.OR: Template("$output = $a | $b;"),
-        OPType.AND: Template("$output = $a & $b;"),
-        OPType.XOR: Template("$output = $a ^ $b;"),
-        OPType.ADD: Template("$output = $a + $b;"),
-        OPType.MINUS: Template("$output = $a - $b;"),
-        OPType.MUL: Template("$output = $a * $b;"),
-        OPType.EQ: Template("$output = $a == $b;"),
-        OPType.NEQ: Template("$output = $a != $b;"),
-        OPType.LT: Template("$output = $a < $b;"),
-        OPType.LE: Template("$output = $a <= $b;"),
-        OPType.GT: Template("$output = $a > $b;"),
-        OPType.GE: Template("$output = $a >= $b;"),
-
-        OPType.LSHIFT: Template("$output = $a << $b;"),
-        OPType.RSHIFT: Template("$output = $a >> $b;"),
-        OPType.ALSHIFT: Template("$output = $a <<< $b;"),
-        OPType.ARSHIFT: Template("$output = $a >>> $b;"),
-
-        OPType.ANY: Template("$output = $a != 0;"),
-        OPType.ALL: Template("$output = $a == '1;"),
-        OPType.PARITY: Template("$output = ^$a;"),
-
-        OPType.CONCAT: Template("$output = {$a, $b};"),
-
-        OPType.SLICE: Template("$output = $a[$slice_start:$slice_stop];"),
-
-    }
-    _OP_WIDTH_INFERENCE = {
-        OPType.NOT: lambda x, y: x.width,
-        OPType.OR: lambda x, y: max(x.width, y.width),
-        OPType.AND: lambda x, y: max(x.width, y.width),
-        OPType.XOR: lambda x, y: max(x.width, y.width),
-        OPType.ADD: lambda x, y: max(x.width, y.width),
-        OPType.MINUS: lambda x, y: max(x.width, y.width),
-        OPType.MUL: lambda x, y: x.width + y.width,
-        OPType.EQ: lambda x, y: 1,
-        OPType.NEQ: lambda x, y: 1,
-        OPType.LT: lambda x, y: 1,
-        OPType.LE: lambda x, y: 1,
-        OPType.GT: lambda x, y: 1,
-        OPType.GE: lambda x, y: 1,
-
-        OPType.LSHIFT: lambda x, s: x.width,
-        OPType.RSHIFT: lambda x, s: x.width,
-
-        OPType.ANY: lambda x, y: 1,
-        OPType.ALL: lambda x, y: 1,
-        OPType.PARITY: lambda x, y: 1,
-
-        OPType.CONCAT: lambda x, y: x.width + y.width,
-
-        OPType.SLICE: lambda x, s: abs(s.stop - s.start) + 1,
-
-    }
-    _OP_SIGN_INFERENCE = {
-        OPType.NOT: lambda x, y: x.signed,
-        OPType.OR: lambda x, y: x.signed or y.signed,
-        OPType.AND: lambda x, y: x.signed or y.signed,
-        OPType.XOR: lambda x, y: x.signed or y.signed,
-        OPType.ADD: lambda x, y: x.signed or y.signed,
-        OPType.MINUS: lambda x, y: x.signed or y.signed,
-        OPType.MUL: lambda x, y: x.signed or y.signed,
-        OPType.EQ: lambda x, y: False,
-        OPType.NEQ: lambda x, y: False,
-        OPType.LT: lambda x, y: False,
-        OPType.LE: lambda x, y: False,
-        OPType.GT: lambda x, y: False,
-        OPType.GE: lambda x, y: False,
-
-        OPType.LSHIFT: lambda x, s: x.signed,
-        OPType.RSHIFT: lambda x, s: x.signed,
-
-        OPType.ANY: lambda x, y: False,
-        OPType.ALL: lambda x, y: False,
-        OPType.PARITY: lambda x, y: False,
-
-        OPType.CONCAT: lambda x, y: x.signed,
-        OPType.SLICE: lambda x, s: x.signed,
-
-    }
-    _OP_BLOCK_TEMPLATE = Template("always_comb\n  $op_impl")
-
-    def __init__(self, width: int, op_type: OPType, signed: bool = False, **kwargs):
-        super().__init__(width=width, signed=signed, **kwargs)
-        self.signal_config.op_type = op_type
-        self._op_config = OperationConfig()
-
-    def elaborate(self) -> str:
-        """Declare the signal and elaborate the operation in the module implementation."""
-        signal_decl = self.signal_decl()
-        op_impl = ""
-        if self.signal_config.op_type in self._OP_IMPL_TEMPLATE:
-            impl_params = {
-                "output": self.name,
-                "a": self._drivers["a"].name,
-            }
-
-            if self._drivers.get("b") is not None:
-                impl_params["b"] = self._drivers["b"].name
-
-            # Slicing Operator
-            if self._op_config.slicing is not None:
-                impl_params["slice_start"] = self._op_config.slicing.start
-                impl_params["slice_stop"] = self._op_config.slicing.stop
-
-            # Shifting Operator
-            if self._op_config.shifting is not None:
-                impl_params["b"] = self._op_config.shifting
-
-            op_impl = self._OP_IMPL_TEMPLATE[self.signal_config.op_type].substitute(**impl_params)
-            op_impl = self._OP_BLOCK_TEMPLATE.substitute(op_impl=op_impl)
-
-        return "\n".join((signal_decl, op_impl))
-
-    @staticmethod
-    def create(op_type: OPType, x: Signal, y: Signal | slice | int | bytes | None) -> Operation:
-        """Create common operation with single / two arguments."""
-        if not isinstance(x, Signal):
-            raise TypeError(f"Cannot perform operation on {type(x)}")
-
-        if op_type not in Operation._OP_IMPL_TEMPLATE:
-            raise ValueError(f"Operation {op_type} is not supported.")
-        if op_type not in (OPType.NOT, OPType.ANY, OPType.ALL, OPType.PARITY) and y is None:
-            raise ValueError(f"Operation {op_type} requires two operand.")
-
-        if op_type == OPType.SLICE:
-            if not isinstance(y, slice):
-                raise TypeError("Slicing Operator requires a slice as 2nd operand.")
-        elif op_type == OPType.LSHIFT or op_type == OPType.RSHIFT:
-            if not isinstance(y, int):
-                raise TypeError("Shifting Operator only support constant shifting with integer.")
-        else:
-            if isinstance(y, (int, bytes)):
-                y = constant_like(y, x)
-            if not isinstance(y, Signal) and y is not None:
-                raise TypeError(f"Cannot perform operation on {type(y)}")
-
-        # Check the Sign of the Operands
-        if op_type in (
-                OPType.ADD, OPType.MINUS, OPType.MUL, OPType.GT, OPType.GE, OPType.LT, OPType.LE
-        ) and isinstance(y, Signal) and x.signed != y.signed:
-            raise ValueError("Operands must have the same signedness.")
-
-        if op_type == OPType.SLICE:
-            y = Operation._legalize_slice(x, y)
-
-        if op_type in (OPType.LSHIFT, OPType.RSHIFT, OPType.ALSHIFT, OPType.ARSHIFT):
-            if x.signed:
-                op_type = {
-                    OPType.LSHIFT: OPType.ALSHIFT,
-                    OPType.RSHIFT: OPType.ARSHIFT,
-                }.get(op_type, op_type)
-            else:
-                op_type = {
-                    OPType.ALSHIFT: OPType.LSHIFT,
-                    OPType.ARSHIFT: OPType.RSHIFT,
-                }.get(op_type, op_type)
-
-        new_op = Operation(
-            width=Operation._OP_WIDTH_INFERENCE[op_type](x, y),
-            signed=Operation._OP_SIGN_INFERENCE[op_type](x, y),
-            op_type=op_type,
-        )
-        new_op._drivers["a"] = x
-        if isinstance(y, Signal):
-            new_op._drivers["b"] = y
-
-        if op_type == OPType.SLICE:
-            new_op._op_config.slicing = y
-        if op_type in (OPType.LSHIFT, OPType.RSHIFT, OPType.ALSHIFT, OPType.ARSHIFT):
-            new_op._op_config.shifting = y
-        return new_op
-
-    @staticmethod
-    def _legalize_slice(driver: Signal, slice_: slice):
-        if slice_.step is not None:
-            raise ValueError("Slice step is not implement.")
-
-        if slice_.start is None:
-            slice_ = slice(driver.width - 1, slice_.stop, None)
-        if slice_.stop is None:
-            slice_ = slice(slice_.start, 0, None)
-
-        if slice_.start < 0:
-            slice_ = slice(slice_.start + driver.width, slice_.stop, None)
-        if slice_.stop < 0:
-            slice_ = slice(slice_.start, slice_.stop + driver.width, None)
-
-        return slice_
-
-
-class When(Operation):
+class When(Signal):
     """Representing an if-else statement."""
 
     _IF_ELSE_TEMPLATE = Template(
@@ -813,7 +607,8 @@ class When(Operation):
     )
 
     def __init__(self, condition: Signal, if_true: Signal, if_false: None | Signal | int | bytes, **kwargs):
-        super().__init__(op_type=OPType.WHEN, width=if_true.width, signed=if_true.signed, **kwargs)
+        super().__init__(width=if_true.width, signed=if_true.signed, **kwargs)
+        self.signal_config.op_type = OPType.WHEN
 
         if if_false is None:
             if_false = 0
@@ -838,7 +633,7 @@ class When(Operation):
         return "\n".join((signal_decl, if_else))
 
 
-class Case(Operation):
+class Case(Signal):
     """
     Representing a case statement.
 
@@ -894,7 +689,8 @@ class Case(Operation):
             output_width = max(max(v.bit_length() for v in output_signals), 1)
             output_signed = any(v < 0 for v in output_signals)
 
-        super().__init__(op_type=OPType.CASE, width=output_width, signed=output_signed, **kwargs)
+        super().__init__(width=output_width, signed=output_signed, **kwargs)
+        self.signal_config.op_type = OPType.CASE
 
         # Make a shallow copy of the cases
         self._cases = dict(cases.items())
@@ -956,7 +752,7 @@ class Case(Operation):
         return "\n".join((signal_decl, case_impl))
 
 
-class Register(Operation):
+class Register(Signal):
     """Representing a register, most likely DFF."""
 
     _REG_TEMPLATE = {
@@ -1017,7 +813,8 @@ class Register(Operation):
         if name is None:
             name = f"reg_{next(self._new_reg_counter)}"
 
-        super().__init__(op_type=OPType.REG, width=width, name=name, **kwargs)
+        super().__init__(width=width, name=name, **kwargs)
+        self.signal_config.op_type = OPType.REG
 
         self._reg_config = RegisterConfig(
             enable=enable is not None,

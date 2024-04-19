@@ -7,6 +7,7 @@ Sub-packages (e.g. magia.std, etc.) shall be imported in their respective __init
 
 from importlib.util import find_spec
 
+from . import factory
 from .bundle import Bundle, BundleSpec, BundleType
 from .constant import Constant
 from .core import Register, Signal
@@ -77,3 +78,5 @@ Signal Bundles
 __all__ += [
     "Bundle", "BundleSpec", "BundleType",
 ]
+
+factory.deferred_imports()
