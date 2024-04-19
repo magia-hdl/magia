@@ -9,8 +9,8 @@ from .factory import constant_like
 from .signal import Signal
 
 IF_ELSE_TEMPLATE = Template(
-    "always_comb\n" \
-    "  if ($condition) $output = $if_true;\n" \
+    "always_comb\n"
+    "  if ($condition) $output = $if_true;\n"
     "  else $output = $if_false;"
 )
 
