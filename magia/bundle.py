@@ -3,10 +3,10 @@ from __future__ import annotations
 import enum
 from copy import deepcopy
 
-from .core import Signal, SignalConfig
 from .data_struct import SignalDict, SignalType
 from .io_signal import Input, Output
 from .module import Instance, IOPorts
+from .signal import Signal, SignalConfig
 
 
 class BundleType(enum.Enum):

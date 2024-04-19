@@ -2,7 +2,7 @@
 Factory methods redirecting to other modules.
 
 Calls in this module break the cyclic import dependencies between modules in magia by deferred imports.
-Mostly called by core.py
+Mostly called by signal.py
 """
 from __future__ import annotations
 
@@ -12,9 +12,9 @@ if typing.TYPE_CHECKING:
     from .comb_ops import Operation
     from .comb_select import Case, When
     from .constant import Constant
-    from .core import Signal
     from .data_struct import OPType
     from .register import Register
+    from .signal import Signal
 
 
 def constant(value: int | bytes, width: int, signed: bool) -> Constant:

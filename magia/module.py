@@ -11,10 +11,10 @@ from pathlib import Path
 from string import Template
 from typing import TYPE_CHECKING
 
-from .core import Signal, Synthesizable
 from .data_struct import SignalDict, SignalType
 from .io_signal import Input, Output
 from .memory import Memory, MemorySignal
+from .signal import Signal, Synthesizable
 
 if TYPE_CHECKING:
     from .bundle import Bundle

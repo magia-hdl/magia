@@ -5,9 +5,9 @@ import string
 from dataclasses import dataclass
 from itertools import count
 
-from .core import Signal, Synthesizable
 from .data_struct import SignalDict, SignalType
 from .io_signal import Input, Output
+from .signal import Signal, Synthesizable
 
 
 @dataclass

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from .core import Signal
 from .data_struct import SignalType
+from .signal import Signal
 
 if TYPE_CHECKING:
     from .module import Instance

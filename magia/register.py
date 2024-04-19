@@ -6,8 +6,8 @@ from itertools import count
 from string import Template
 
 from .constant import Constant
-from .core import Signal
 from .data_struct import OPType
+from .signal import Signal
 
 
 @dataclass

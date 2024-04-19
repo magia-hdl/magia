@@ -10,11 +10,11 @@ from importlib.util import find_spec
 from . import factory
 from .bundle import Bundle, BundleSpec, BundleType
 from .constant import Constant
-from .core import Signal
 from .io_signal import Input, Output
 from .memory import Memory
 from .module import Elaborator, Instance, IOPorts, Module, VerilogWrapper
 from .register import Register
+from .signal import Signal
 
 if find_spec("hdlConvertor") is not None:
     from .external import ExternalModule

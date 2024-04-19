@@ -8,8 +8,8 @@ from __future__ import annotations
 from itertools import count
 from math import ceil
 
-from .core import Signal
 from .data_struct import SignalType
+from .signal import Signal
 
 
 class Constant(Signal):
