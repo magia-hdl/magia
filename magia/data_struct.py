@@ -90,14 +90,3 @@ class OPType(IntEnum):
     WHEN = auto()
     CASE = auto()
     MUX = auto()
-
-
-class RegType(IntEnum):
-    DFF = auto()
-    DFF_EN = auto()
-    DFF_RST = auto()
-    DFF_EN_RST = auto()
-    DFF_ASYNC_RST = auto()
-    DFF_EN_ASYNC_RST = auto()
-    DFF_BOTH_RST = auto()
-    DFF_EN_BOTH_RST = auto()

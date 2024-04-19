@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import IntEnum, auto
 from itertools import count
 from string import Template
 
-from data_struct import OPType, RegType
-
 from .constant import Constant
 from .core import Signal
+from .data_struct import OPType
 
 
 @dataclass
@@ -15,55 +15,67 @@ class RegisterConfig:
     enable: bool
     reset: bool
     async_reset: bool
-    reset_value: bytes | int | None = None
-    async_reset_value: bytes | int | None = None
+    reset_value: None | bytes | int = None
+    async_reset_value: None | bytes | int = None
+
+
+class RegType(IntEnum):
+    DFF = auto()
+    DFF_EN = auto()
+    DFF_RST = auto()
+    DFF_EN_RST = auto()
+    DFF_ASYNC_RST = auto()
+    DFF_EN_ASYNC_RST = auto()
+    DFF_BOTH_RST = auto()
+    DFF_EN_BOTH_RST = auto()
+
+
+REG_TEMPLATE = {
+    RegType.DFF: Template("always_ff @(posedge $clk) begin\n  $output <= $driver;\nend"),
+    RegType.DFF_EN: Template("always_ff @(posedge $clk) begin\n  if ($enable) $output <= $driver;\nend"),
+    RegType.DFF_RST: Template(
+        "always_ff @(posedge $clk) begin\n"
+        "  if ($reset) $output <= $reset_value;\n"
+        "  else $output <= $driver;\n"
+        "end"
+    ),
+    RegType.DFF_EN_RST: Template(
+        "always_ff @(posedge $clk) begin\n"
+        "  if ($reset) $output <= $reset_value;\n"
+        "  else if ($enable) $output <= $driver;\n"
+        "end"
+    ),
+    RegType.DFF_ASYNC_RST: Template(
+        "always_ff @(posedge $clk, negedge $async_reset) begin\n"
+        "  if ($async_reset == 1'b0) $output <= $async_reset_value;\n"
+        "  else $output <= $driver;\n"
+        "end"
+    ),
+    RegType.DFF_EN_ASYNC_RST: Template(
+        "always_ff @(posedge $clk, negedge $async_reset) begin\n"
+        "  if ($async_reset == 1'b0) $output <= $async_reset_value;\n"
+        "  else if ($enable) $output <= $driver;\n"
+        "end"
+    ),
+    RegType.DFF_BOTH_RST: Template(
+        "always_ff @(posedge $clk, negedge $async_reset) begin\n"
+        "  if ($async_reset == 1'b0) $output <= $async_reset_value;\n"
+        "  else if ($reset) $output <= $reset_value;\n"
+        "  else $output <= $driver;\n"
+        "end"
+    ),
+    RegType.DFF_EN_BOTH_RST: Template(
+        "always_ff @(posedge $clk, negedge $async_reset) begin\n"
+        "  if ($async_reset == 1'b0) $output <= $async_reset_value;\n"
+        "  else if ($reset) $output <= $reset_value;\n"
+        "  else if ($enable) $output <= $driver;\n"
+        "end"
+    ),
+}
 
 
 class Register(Signal):
     """Representing a register, most likely DFF."""
-
-    _REG_TEMPLATE = {
-        RegType.DFF: Template("always_ff @(posedge $clk) begin\n  $output <= $driver;\nend"),
-        RegType.DFF_EN: Template("always_ff @(posedge $clk) begin\n  if ($enable) $output <= $driver;\nend"),
-        RegType.DFF_RST: Template(
-            "always_ff @(posedge $clk) begin\n"
-            "  if ($reset) $output <= $reset_value;\n"
-            "  else $output <= $driver;\n"
-            "end"
-        ),
-        RegType.DFF_EN_RST: Template(
-            "always_ff @(posedge $clk) begin\n"
-            "  if ($reset) $output <= $reset_value;\n"
-            "  else if ($enable) $output <= $driver;\n"
-            "end"
-        ),
-        RegType.DFF_ASYNC_RST: Template(
-            "always_ff @(posedge $clk, negedge $async_reset) begin\n"
-            "  if ($async_reset == 1'b0) $output <= $async_reset_value;\n"
-            "  else $output <= $driver;\n"
-            "end"
-        ),
-        RegType.DFF_EN_ASYNC_RST: Template(
-            "always_ff @(posedge $clk, negedge $async_reset) begin\n"
-            "  if ($async_reset == 1'b0) $output <= $async_reset_value;\n"
-            "  else if ($enable) $output <= $driver;\n"
-            "end"
-        ),
-        RegType.DFF_BOTH_RST: Template(
-            "always_ff @(posedge $clk, negedge $async_reset) begin\n"
-            "  if ($async_reset == 1'b0) $output <= $async_reset_value;\n"
-            "  else if ($reset) $output <= $reset_value;\n"
-            "  else $output <= $driver;\n"
-            "end"
-        ),
-        RegType.DFF_EN_BOTH_RST: Template(
-            "always_ff @(posedge $clk, negedge $async_reset) begin\n"
-            "  if ($async_reset == 1'b0) $output <= $async_reset_value;\n"
-            "  else if ($reset) $output <= $reset_value;\n"
-            "  else if ($enable) $output <= $driver;\n"
-            "end"
-        ),
-    }
 
     _new_reg_counter = count(0)
 
@@ -185,6 +197,6 @@ class Register(Signal):
                 self._reg_config.async_reset_value, self.width, self.signed
             )
 
-        reg_impl = self._REG_TEMPLATE[reg_type].substitute(**connections)
+        reg_impl = REG_TEMPLATE[reg_type].substitute(**connections)
 
         return "\n".join((reg_decl, reg_impl))
