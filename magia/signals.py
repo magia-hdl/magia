@@ -21,6 +21,10 @@ if TYPE_CHECKING:
 
 CURRENT_DIR = Path(__file__).parent
 
+SIGNAL_DECL_TEMPLATE = Template("logic $signed $width $name;")
+SIGNAL_DECL_VERILOG_TEMPLATE = Template("wire $signed $width $name;")
+SIGNAL_ASSIGN_TEMPLATE = Template("assign $name = $driver;")
+
 
 @dataclass
 class SignalConfig:
@@ -141,10 +145,6 @@ class Signal(Synthesizable):
     """
 
     DEFAULT_DRIVER: str = "d"
-    _SIGNAL_DECL_TEMPLATE = Template("logic $signed $width $name;")
-    _SIGNAL_DECL_VERILOG_TEMPLATE = Template("wire $signed $width $name;")
-    _SIGNAL_CONNECT_TEMPLATE = Template("always_comb\n  $name = $driver;")
-    _SIGNAL_ASSIGN_TEMPLATE = Template("assign $name = $driver;")
 
     _new_signal_counter = count(0)
     _signal_decl_in_verilog = False
@@ -298,7 +298,7 @@ class Signal(Synthesizable):
         if self.width == 0:
             raise ValueError("Signal width is not set and cannot be inferred")
 
-        template = self._SIGNAL_DECL_VERILOG_TEMPLATE if self._signal_decl_in_verilog else self._SIGNAL_DECL_TEMPLATE
+        template = SIGNAL_DECL_VERILOG_TEMPLATE if self._signal_decl_in_verilog else SIGNAL_DECL_TEMPLATE
         decl = template.substitute(
             signed="signed" if self.signed else "",
             width=f"[{width - 1}:0]" if (width := self.width) > 1 else "",
@@ -329,7 +329,7 @@ class Signal(Synthesizable):
 
         # Ignore assignment signal if it is driven by an output of a module instance
         if self.driver().type != SignalType.OUTPUT:
-            assignment = self._SIGNAL_ASSIGN_TEMPLATE.substitute(
+            assignment = SIGNAL_ASSIGN_TEMPLATE.substitute(
                 name=self.name,
                 driver=self.driver().name,
             )

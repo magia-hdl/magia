@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 from .data_struct import SignalDict, SignalType
 from .io_signal import Input, Output
 from .memory import Memory, MemorySignal
-from .signals import Signal, Synthesizable
+from .signals import SIGNAL_ASSIGN_TEMPLATE, Signal, Synthesizable
 
 if TYPE_CHECKING:
     from .bundle import Bundle
@@ -253,7 +253,7 @@ class Module(Synthesizable):
         mod_impl = "\n".join(mod_impl)
 
         mod_output_assignment = "\n".join(
-            Signal._SIGNAL_ASSIGN_TEMPLATE.substitute(
+            SIGNAL_ASSIGN_TEMPLATE.substitute(
                 name=output.name,
                 driver=output.driver().name,
             )

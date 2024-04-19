@@ -9,7 +9,7 @@ from itertools import count
 from math import ceil
 
 from .data_struct import SignalType
-from .signals import Signal
+from .signals import SIGNAL_ASSIGN_TEMPLATE, Signal
 
 
 class Constant(Signal):
@@ -32,7 +32,7 @@ class Constant(Signal):
 
     def elaborate(self) -> str:
         signal_decl = self.signal_decl()
-        assignment = self._SIGNAL_ASSIGN_TEMPLATE.substitute(
+        assignment = SIGNAL_ASSIGN_TEMPLATE.substitute(
             name=self.name,
             driver=self.sv_constant(self.value, self.width, self.signed),
         )
