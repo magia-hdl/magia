@@ -11,8 +11,8 @@ from .signals import Signal
 
 @dataclass
 class OperationConfig:
-    slicing: slice | None = None
-    shifting: int | None = None
+    slicing: None | slice = None
+    shifting: None | int = None
 
 
 OP_IMPL_TEMPLATE = {

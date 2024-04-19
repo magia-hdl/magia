@@ -104,7 +104,7 @@ class BundleSpec:
         self.routing_map[src] = dst
         self.routing_map[dst] = src
 
-    def _spec_gen(self, prefix: str | None = None, suffix: str | None = None) -> BundleSpec:
+    def _spec_gen(self, prefix: None | str = None, suffix: None | str = None) -> BundleSpec:
         new_spec = deepcopy(self)
         if prefix is not None:
             new_spec.prefix = prefix
@@ -115,7 +115,7 @@ class BundleSpec:
     # IO Ports factory methods
     def _create_ports(
             self,
-            prefix: str | None, suffix: str | None,
+            prefix: None | str, suffix: None | str,
             inputs: list[SignalConfig], outputs: list[SignalConfig],
             bundle_type: BundleType,
     ) -> IOPorts:
@@ -147,7 +147,7 @@ class BundleSpec:
         ]
         return new_ports
 
-    def master_ports(self, prefix: str | None = None, suffix: str | None = None) -> IOPorts:
+    def master_ports(self, prefix: None | str = None, suffix: None | str = None) -> IOPorts:
         input_configs = [
             config
             for config in self.common.values()
@@ -162,7 +162,7 @@ class BundleSpec:
         output_configs += list(self.forward.values())
         return self._create_ports(prefix, suffix, input_configs, output_configs, BundleType.MASTER)
 
-    def slave_ports(self, prefix: str | None = None, suffix: str | None = None) -> IOPorts:
+    def slave_ports(self, prefix: None | str = None, suffix: None | str = None) -> IOPorts:
         input_configs = [
             config
             for config in self.common.values()
@@ -177,13 +177,13 @@ class BundleSpec:
         output_configs += list(self.backward.values())
         return self._create_ports(prefix, suffix, input_configs, output_configs, BundleType.SLAVE)
 
-    def monitor_ports(self, prefix: str | None = None, suffix: str | None = None) -> IOPorts:
+    def monitor_ports(self, prefix: None | str = None, suffix: None | str = None) -> IOPorts:
         input_configs = list(self.common.values()) + list(self.forward.values()) + list(self.backward.values())
         output_configs = []
         return self._create_ports(prefix, suffix, input_configs, output_configs, BundleType.MONITOR)
 
     # Signal Bundle factory method
-    def bundle(self, name: str | None = None) -> Bundle:
+    def bundle(self, name: None | str = None) -> Bundle:
         new_bundle = Bundle(new_spec := self._spec_gen(), name)
         signal_configs = list(self.common.values()) + list(self.forward.values()) + list(self.backward.values())
         for config in signal_configs:
@@ -202,9 +202,9 @@ class Bundle:
     """A signal bundle, containing a set of signals."""
 
     def __init__(
-            self, spec: BundleSpec, name: str | None = None,
-            prefix: str | None = None,
-            suffix: str | None = None,
+            self, spec: BundleSpec, name: None | str = None,
+            prefix: None | str = None,
+            suffix: None | str = None,
             **kwargs
     ):
         self._spec = spec
@@ -250,7 +250,7 @@ class Bundle:
     def suffix(self) -> str:
         return self._suffix
 
-    def with_name(self, prefix: str | None = None, suffix: str | None = None) -> Bundle:
+    def with_name(self, prefix: None | str = None, suffix: None | str = None) -> Bundle:
         """
         Create a view of bundle with different signal names.
 

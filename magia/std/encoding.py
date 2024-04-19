@@ -1,7 +1,7 @@
 from magia import Constant, Signal
 
 
-def binary_to_onehot(binary_input: Signal, max_value: int | None = None) -> Signal:
+def binary_to_onehot(binary_input: Signal, max_value: None | int = None) -> Signal:
     """
     Convert a binary input to a one-hot output.
 

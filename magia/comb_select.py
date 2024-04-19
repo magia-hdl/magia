@@ -29,7 +29,7 @@ CASE_DEFAULT_VALUE_DRIVER = "default"
 @dataclass
 class CaseConfig:
     unique: bool = False
-    default: Signal | None = None
+    default: None | Signal = None
 
 
 class When(Signal):
@@ -131,7 +131,7 @@ class Case(Signal):
         return f"case_{case}"
 
     def elaborate(self) -> str:
-        def driver_value(sig_or_const: Signal | int | None) -> str:
+        def driver_value(sig_or_const: None | Signal | int) -> str:
             if isinstance(sig_or_const, Signal):
                 return sig_or_const.name
             return Constant.sv_constant(sig_or_const, self.width, self.signed)

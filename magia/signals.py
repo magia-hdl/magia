@@ -24,7 +24,7 @@ CURRENT_DIR = Path(__file__).parent
 
 @dataclass
 class SignalConfig:
-    name: str | None = None
+    name: None | str = None
     width: int = 0
     signed: bool = False
     signal_type: SignalType = SignalType.SIGNAL
@@ -33,13 +33,13 @@ class SignalConfig:
 
     # The module instance that owns this signal
     # Applicable to input / output ports only
-    owner_instance: Instance | None = None
+    owner_instance: None | Instance = None
 
     # Specification of the bundle, if the signal is part of it
-    bundle: Bundle | None = None
-    bundle_spec: BundleSpec | None = None
-    bundle_alias: str | None = None
-    bundle_type: BundleType | None = None
+    bundle: None | Bundle = None
+    bundle_spec: None | BundleSpec = None
+    bundle_alias: None | str = None
+    bundle_type: None | BundleType = None
 
 
 class Synthesizable:
@@ -104,7 +104,7 @@ class Synthesizable:
         """
         return ""
 
-    def annotate(self, comment: str | None = None) -> Synthesizable:
+    def annotate(self, comment: None | str = None) -> Synthesizable:
         """
         Annotate the object with a comment.
 
@@ -153,12 +153,12 @@ class Signal(Synthesizable):
     def __init__(
             self,
             width: int = 0, signed: bool = False,
-            name: str | None = None,
-            description: str | None = None,
-            bundle: Bundle | None = None,
-            bundle_spec: BundleSpec | None = None,
-            bundle_alias: str | None = None,
-            bundle_type: BundleType | None = None,
+            name: None | str = None,
+            description: None | str = None,
+            bundle: None | Bundle = None,
+            bundle_spec: None | BundleSpec = None,
+            bundle_alias: None | str = None,
+            bundle_type: None | BundleType = None,
             **kwargs
     ):
         if name is None:
@@ -522,13 +522,13 @@ class Signal(Synthesizable):
 
     def reg(
             self,
-            clk: Signal | None = None,
-            enable: Signal | None = None,
-            reset: Signal | None = None,
-            async_reset: Signal | None = None,
-            reset_value: bytes | int | None = None,
-            async_reset_value: bytes | int | None = None,
-            name: str | None = None,
+            clk: None | Signal = None,
+            enable: None | Signal = None,
+            reset: None | Signal = None,
+            async_reset: None | Signal = None,
+            reset_value: None | bytes | int = None,
+            async_reset_value: None | bytes | int = None,
+            name: None | str = None,
     ) -> Register:
         """Create a register from the signal."""
         new_register = register(
@@ -548,7 +548,7 @@ class Signal(Synthesizable):
     def when(
             self,
             condition: Signal,
-            else_: Signal | None = None,
+            else_: None | Signal = None,
     ) -> When:
         """
         Create a `Self if Condition else Else_` statement, similar to the ternary operator in C / Python.
@@ -561,7 +561,7 @@ class Signal(Synthesizable):
             if_false=else_,
         )
 
-    def case(self, cases: dict[int, Signal | int], default: Signal | int | None = None, ) -> Case:
+    def case(self, cases: dict[int, Signal | int], default: None | Signal | int = None, ) -> Case:
         """Create a `case` statement."""
         return create_case(
             selector=self,

@@ -46,7 +46,7 @@ class MemorySignal(Signal):
             return self.memory.drivers
         return super().drivers
 
-    def driver(self, driver_name: str = Signal.DEFAULT_DRIVER) -> Signal | None:
+    def driver(self, driver_name: str = Signal.DEFAULT_DRIVER) -> None | Signal:
         """
         Get the driver of the signal.
 
@@ -257,7 +257,7 @@ class Memory(Synthesizable):
     def __init__(
             self,
             clk: Input, address_width: int, data_width: int,
-            name: str | None = None,
+            name: None | str = None,
             r_port: int = 0,
             w_port: int = 0,
             rw_port: int = 0,

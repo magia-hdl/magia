@@ -358,8 +358,8 @@ class Module(Synthesizable):
         return traced_signal, traced_inst
 
     def instance(
-            self, name: str | None = None,
-            io: dict[str, Signal] | None = None
+            self, name: None | str = None,
+            io: None | dict[str, Signal] = None
     ) -> Instance:
         """
         Create an instance of the module.
@@ -466,8 +466,8 @@ class Instance(Synthesizable):
     _new_inst_counter = count(0)
 
     def __init__(self,
-                 module: Module, name: str | None = None,
-                 io: dict[str, Signal] | None = None,
+                 module: Module, name: None | str = None,
+                 io: None | dict[str, Signal] = None,
                  **kwargs
                  ):
         if name is None:

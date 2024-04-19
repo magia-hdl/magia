@@ -20,7 +20,7 @@ class Input(Signal):
     def __init__(
             self,
             name: str, width: int, signed: bool = False,
-            owner_instance: Instance | None = None,
+            owner_instance: None | Instance = None,
             **kwargs
     ):
         """I/O ports must have name and width well-defined by designers."""
@@ -54,7 +54,7 @@ class Output(Signal):
     def __init__(
             self,
             name: str, width: int, signed: bool = False,
-            owner_instance: Instance | None = None,
+            owner_instance: None | Instance = None,
             **kwargs
     ):
         """I/O ports must have name and width well-defined by designers."""

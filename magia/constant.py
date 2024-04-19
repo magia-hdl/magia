@@ -20,7 +20,7 @@ class Constant(Signal):
     def __init__(
             self,
             value: int | bytes, width: int, signed: bool = False,
-            name: str | None = None,
+            name: None | str = None,
             **kwargs
     ):
         if name is None:

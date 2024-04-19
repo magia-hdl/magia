@@ -16,19 +16,19 @@ class FSM:
     @dataclass
     class State:
         name: str
-        code: int | None
+        code: None | int
         signal: Constant = field(repr=False)
 
     @dataclass
     class Transition:
         next: str
-        cond: Signal | None = None
+        cond: None | Signal = None
 
     fsm_id = 0
 
     def __init__(
             self,
-            name: str | None = None,
+            name: None | str = None,
             **kwargs,
     ):
         self.states: dict[str, FSM.State] = {}
@@ -67,7 +67,7 @@ class FSM:
             self.add_state(name, code)
         return self
 
-    def add_state(self, name: str, code: int | None = None):
+    def add_state(self, name: str, code: None | int = None):
         """
         Add a state to the FSM.
 
@@ -89,7 +89,7 @@ class FSM:
 
         return self
 
-    def add_transitions(self, *transitions: tuple[str, str, Signal | None]):
+    def add_transitions(self, *transitions: tuple[str, str, None | Signal]):
         """
         Add multiple transitions to the FSM.
 
@@ -99,7 +99,7 @@ class FSM:
             self.add_transition(src, dst, cond)
         return self
 
-    def add_transition(self, src: str, dst: str, cond: Signal | None = None):
+    def add_transition(self, src: str, dst: str, cond: None | Signal = None):
         """
         Add a transition to the FSM.
 
@@ -114,7 +114,7 @@ class FSM:
         self.transitions[src].append(self.Transition(dst, cond))
         return self
 
-    def _check_transition(self, src: str, dst: str, cond: Signal | None = None):
+    def _check_transition(self, src: str, dst: str, cond: None | Signal = None):
         if self.finalized:
             raise ValueError("FSM is already finalized")
         if cond is not None and cond.width != 1:
@@ -184,8 +184,8 @@ class FSM:
     def generate(
             self,
             reset_state: str, clk: Signal,
-            reset: Signal | None = None,
-            async_reset: Signal | None = None,
+            reset: None | Signal = None,
+            async_reset: None | Signal = None,
     ) -> Signal:
         """
         Generate the FSM and return the current state signal.
@@ -207,10 +207,10 @@ class FSM:
 
     def generate_unrolled(
             self,
-            reset_state: str | None = None,
-            clk: Signal | None = None,
-            reset: Signal | None = None,
-            async_reset: Signal | None = None,
+            reset_state: None | str = None,
+            clk: None | Signal = None,
+            reset: None | Signal = None,
+            async_reset: None | Signal = None,
     ) -> tuple[Signal, Signal]:  # Input state, Next state
         """
         Generate the FSM logic and optionally register the output state in an unrolled manner.
