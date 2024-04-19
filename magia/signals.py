@@ -548,7 +548,7 @@ class Signal(Synthesizable):
     def when(
             self,
             condition: Signal,
-            else_: None | Signal = None,
+            else_: None | Signal | int | bytes = None,
     ) -> When:
         """
         Create a `Self if Condition else Else_` statement, similar to the ternary operator in C / Python.

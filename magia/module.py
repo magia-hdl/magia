@@ -18,7 +18,6 @@ from .signals import Signal, Synthesizable
 
 if TYPE_CHECKING:
     from .bundle import Bundle
-    from .module import Instance, Module
 
 logger = logging.getLogger(__name__)
 

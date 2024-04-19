@@ -152,8 +152,8 @@ class FSM:
         return self
 
     def _fsm_logic_one_state(self, transitions, prev_state) -> Signal:
-        next_state = Constant(0, self.state_width)
-        prev_cond = Constant(0, 1)
+        next_state: Signal = Constant(0, self.state_width)
+        prev_cond: Signal = Constant(0, 1)
 
         for i, trans in enumerate(transitions):
             if trans.cond:
