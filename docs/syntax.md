@@ -103,7 +103,7 @@ class MyModule(Module):
 
 | Operator                   | Description                                                                        |
 |----------------------------|------------------------------------------------------------------------------------|
-| `<<=`                      | *Connect signals. This is not a Left Shift*                                        |
+| `<<=`                      | **Connect signals. This is not a Left Shift**                                      |
 | `+`, `+=`                  | Addition                                                                           |
 | `-`, `-=`                  | Subtraction                                                                        |
 | `-signal`                  | Negation                                                                           |
@@ -121,7 +121,7 @@ class MyModule(Module):
 | `>`                        | Greater than                                                                       |
 | `>=`                       | Greater than or equal                                                              |
 | `@` , `@=`                 | Concatenation                                                                      |
-| `[y:x]`                    | Slicing (`[:]` and `[...]` represents the whole signal)                            |
+| `[Hi:Low]`                 | Slicing (`[:]` and `[...]` represents the whole signal)                            |
 |                            | Beware of endianness when slicing                                                  |
 | `signal.reg()`             | Register a signal                                                                  |
 | `signal.when(cond, else_)` | Gate the signal with a condition. Equivalent to `signal if cond else else_`        |

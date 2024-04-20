@@ -2,7 +2,7 @@
 Factory methods that generate BundleSpec for AXI-Stream interface.
 
 Details of the AXI-Stream interface can be found in the AMBA AXI and ACE Protocol Specification.
-https://developer.arm.com/documentation/ihi0051/latest/.
+https://developer.arm.com/documentation/ihi0051/latest/
 """
 
 from magia import BundleSpec, Input, Output

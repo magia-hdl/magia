@@ -3,7 +3,7 @@ Factory methods that generate BundleSpec for AXI-Lite interface.
 
 Details of the AXI-Lite interface can be found in the AMBA AXI and ACE Protocol Specification.
 https://developer.arm.com/documentation/ihi0022/latest/
-https://developer.arm.com/-/media/Arm%20Developer%20Community/PDF/IHI0022H_amba_axi_protocol_spec.pdf.
+https://developer.arm.com/-/media/Arm%20Developer%20Community/PDF/IHI0022H_amba_axi_protocol_spec.pdf
 """
 from magia import BundleSpec, Input, Output
 from magia.std.bundles import decoupled_bundle
