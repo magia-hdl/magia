@@ -336,20 +336,6 @@ class Signal(Synthesizable):
             return "\n".join((signal_decl, assignment))
         return signal_decl
 
-    def copy(self, owner_instance=None, **kwargs) -> Signal:
-        """
-        Copy the signal. Driver is discarded.
-
-        :returns: A new signal with the same configuration.
-        """
-        return Signal(
-            name=self.name,
-            width=self.width,
-            signed=self.signed,
-            owner_instance=owner_instance,
-            description=self.description,
-        )
-
     def __ilshift__(self, other):
         """
         Connect the signal with the driver.
