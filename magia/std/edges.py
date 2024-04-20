@@ -9,7 +9,7 @@ def edge_detector(
         reset: None | Signal = None, async_reset: None | Signal = None,
         edge: Literal["rising", "falling", "both"] = "rising", registered: bool = True,
 ) -> Signal:
-    """Detects the given edge of the input signal.
+    """Detect the given edge of the input signal.
 
     :param signal: The input signal.
     :param clk: The clock signal.
