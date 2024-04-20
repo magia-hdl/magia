@@ -4,9 +4,7 @@ from magia.utils.parser import SystemVerilogParser, SystemVerilogParserVisitor, 
 
 
 def test_smoke():
-    """
-    Smoke test on the SystemVerilog parser.
-    """
+    """Smoke test on the SystemVerilog parser."""
     with open(Path(__file__).parent / "test_code.sv") as f:
         sv_code = f.read()
     tree = parse_sv_code(sv_code)

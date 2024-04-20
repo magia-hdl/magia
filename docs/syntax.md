@@ -101,37 +101,37 @@ class MyModule(Module):
 
 ### Supported Operators
 
-| Operator                       | Description                                                                        |
-|--------------------------------|------------------------------------------------------------------------------------|
-| `<<=`                          | *Connect signals. This is not a Left Shift*                                        |
-| `+`, `+=`                      | Addition                                                                           |
-| `-`, `-=`                      | Subtraction                                                                        |
-| `-signal`                      | Negation                                                                           |
-| `*`, `*=`                      | Multiplication                                                                     |
-| `&`, `&=`                      | Bitwise AND                                                                        |
-| `\|` , `\|=`                   | Bitwise OR                                                                         |
-| `^`, `^=`                      | Bitwise XOR                                                                        |
-| `~`                            | Bitwise NOT                                                                        |
-| `<<`                           | Left shift (Only on Python Integer, Constant Shift)                                |
-| `>>`                           | Right shift (Only on Python Integer, Constant Shift)                               |
-| `==`                           | Equality                                                                           |
-| `!=`                           | Inequality                                                                         |
-| `<`                            | Less than                                                                          |
-| `<=`                           | Less than or equal                                                                 |
-| `>`                            | Greater than                                                                       |
-| `>=`                           | Greater than or equal                                                              |
-| `@` , `@=`                     | Concatenation                                                                      |
-| `[y:x]`                        | Slicing (`[:]` and `[...]` represents the whole signal)                            |
-|                                | Beware of endianness when slicing                                                  |
-| `signal.reg()`                 | Register a signal                                                                  |
-| `signal.when(cond, else_)`     | Gate the signal with a condition. Equivalent to `signal if cond else else_`        |
-| `signal.case(cases)`           | Using the signal as a switch. Equivalent to `cases[signal]`                        |
-| `signal.any()`                 | Check if any bit in the signal is 1                                                |
-| `signal.all()`                 | Check if all bits in the signal are 1                                              |
-| `signal.parity()`              | Compute the parity of the signal (Reduced XOR)                                     |
-| `len(signal)` / `signal.width` | Get the width of a signal in Python                                                |
-| `signal.with_width()`          | Create and connect to the new signal with specific width, trimming/padding is done |
-| `signal.with_signed()`         | Create and connect to the new signal with specific signedness                      |
+| Operator                   | Description                                                                        |
+|----------------------------|------------------------------------------------------------------------------------|
+| `<<=`                      | **Connect signals. This is not a Left Shift**                                      |
+| `+`, `+=`                  | Addition                                                                           |
+| `-`, `-=`                  | Subtraction                                                                        |
+| `-signal`                  | Negation                                                                           |
+| `*`, `*=`                  | Multiplication                                                                     |
+| `&`, `&=`                  | Bitwise AND                                                                        |
+| `\|` , `\|=`               | Bitwise OR                                                                         |
+| `^`, `^=`                  | Bitwise XOR                                                                        |
+| `~`                        | Bitwise NOT                                                                        |
+| `<<`                       | Left shift (Only on Python Integer, Constant Shift)                                |
+| `>>`                       | Right shift (Only on Python Integer, Constant Shift)                               |
+| `==`                       | Equality                                                                           |
+| `!=`                       | Inequality                                                                         |
+| `<`                        | Less than                                                                          |
+| `<=`                       | Less than or equal                                                                 |
+| `>`                        | Greater than                                                                       |
+| `>=`                       | Greater than or equal                                                              |
+| `@` , `@=`                 | Concatenation                                                                      |
+| `[Hi:Low]`                 | Slicing (`[:]` and `[...]` represents the whole signal)                            |
+|                            | Beware of endianness when slicing                                                  |
+| `signal.reg()`             | Register a signal                                                                  |
+| `signal.when(cond, else_)` | Gate the signal with a condition. Equivalent to `signal if cond else else_`        |
+| `signal.case(cases)`       | Using the signal as a switch. Equivalent to `cases[signal]`                        |
+| `signal.any()`             | Check if any bit in the signal is 1                                                |
+| `signal.all()`             | Check if all bits in the signal are 1                                              |
+| `signal.parity()`          | Compute the parity of the signal (Reduced XOR)                                     |
+| `signal.width`             | Get the width of a signal in Python                                                |
+| `signal.with_width()`      | Create and connect to the new signal with specific width, trimming/padding is done |
+| `signal.with_signed()`     | Create and connect to the new signal with specific signedness                      |
 
 ### Exceptions:
 
@@ -216,10 +216,14 @@ class TopLevel(Module):
 There are two ways to trace the signal in elaborated SystemVerilog code.
 
 1. Setting the name of the signal during creation or with the `Signal.set_name()` API.
-  - Elaborated net with the name specified will have the same net name in the elaborated code.
-  - However, the developer has to ensure there is no naming conflict within the module.
+
+- Elaborated net with the name specified will have the same net name in the elaborated code.
+- However, the developer has to ensure there is no naming conflict within the module.
+
 2. Using `Signal.annotate()` API to add comments and locations of code information in the elaborated code
-  - Example    
+
+- Example
+
 ```python
 class OneHotLoop(Module):
     def __init__(self, width, **kwargs):
@@ -227,6 +231,7 @@ class OneHotLoop(Module):
         onehot = binary_to_onehot(self.io.binary_in).annotate("Binary to one-hot")
         ...
 ```
+
 ```verilog
 ...
 logic  [15:0] net_0;

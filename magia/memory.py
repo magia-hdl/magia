@@ -1,13 +1,13 @@
-"""
-Memory object
-"""
+"""Memory object."""
+from __future__ import annotations
+
 import string
 from dataclasses import dataclass
 from itertools import count
-from typing import Optional
 
-from .constants import SignalType
-from .core import Input, Output, Signal, SignalDict, Synthesizable
+from .data_struct import SignalDict, SignalType
+from .io_signal import Input, Output
+from .signals import Signal, Synthesizable
 
 
 @dataclass
@@ -21,19 +21,18 @@ class MemorySignal(Signal):
     """
     A signal that can be used to access a memory object.
 
-    Args:
-        memory (Memory): The memory object to access.
-        name (str, optional): The name of the signal. Defaults to None.
+    :param memory: The memory object to access.
+    :param name: The name of the signal. Defaults to None.
     """
 
-    def __init__(self, memory: "Memory", name: str, width: int, drive_by_mem: bool = False, **kwargs):
+    def __init__(self, memory: Memory, name: str, width: int, drive_by_mem: bool = False, **kwargs):
         super().__init__(name=name, width=width, **kwargs)
-        self._config.signal_type = SignalType.MEMORY
+        self.signal_config.signal_type = SignalType.MEMORY
         self._memory = memory
         self._drive_by_mem = drive_by_mem
 
     @property
-    def memory(self) -> "Memory":
+    def memory(self) -> Memory:
         return self._memory
 
     @property
@@ -42,18 +41,17 @@ class MemorySignal(Signal):
 
     @property
     def drivers(self) -> list[Signal]:
-        """
-        Get the drivers of the signal.
-        """
+        """Get the drivers of the signal."""
         if self.drive_by_mem:
             return self.memory.drivers
         return super().drivers
 
-    def driver(self, driver_name: str = Signal.SINGLE_DRIVER_NAME) -> Optional["Signal"]:
+    def driver(self, driver_name: str = Signal.DEFAULT_DRIVER) -> None | Signal:
         """
         Get the driver of the signal.
+
         :param driver_name: The name of the driver. Default to the single driver.
-        :return: The driver signal.
+        :returns: The driver signal.
         """
         if self.drive_by_mem:
             return Output("dummy", 1)
@@ -61,21 +59,22 @@ class MemorySignal(Signal):
 
 
 class MemPort:
-    """
-    Base class for memory ports.
-    Args:
-        memory (Memory): The memory object to write to.
-        name (str, optional): The name of the write port.
-    """
+    """Base class for memory ports."""
 
-    def __init__(self, memory: "Memory", name: str, **kwargs):
+    def __init__(self, memory: Memory, name: str, **kwargs):
+        """
+        Create a memory port base.
+
+        :param memory: The memory object which the port has access to.
+        :param name: Name of the memory port.
+        """
         super().__init__(**kwargs)
         self._memory = memory
         self._name = name
         self._signals = SignalDict()
 
     @property
-    def memory(self) -> "Memory":
+    def memory(self) -> Memory:
         return self._memory
 
     @property
@@ -115,13 +114,7 @@ class MemPort:
 
 
 class MemWritePort(MemPort):
-    """
-    A write port for a memory object.
-
-    Args:
-        memory (Memory): The memory object to write to.
-        name (str, optional): The name of the write port.
-    """
+    """A write only port for a memory object."""
 
     _IMPL_TEMPLATE = string.Template(
         "always_ff @(posedge $clk) begin\n"
@@ -129,7 +122,13 @@ class MemWritePort(MemPort):
         "end"
     )
 
-    def __init__(self, memory: "Memory", name: str, **kwargs):
+    def __init__(self, memory: Memory, name: str, **kwargs):
+        """
+        Create a write only port.
+
+        :param memory: The memory object which the port has access to.
+        :param name: Name of the memory port.
+        """
         super().__init__(memory=memory, name=name, **kwargs)
         self._signals = SignalDict(
             din=MemorySignal(memory, f"{memory.name}_w_data_{name}", memory.data_width),
@@ -139,23 +138,16 @@ class MemWritePort(MemPort):
 
     def elaborate(self) -> str:
         return self._IMPL_TEMPLATE.substitute(
-            mem=self.memory.net_name,
-            clk=self.memory.clk.net_name,
-            din=self.din.net_name,
-            addr=self.addr.net_name,
-            wen=self.wen.net_name,
+            mem=self.memory.name,
+            clk=self.memory.clk.name,
+            din=self.din.name,
+            addr=self.addr.name,
+            wen=self.wen.name,
         )
 
 
 class MemReadPort(MemPort):
-    """
-    A read port for a memory object.
-
-    Args:
-        memory (Memory): The memory object to read from.
-        name (str, optional): The name of the read port.
-        registered (bool, optional): Whether the reading output is registered. Defaults to False.
-    """
+    """A read port for a memory object."""
 
     _IMPL_REG_TEMPLATE = string.Template(
         "always_ff @(posedge $clk) begin\n"
@@ -168,7 +160,14 @@ class MemReadPort(MemPort):
         "end"
     )
 
-    def __init__(self, memory: "Memory", name: str, registered: bool = False, **kwargs):
+    def __init__(self, memory: Memory, name: str, registered: bool = False, **kwargs):
+        """
+        Create a read only port.
+
+        :param memory: The memory object which the port has access to.
+        :param name: Name of the memory port.
+        :param registered: Whether the reading output is registered. Defaults to False.
+        """
         super().__init__(memory=memory, name=name, **kwargs)
         self._signals = SignalDict(
             dout=MemorySignal(memory, f"{memory.name}_r_data_{name}", memory.data_width, True),
@@ -181,24 +180,21 @@ class MemReadPort(MemPort):
     def elaborate(self) -> str:
         template = self._IMPL_REG_TEMPLATE if self._registered else self._IMPL_COMB_TEMPLATE
         return template.substitute(
-            mem=self.memory.net_name,
-            clk=self.memory.clk.net_name,
-            addr=self.addr.net_name,
-            dout=self.dout.net_name,
-            en=self.en.net_name if self._registered else "NONE",
+            mem=self.memory.name,
+            clk=self.memory.clk.name,
+            addr=self.addr.name,
+            dout=self.dout.name,
+            en=self.en.name if self._registered else "NONE",
         )
 
 
 class MemRWPort(MemPort):
     """
     A memory port for a memory object, it shared the read and write signals at the same time.
-    The reading output is registered.
 
-    Args:
-        memory (Memory): The memory object to write to.
-        name (str, optional): The name of the write port.
-        write_through (bool, optional): Whether the write port is write through. Defaults to True.
+    The reading output is registered.
     """
+
     _IMPL_TEMPLATE = string.Template(
         "always_ff @(posedge $clk) begin\n"
         "  if ($en) begin\n"
@@ -208,7 +204,14 @@ class MemRWPort(MemPort):
         "end\n"
     )
 
-    def __init__(self, memory: "Memory", name: str, write_through: bool = True, **kwargs):
+    def __init__(self, memory: Memory, name: str, write_through: bool = True, **kwargs):
+        """
+        Create a read/write port for a memory object.
+
+        :param memory: The memory object which the port has access to.
+        :param name: The name of the memory port.
+        :param write_through: Whether the write port is write through. Defaults to True.
+        """
         super().__init__(memory=memory, name=name, **kwargs)
         self._write_through = write_through
         self._signals = SignalDict(
@@ -221,20 +224,21 @@ class MemRWPort(MemPort):
 
     def elaborate(self) -> str:
         return self._IMPL_TEMPLATE.substitute(
-            mem=self.memory.net_name,
-            clk=self.memory.clk.net_name,
+            mem=self.memory.name,
+            clk=self.memory.clk.name,
             assignment="=" if self._write_through else "<=",
-            addr=self.addr.net_name,
-            din=self.din.net_name,
-            dout=self.dout.net_name,
-            wen=self.wen.net_name,
-            en=self.en.net_name,
+            addr=self.addr.name,
+            din=self.din.name,
+            dout=self.dout.name,
+            wen=self.wen.name,
+            en=self.en.name,
         )
 
 
 class Memory(Synthesizable):
     """
     A memory object, storing an array of signals which can be accessed by another signal as an index.
+
     The memory object represents only the memory itself, not the logic to access it.
 
     This class is intended to be used to elaborate as a BRAM or Distributed RAM, especially on FPGA.
@@ -245,15 +249,6 @@ class Memory(Synthesizable):
     A read port can be added to the memory object with the `read_port` method
     A read/write port can be added to the memory object with the `rw_port` method
 
-    Args:
-        address_width (int): The width of the address bus.
-        data_width (int): The width of the data bus.
-        name (str, optional): The name of the memory object. Defaults to None.
-        r_port (int, optional): The number of read ports. Defaults to 0.
-        w_port (int, optional): The number of write ports. Defaults to 0.
-        rw_port (int, optional): The number of read/write ports. Defaults to 0.
-        rw_write_through (bool, optional): Whether the read/write port is write through. Defaults to True.
-        registered_read (bool, optional): Whether the reading output of the read port is registered. Defaults to False.
     """
 
     new_mem_counter = count(0)
@@ -262,7 +257,7 @@ class Memory(Synthesizable):
     def __init__(
             self,
             clk: Input, address_width: int, data_width: int,
-            name: Optional[str] = None,
+            name: None | str = None,
             r_port: int = 0,
             w_port: int = 0,
             rw_port: int = 0,
@@ -270,6 +265,19 @@ class Memory(Synthesizable):
             registered_read: bool = True,
             **kwargs
     ):
+        """
+        Create a memory object.
+
+        :param clk: The clock signal of the memory.
+        :param address_width: The width of the address bus.
+        :param data_width: The width of the data bus.
+        :param name: The name of the memory object.
+        :param r_port: The number of read ports.
+        :param w_port: The number of write ports.
+        :param rw_port: The number of read/write ports.
+        :param rw_write_through: Whether the read/write port is write through. Defaults to True.
+        :param registered_read: Whether the reading output of the read port is registered. Defaults to True.
+        """
         if not r_port and not w_port and not rw_port:
             raise ValueError("Memory must have at least one port")
         if rw_port > 2:
@@ -331,7 +339,7 @@ class Memory(Synthesizable):
     def elaborate(self) -> str:
         mem_decl = self._MEM_DECL_TEMPLATE.substitute(
             width=f"[{self.data_width - 1}:0]",
-            name=self.net_name,
+            name=self.name,
             size=f"[0:{self.size - 1}]",
         )
         port_impl = "\n".join(port.elaborate() for port in self._write_ports + self._rw_ports + self._read_ports)
@@ -353,31 +361,17 @@ class Memory(Synthesizable):
     def name(self) -> str:
         return self._config.name
 
-    @property
-    def net_name(self) -> str:
-        """
-        Memory does not belong to any bundle.
-        net_name is the same as name.
-        """
-        return self._config.name
-
     @classmethod
-    def sdp(cls, clk: Input, address_width: int, data_width: int, **kwargs) -> "Memory":
-        """
-        Create a Simple Dual Port memory.
-        """
+    def sdp(cls, clk: Input, address_width: int, data_width: int, **kwargs) -> Memory:
+        """Create a Simple Dual Port memory."""
         return cls(clk, address_width, data_width, r_port=1, w_port=1, **kwargs)
 
     @classmethod
-    def tdp(cls, clk: Input, address_width: int, data_width: int, **kwargs) -> "Memory":
-        """
-        Create a True Dual Port memory.
-        """
+    def tdp(cls, clk: Input, address_width: int, data_width: int, **kwargs) -> Memory:
+        """Create a True Dual Port memory."""
         return cls(clk, address_width, data_width, rw_port=2, registered_read=True, **kwargs)
 
     @classmethod
-    def sp(cls, clk: Input, address_width: int, data_width: int, **kwargs) -> "Memory":
-        """
-        Create a Single Port memory.
-        """
+    def sp(cls, clk: Input, address_width: int, data_width: int, **kwargs) -> Memory:
+        """Create a Single Port memory."""
         return cls(clk, address_width, data_width, rw_port=1, registered_read=True, **kwargs)

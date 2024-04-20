@@ -21,6 +21,9 @@ All elaboration methods accept a list of modules as input.
 Multiple modules can be elaborated at the same time.
 
 ```python
+from magia import Module, Elaborator
+
+
 class Adder(Module):
     def __init__(self, width, **kwargs):
         ...
@@ -50,6 +53,9 @@ The file name is the module name with `.sv` extension.
 You can specify the output file name, and grouping multiple modules under the same class, by using the `file` decorator.
 
 ```python
+from magia import Module, Elaborator
+
+
 @Elaborator.file("adder.sv")
 class Adder(Module): ...
 

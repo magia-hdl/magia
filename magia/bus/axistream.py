@@ -1,5 +1,6 @@
 """
 Factory methods that generate BundleSpec for AXI-Stream interface.
+
 Details of the AXI-Stream interface can be found in the AMBA AXI and ACE Protocol Specification.
 https://developer.arm.com/documentation/ihi0051/latest/
 """
@@ -28,7 +29,6 @@ def axi4stream(
     :param tstrb: Add a tstrb signal, default is False.
     :param tkeep: Add a tkeep signal, default is False.
     """
-
     if tdata_width not in (8, 16, 32, 64, 128, 256, 512, 1024):
         raise ValueError("tdata_width must be a power of 2 between 8 and 1024")
 

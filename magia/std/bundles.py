@@ -1,13 +1,9 @@
-"""
-This module provides factory functions to create common BundleSpec objects.
-"""
-
-from typing import Union
+"""This module provides factory functions to create common BundleSpec objects."""
 
 from magia import BundleSpec, Input, IOPorts, Output, Signal
 
 
-def valid_bundle(signals: Union[list[Signal], IOPorts], valid: str = "valid") -> BundleSpec:
+def valid_bundle(signals: list[Signal] | IOPorts, valid: str = "valid") -> BundleSpec:
     """
     Create a BundleSpec with the given signals and a valid signal.
 
@@ -20,7 +16,7 @@ def valid_bundle(signals: Union[list[Signal], IOPorts], valid: str = "valid") ->
     return spec
 
 
-def decoupled_bundle(signals: Union[list[Signal], IOPorts], valid: str = "valid", ready: str = "ready") -> BundleSpec:
+def decoupled_bundle(signals: list[Signal] | IOPorts, valid: str = "valid", ready: str = "ready") -> BundleSpec:
     """
     Create a BundleSpec with the given signals, a valid signal and a ready signal.
 

@@ -6,9 +6,10 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.ruff]
 line-length = 120
-lint.select = ["F", "E", "W", "I001", "U", "N", "S", "B", "A", "C4", "T10", "ISC", "ICN", "T20", "Q", "RET", "SIM", "TID", "ERA"]
+lint.select = ["D2", "D3", "D4", "F", "E", "W", "I001", "U", "N", "S", "B", "A", "C4", "T10", "ISC", "ICN", "T20", "Q", "RET", "SIM", "TID", "ERA"]
 lint.ignore = ["F821", "A003"]
 lint.exclude = ["magia/utils/parser/SystemVerilog*.py"]
+lint.pydocstyle.convention = "pep257"
 
 [tool.ruff.lint.per-file-ignores]
 
@@ -52,7 +53,7 @@ cocotb-test = "*"
 pytest = "*"
 pytest-xdist = "*"
 pytest-github-report = "*"
-ruff = "*"
+ruff = "==0.3.3"
 hdlConvertor-binary = "~2.3"
 magia-flow = "^0.1"
 antlr4-tools = "^0.2.1"

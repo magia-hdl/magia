@@ -15,10 +15,10 @@ def parse_sv_code(
 ) -> Tree:
     """
     Parse the given SystemVerilog code and return the AST.
+
     The parse_as argument can be used to specify the statement type to parse,
     which developer can avoid parsing the whole file just for a specific statement.
     """
-
     lexer = InputStream(sv_code)
     lexer_grammar = SystemVerilogLexer(lexer)
     stream = CommonTokenStream(lexer_grammar)
@@ -31,9 +31,7 @@ def parse_sv_code(
 
 # ruff: noqa: N802
 def flatten_expression(node: Tree) -> str:
-    """
-    Return a flattened string representation of the given parse tree node.
-    """
+    """Return a flattened string representation of the given parse tree node."""
 
     class FlattenStatement(SystemVerilogParserVisitor):
         def defaultResult(self) -> str:

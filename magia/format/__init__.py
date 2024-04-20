@@ -1,5 +1,5 @@
 """
-Numerical format conversions
+Numerical format conversions.
 
 This module provides classes for converting between different number formats,
 such as fixed point and floating point numbers.

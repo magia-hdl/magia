@@ -1,5 +1,5 @@
 """
-Commonly used design blocks
+Commonly used design blocks.
 
 Consider putting a design blocks here if:
 - It is a commonly used design block, but not a full IP

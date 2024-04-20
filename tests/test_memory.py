@@ -23,27 +23,21 @@ async def drive_spram(dut):
 
 @cocotb.test()
 async def spram_write_through(dut):
-    """
-    Write through shall return the value of the intermediate write
-    """
+    """Write through shall return the value of the intermediate write."""
     await drive_spram(dut)
     assert dut.dout.value == 0xCD, "Failure on write through"
 
 
 @cocotb.test()
 async def ram_read_first(dut):
-    """
-    Read first shall return the value of the previous write
-    """
+    """Read first shall return the value of the previous write."""
     await drive_spram(dut)
     assert dut.dout.value == 0xAB, "Failure on write through"
 
 
 @cocotb.test()
 async def spram_en_over_wen(dut):
-    """
-    If en is False, wen shall be ignored
-    """
+    """If en is False, wen shall be ignored."""
     clock = Clock(dut.clk, 10, units="ns")
     cocotb.start_soon(clock.start())
 

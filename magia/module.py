@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import inspect
 import logging
 from collections import Counter, OrderedDict
@@ -7,11 +9,15 @@ from itertools import count
 from os import PathLike
 from pathlib import Path
 from string import Template
-from typing import Optional, Union
+from typing import TYPE_CHECKING
 
-from .constants import SignalType
-from .core import Input, Output, Signal, SignalDict, Synthesizable
+from .data_struct import SignalDict, SignalType
+from .io_signal import Input, Output
 from .memory import Memory, MemorySignal
+from .signals import SIGNAL_ASSIGN_TEMPLATE, Signal, Synthesizable
+
+if TYPE_CHECKING:
+    from .bundle import Bundle
 
 logger = logging.getLogger(__name__)
 
@@ -19,18 +25,19 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ModuleConfig:
     module_class: type
-    name: Optional[str] = None
+    name: None | str = None
 
 
 @dataclass
 class ModuleInstanceConfig:
-    module: "Module"
-    name: Optional[str] = None
+    module: Module
+    name: None | str = None
 
 
 class IOPorts:
     """
-    Define a bundle of I/O, which can be used as the input or output of a module.
+    Define a set of I/O, which can be used as the input or output of a module.
+
     An IOPorts can be added with Input and Output.
     However, the bundle cannot be used as normal signals.
     The actual signals can be accessed from `input` and `output` of the instance instead.
@@ -40,17 +47,17 @@ class IOPorts:
     It can be accessed by individual port by attributes, or connect to multiple instance directly.
     """
 
-    def __init__(self, owner_instance: Optional["Instance"] = None, **kwargs):
-        self._signals = SignalDict()
-        self._owner_instance: Optional["Instance"] = owner_instance
+    def __init__(self, owner_instance: None | Instance = None, **kwargs):
+        self.signals = SignalDict()
+        self._owner_instance = owner_instance
 
-    def __add__(self, other: Union["IOPorts", list[Union[Input, Output, "IOPorts"]], Input, Output]) -> "IOPorts":
+    def __add__(self, other: IOPorts | list[Input | Output | IOPorts] | Input | Output) -> IOPorts:
         new_ports = IOPorts()
         new_ports += self
         new_ports += other
         return new_ports
 
-    def __iadd__(self, other: Union["IOPorts", list[Union[Input, Output, "IOPorts"]], Input, Output]) -> "IOPorts":
+    def __iadd__(self, other: IOPorts | list[Input | Output | IOPorts] | Input | Output) -> IOPorts:
         if isinstance(other, list):
             flatten = []
             for ports in other:
@@ -70,14 +77,15 @@ class IOPorts:
 
         return self
 
-    def _add_port(self, port: Union[Input, Output]):
+    def _add_port(self, port: Input | Output):
+        """Copy the given port and add it into current IOPorts."""
         if port.name in self.signals:
             raise KeyError(f"Port {port.name} is already defined.")
 
         if port.type not in (SignalType.INPUT, SignalType.OUTPUT):
             raise TypeError(f"Signal Type {port.type} is forbidden in IOPorts.")
 
-        self._signals[port.name] = port.__class__(
+        self.signals[port.name] = port.__class__(
             **{
                 k: v
                 for k, v in asdict(port.signal_config).items()
@@ -86,14 +94,14 @@ class IOPorts:
             owner_instance=self._owner_instance,
         )
 
-    def __getattr__(self, name: str) -> Union[Input, Output]:
+    def __getattr__(self, name: str) -> Input | Output:
         if name.startswith("_"):
             return super().__getattribute__(name)
         if name in self.signals:
             return self.__getitem__(name)
         return super().__getattribute__(name)
 
-    def __setattr__(self, name: str, value: Union[Input, Output]):
+    def __setattr__(self, name: str, value: Input | Output):
         if name.startswith("_"):
             super().__setattr__(name, value)
         if isinstance(value, Signal):
@@ -101,45 +109,41 @@ class IOPorts:
         else:
             super().__setattr__(name, value)
 
-    def __getitem__(self, item: str) -> Union[Input, Output]:
-        return self._signals[item]
+    def __getitem__(self, item: str) -> Input | Output:
+        return self.signals[item]
 
     def __setitem__(self, key, value):
-        self._signals[key] = value
+        self.signals[key] = value
 
     @property
     def inputs(self) -> list[Signal]:
         return [
-            signal for signal in self._signals.values()
+            signal for signal in self.signals.values()
             if signal.type == SignalType.INPUT
         ]
 
     @property
     def outputs(self) -> list[Signal]:
         return [
-            signal for signal in self._signals.values()
+            signal for signal in self.signals.values()
             if signal.type == SignalType.OUTPUT
         ]
 
     @property
     def input_names(self) -> list[str]:
         return [
-            name for name, port in self._signals.items()
+            name for name, port in self.signals.items()
             if port.type == SignalType.INPUT
         ]
 
     @property
     def output_names(self) -> list[str]:
         return [
-            name for name, port in self._signals.items()
+            name for name, port in self.signals.items()
             if port.type == SignalType.OUTPUT
         ]
 
-    @property
-    def signals(self) -> SignalDict:
-        return self._signals
-
-    def __ilshift__(self, other: "Bundle"):
+    def __ilshift__(self, other: Bundle):
         if self._owner_instance is not None:
             raise TypeError("Connect the bundle to an Instance directly, instead of `Instance.io <<= Bundle`.")
         other.connect_to(self)
@@ -149,6 +153,7 @@ class IOPorts:
 class Module(Synthesizable):
     """
     A module is a collection of signals and operations. It can also include other modules.
+
     The module is the base class of specialized modules.
     Developers can define the generic behavior of the module in a dynamic way,
     while each `Module` objects is a specialized module initialized with specific parameters.
@@ -169,11 +174,12 @@ class Module(Synthesizable):
     def implement(self):
         self.io.q <<= self.io.a + 1
     """
+
     _MOD_DECL_TEMPLATE = Template("module $name (\n$io\n);")
     _new_module_counter = count(0)
-    output_file: Optional[PathLike] = None
+    output_file: None | PathLike = None
 
-    def __init__(self, name: Optional[str] = None, **kwargs):
+    def __init__(self, name: None | str = None, **kwargs):
         super().__init__(**kwargs)
 
         # Get the arguments passed to the __init__ method of the inherited class
@@ -199,7 +205,7 @@ class Module(Synthesizable):
 
     def validate(self) -> list[Exception]:
         undriven_outputs = [
-            output.net_name
+            output.name
             for output in self.io.outputs
             if output.driver() is None
         ]
@@ -220,12 +226,12 @@ class Module(Synthesizable):
         )
         return "\n".join((mod_decl, self._module_elab_doc))
 
-    def elaborate(self) -> tuple[str, set["Module"]]:
+    def elaborate(self) -> tuple[str, set[Module]]:
         """
-        Trace nets and operations from output ports
-        This method generates the SystemVerilog code for the module.
+        Trace nets and operations from output ports.
 
-        :return: The SystemVerilog code for the module, and the list of submodules of the instance in the module.
+        This method generates the SystemVerilog code for the module.
+        :returns: The SystemVerilog code for the module, and the list of submodules of the instance in the module.
         """
         violations = self.validate()
         if violations:
@@ -247,9 +253,9 @@ class Module(Synthesizable):
         mod_impl = "\n".join(mod_impl)
 
         mod_output_assignment = "\n".join(
-            Signal._SIGNAL_ASSIGN_TEMPLATE.substitute(
-                name=output.net_name,
-                driver=output.driver().net_name,
+            SIGNAL_ASSIGN_TEMPLATE.substitute(
+                name=output.name,
+                driver=output.driver().name,
             )
             for output in self.io.outputs
         )
@@ -266,22 +272,19 @@ class Module(Synthesizable):
     def post_elaborate(self) -> str:
         """
         Override this method to add extra code to the module.
+
         The code will be added after the elaboration of the module.
-
         Adding assertions to the module is a typical use case.
-
-        :return: The extra code to be added to the module.
+        :returns: The extra code to be added to the module.
         """
         _ = self  # Stub to avoid IDE/Lint warning
         return ""
 
-    def trace(self) -> tuple[list[Union[Signal, Memory]], list["Instance"]]:
-        """
-        Trace nets and instances from output ports
-        """
+    def trace(self) -> tuple[list[Signal | Memory], list[Instance]]:
+        """Trace nets and instances from output ports."""
         traced_sig_id: set[int] = set()
         traced_inst_id: set[int] = set()
-        traced_signal: list[Union[Signal, Memory]] = []
+        traced_signal: list[Signal | Memory] = []
         traced_inst: list[Instance] = []
         sig_to_be_traced: dict[int, Signal] = {}
 
@@ -296,14 +299,18 @@ class Module(Synthesizable):
 
                 # Tracing Instances with Output connected
                 if signal.type == SignalType.OUTPUT:
-                    inst: Optional[Instance] = signal.owner_instance
+                    inst = signal.owner_instance
                     if inst is not None and id(inst) not in traced_inst_id:
                         traced_inst_id.add(id(inst))
                         traced_inst.append(inst)
 
                         # The Input port of the instance is skipped
                         # We will go directly to the driver as it must be driven by another signal.
-                        input_drivers = [i.driver() for i in inst.inputs.values()]
+                        input_drivers = [
+                            i.driver()
+                            for i in inst.io.values()
+                            if i.type == SignalType.INPUT
+                        ]
                         next_trace |= {
                             id_sig: sig
                             for sig in input_drivers
@@ -338,7 +345,7 @@ class Module(Synthesizable):
         traced_inst.reverse()
 
         # Check if we have name conflict on the signals and instances
-        sig_name_counter = Counter(sig.net_name for sig in traced_signal)
+        sig_name_counter = Counter(sig.name for sig in traced_signal)
         inst_name_counter = Counter(inst.name for inst in traced_inst)
         sig_conflicts = [name for name, cnt in sig_name_counter.items() if cnt > 1]
         inst_conflicts = [name for name, cnt in inst_name_counter.items() if cnt > 1]
@@ -350,12 +357,13 @@ class Module(Synthesizable):
         return traced_signal, traced_inst
 
     def instance(
-            self, name: Optional[str] = None,
-            io: Optional[dict[str, Signal]] = None
-    ) -> "Instance":
+            self, name: None | str = None,
+            io: None | dict[str, Signal] = None
+    ) -> Instance:
         """
-        Create an instance of the module
-        :return: The created instance
+        Create an instance of the module.
+
+        :returns: The created instance.
         """
         return Instance(
             module=self,
@@ -369,15 +377,14 @@ class Module(Synthesizable):
 
     @property
     def params(self) -> dict[str, object]:
-        """
-        Return the parameters used to specialize this module.
-        """
+        """Return the parameters used to specialize this module."""
         return self._mod_params
 
     @property
     def _module_elab_doc(self) -> str:
         """
         Generate the summary of a module and register it to the module.
+
         It will be written into the SystemVerilog code during elaboration.
         """
         doc = self._module_doc_str
@@ -421,7 +428,8 @@ class Module(Synthesizable):
     @property
     def spec(self) -> dict[str, object]:
         """
-        Return the "Specification" of a specialized Module.
+        Returns the "Specification" of a specialized Module.
+
         It is a dictionary which can be further processed.
         """
         return {
@@ -439,7 +447,7 @@ class Module(Synthesizable):
                 {
                     "name": alias,
                     "direction": signal.type.name,
-                    "width": len(signal),
+                    "width": signal.width,
                     "signed": signal.signed,
                     "description": signal.description,
                 }
@@ -449,17 +457,16 @@ class Module(Synthesizable):
 
 
 class Instance(Synthesizable):
-    """
-    An instance of a module
-    """
+    """An instance of a module."""
+
     _INST_TEMPLATE = Template("$module_name $inst_name (\n$io\n);")
     _IO_TEMPLATE = Template(".$port_name($signal_name)")
 
     _new_inst_counter = count(0)
 
     def __init__(self,
-                 module: "Module", name: Optional[str] = None,
-                 io: Optional[dict[str, Signal]] = None,
+                 module: Module, name: None | str = None,
+                 io: None | dict[str, Signal] = None,
                  **kwargs
                  ):
         if name is None:
@@ -469,36 +476,36 @@ class Instance(Synthesizable):
             module=module,
             name=name,
         )
-        self._io = IOPorts(owner_instance=self)
-        self.outputs = SignalDict()
-        self.inputs = SignalDict()
+        self._io_ports = IOPorts(owner_instance=self)
+        self._io_ports += module.io
+        self.io = SignalDict()
 
-        self._io += module.io
-
-        for input_port in module.io.input_names:
-            self.inputs[input_port] = self._io[input_port]
-
-        for output_port in module.io.output_names:
-            self.outputs[output_port] = Signal(
-                width=len(self._io[output_port]),
-                signed=self._io[output_port].signed
-            )
-            self.outputs[output_port] <<= self._io[output_port]
+        for port_name, port in self._io_ports.signals.items():
+            match port.type:
+                case SignalType.INPUT:
+                    self.io[port_name] = port
+                case SignalType.OUTPUT:
+                    self.io[port_name] = Signal(
+                        width=port.width,
+                        signed=port.signed,
+                    )
+                    self.io[port_name] <<= port
 
         if io is not None:
             for name, signal in io.items():
-                if self._io[name].type == SignalType.INPUT:
-                    self.inputs[name] <<= signal
-                if self._io[name].type == SignalType.OUTPUT:
-                    signal <<= self.outputs[name]
+                match signal.type:
+                    case SignalType.INPUT:
+                        self.io[name] <<= signal
+                    case SignalType.OUTPUT:
+                        signal <<= self.io[name]
 
     @property
     def input_names(self) -> list[str]:
-        return self._io.input_names
+        return self._io_ports.input_names
 
     @property
     def output_names(self) -> list[str]:
-        return self._io.output_names
+        return self._io_ports.output_names
 
     @property
     def name(self) -> str:
@@ -510,14 +517,14 @@ class Instance(Synthesizable):
 
     def validate(self) -> list[Exception]:
         errors = []
-        for signal in self.inputs.values():
-            if signal.driver() is None:
+        for signal in self.io.values():
+            if signal.type == SignalType.INPUT and signal.driver() is None:
                 errors.append(ValueError(f"Input {signal.name} is not connected."))
         return errors
 
     def _fix_output_name(self):
-        for port, signal in self.outputs.items():
-            if signal.name is None:
+        for port, signal in self.io.items():
+            if signal.type != SignalType.INPUT and signal.name is None:
                 signal.set_name(f"{self._inst_config.name}_output_{port}")
 
     def elaborate(self) -> str:
@@ -530,16 +537,12 @@ class Instance(Synthesizable):
         inst_name = self.name
 
         io_list = []
-        for port in self._io.inputs:
-            io_list.append(self._IO_TEMPLATE.substitute(
-                port_name=port.net_name,
-                signal_name=port.driver().net_name,
-            ))
-        for port in self._io.outputs:
-            io_list.append(self._IO_TEMPLATE.substitute(
-                port_name=port.net_name,
-                signal_name=self.outputs[port.net_name].net_name,
-            ))
+        for port_name, port in self._io_ports.signals.items():
+            signal_name = self.io[port_name].name
+            if port.type == SignalType.INPUT:
+                signal_name = port.driver().name
+
+            io_list.append(self._IO_TEMPLATE.substitute(port_name=port_name, signal_name=signal_name))
 
         io_list = ",\n".join(io_list)
         return self._INST_TEMPLATE.substitute(
@@ -548,35 +551,25 @@ class Instance(Synthesizable):
             io=io_list,
         )
 
-    def __ilshift__(self, other: "Bundle"):
+    def __ilshift__(self, other: Bundle):
         other.connect_to(self)
         return self
 
 
-class Blackbox(Module):
-    """
-    A blackbox module is a module with elaboration defined by the developer.
-
-    Designer has to provide the SystemVerilog code for the module, in the elaborate() method.
-    Designer has to ensure the interface provided to the module confine to the SystemVerilog code generated by the
-    elaborate() method.
-    """
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-    def elaborate(self) -> tuple[str, set[Module]]:
-        raise NotImplementedError("Blackbox module must implement elaborate() method.")
-
-
 class VerilogWrapper(Module):
     """
-    VerilogWrapper Creates a module that wraps a module in a Verilog Format.
+    VerilogWrapper creates a module that wraps a module in a Verilog Format.
+
     Some EDA tools do not support SystemVerilog as the top level or integrable IP.
     Wrapping the SV module in Verilog allows strict integration with those EDA tools.
     """
 
     def __init__(self, module: Module, **kwargs):
+        """
+        Create a Verilog Wrapper for a module.
+
+        :param module: The module to be wrapped.
+        """
         if kwargs.get("name") is None and module.name is not None:
             kwargs["name"] = f"{module.name}Wrapper"
         super().__init__(**kwargs)
@@ -593,9 +586,8 @@ class VerilogWrapper(Module):
 
 
 class Elaborator:
-    """
-    Elaborator is a helper class to elaborate modules.
-    """
+    """Elaborator is a helper class to elaborate modules."""
+
     name_to_module: dict[str, Module] = {}
 
     def __init__(self):
@@ -605,13 +597,14 @@ class Elaborator:
     def to_dict(cls, *modules: Module, top_only: bool = False) -> dict[str, str]:
         """
         Elaborate all modules in the list.
+
         Each module will be elaborated only once and return the SystemVerilog code, plus a list of submodules
         Duplicated submodules will not be elaborated again.
         The elaboration is done recursively, until all submodules are elaborated.
 
         :param modules: The modules to be elaborated.
         :param top_only: If True, Elaborator will skip the submodules instantiated by `modules`
-        :return: A dictionary of the SystemVerilog code for each module.
+        :returns: A dictionary of the SystemVerilog code for each module.
         """
         cls.name_to_module = {}
         modules = list(modules)
@@ -628,16 +621,12 @@ class Elaborator:
 
     @classmethod
     def to_string(cls, *modules: Module, top_only: bool = False) -> str:
-        """
-        Elaborate all modules in the list and return the SystemVerilog code as a string.
-        """
+        """Elaborate all modules in the list and return the SystemVerilog code as a string."""
         return "\n\n".join(cls.to_dict(*modules, top_only=top_only).values())
 
     @classmethod
     def to_file(cls, filename: PathLike, *modules: Module, top_only: bool = False):
-        """
-        Elaborate all modules in the list and write the SystemVerilog code to a file.
-        """
+        """Elaborate all modules in the list and write the SystemVerilog code to a file."""
         sv_code = cls.to_string(*modules, top_only=top_only)
         Path(filename).write_text(sv_code)
 
@@ -650,6 +639,7 @@ class Elaborator:
     ) -> list[Path]:
         """
         Elaborate all modules in the list and write the SystemVerilog code to files.
+
         The files are written to the output directory.
 
         :param output_dir: The output directory.
@@ -657,7 +647,7 @@ class Elaborator:
         :param force: If True, files in the output directory will be overwritten if it exists.
         :param top_only: If True, Elaborator will skip the submodules instantiated by `modules`
 
-        :return: A list of Path objects of the files written.
+        :returns: A list of Path objects of the files written.
         """
         output_dir = Path(output_dir)
         if not force and output_dir.is_dir() and any(output_dir.iterdir()):
@@ -687,6 +677,7 @@ class Elaborator:
     def file(fname: PathLike):
         """
         Return a class decorator to register the filename of generated code to a Module.
+
         The effect is employed by the `to_files` method only.
 
         Example:
@@ -697,10 +688,9 @@ class Elaborator:
         Elaborator.to_files("/tmp/output", Adder(name="adder1"), Adder(name="adder2"))
         # Result in /tmp/output/adder.sv with 2 adders.
         """
-        fname = Path(fname)
 
         def decorator(cls: type[Module]):
-            cls.output_file = fname
+            cls.output_file = Path(fname)
             return cls
 
         return decorator

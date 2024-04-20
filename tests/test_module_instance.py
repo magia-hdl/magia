@@ -119,9 +119,7 @@ def test_elaborate_to_files(temp_build_dir):
 
 def test_elaborate_doc():
     class Top(Module):
-        """
-        This is a top module.
-        """
+        """This is a top module."""
 
         def __init__(self, width, **kwargs):
             super().__init__(**kwargs)
@@ -136,14 +134,10 @@ def test_elaborate_doc():
 
 def test_module_spec():
     class Top(Module):
-        """
-        This is a top module.
-        """
+        """This is a top module."""
 
         def __init__(self, width, **kwargs):
-            """
-            :param width: The width of the module.
-            """
+            """:param width: The width of the module."""
             super().__init__(**kwargs)
             self.io += Input("a", width, description="Input A")
             self.io += Output("b", width)

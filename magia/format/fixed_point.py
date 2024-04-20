@@ -1,10 +1,13 @@
 class FixedPoint:
+    """Fixed point number converter."""
+
     def __init__(self, m: int, n: int, signed: bool = True):
         """
-        Fixed point number converter
+        Create a fixed point number converter.
+
         :param m: number of integer bits
         :param n: Number of fractional bits
-        :param signed: Signed or unsigned
+        :param signed: Signed or unsigned.
         """
         if m < 0 or n < 0:
             raise ValueError("m and n must be positive")
@@ -14,9 +17,6 @@ class FixedPoint:
         self.signed = signed
         self.m = m
         self.n = n
-
-    def __len__(self):
-        return self.width
 
     @property
     def width(self):
@@ -35,9 +35,7 @@ class FixedPoint:
         return -(1 << (self.m - 1))
 
     def __call__(self, value: float) -> int:
-        """
-        Return the fixed point representation of a float
-        """
+        """Return the fixed point representation of a float."""
         if value > self.max:
             raise ValueError(f"Value {value} is too large for the given fixed point format")
         if value < self.min:
@@ -45,7 +43,7 @@ class FixedPoint:
 
         scaled = value * (1 << self.n)
         # Add a small amount to avoid rounding errors
-        if (scaled+0.5).is_integer():
+        if (scaled + 0.5).is_integer():
             scaled += 0.001 if scaled > 0 else -0.001
         scaled = round(scaled)
 
@@ -54,9 +52,7 @@ class FixedPoint:
         return scaled & ((1 << self.width) - 1)
 
     def to_float(self, value: int):
-        """
-        Return the float representation of a fixed point number
-        """
+        """Return the float representation of a fixed point number."""
         neg = self.signed and bool(value & (1 << self.width - 1))
         if neg:
             value = (~value + 1) & ((1 << self.width) - 1)

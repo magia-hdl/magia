@@ -6,7 +6,7 @@ import hdlConvertorAst.hdlAst as Ast
 from hdlConvertor import HdlConvertor
 from hdlConvertorAst.language import Language
 
-from .core import Input, Output
+from .io_signal import Input, Output
 from .module import Module
 
 _ACCEPTABLE_BINARY_OPS = {
@@ -32,9 +32,8 @@ _ACCEPTABLE_BINARY_OPS = {
 
 
 class ExternalModule(Module):
-    """
-    Imported SystemVerilog Module
-    """
+    """Imported SystemVerilog Module."""
+
     _INST_TEMPLATE = Template("$module_name #(\n$params\n) inst (\n$io\n);")
     _IO_TEMPLATE = Template(".$port_name($port_name)")
     _PARAM_TEMPLATE = Template(".$param_name($param_value)")
@@ -201,7 +200,7 @@ class ExternalModule(Module):
 
     def __class_getitem__(cls, item):
         """
-        Return a new ExternalModule with the given file and Top Level Name
+        Return a new ExternalModule with the given file and Top Level Name.
 
         Syntax:
             NewExternalModule = ExternalModule[PathLike, str]
@@ -212,16 +211,12 @@ class ExternalModule(Module):
 
     @classmethod
     def from_file(cls, sv_file: PathLike, top_name: str):
-        """
-        Create a new ExternalModule from a SystemVerilog file and given Top Level
-        """
+        """Create a new ExternalModule from a SystemVerilog file and given Top Level."""
         return cls.from_code(Path(sv_file).read_text(), top_name)
 
     @classmethod
     def from_code(cls, sv_code: str, top_name: str):
-        """
-        Create a new ExternalModule from SystemVerilog code and given Top Level
-        """
+        """Create a new ExternalModule from SystemVerilog code and given Top Level."""
         ports, params = cls.parse_sv(sv_code, top_name)
         return type(f"ExternalModule_{top_name}", (cls,), {
             "ports_from_code": ports,
@@ -232,9 +227,7 @@ class ExternalModule(Module):
 
     @staticmethod
     def parse_sv(sv_code: str, top_name: str) -> tuple[dict[str, Ast.iHdlObj], dict[str, Ast.iHdlObj]]:
-        """
-        Parse SV Code and return a dictionary of ports and parameters
-        """
+        """Parse SV Code and return a dictionary of ports and parameters."""
         parser = HdlConvertor()
         source = parser.parse_str(sv_code, Language.SYSTEM_VERILOG_2017, [], hierarchyOnly=False, debug=True)
         modules = [
