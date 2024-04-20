@@ -1,5 +1,5 @@
 from magia.bus.axilite import axi4lite
-from magia.constants import SignalType
+from magia.data_struct import SignalType
 
 
 class TestAXI4Lite:

@@ -1,16 +1,20 @@
 """
-Core Magia package
-This index shall only import modules from this level of the package.
+Core Magia package.
 
+This index shall only import modules from this level of the package.
 Sub-packages (e.g. magia.std, etc.) shall be imported in their respective __init__.py files.
 """
 
 from importlib.util import find_spec
 
+from . import factory
 from .bundle import Bundle, BundleSpec, BundleType
-from .core import Constant, Input, Output, Register, Signal
+from .constant import Constant
+from .io_signal import Input, Output
 from .memory import Memory
-from .module import Blackbox, Elaborator, Instance, IOPorts, Module, VerilogWrapper
+from .module import Elaborator, Instance, IOPorts, Module, VerilogWrapper
+from .register import Register
+from .signals import Signal
 
 if find_spec("hdlConvertor") is not None:
     from .external import ExternalModule
@@ -57,7 +61,6 @@ __all__ += [
     "IOPorts",
     "Module",
     "Instance",
-    "Blackbox",
     "Elaborator",
     "ExternalModule",
     "VerilogWrapper",
@@ -76,3 +79,5 @@ Signal Bundles
 __all__ += [
     "Bundle", "BundleSpec", "BundleType",
 ]
+
+factory.deferred_imports()

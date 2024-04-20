@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-from typing import Optional
 
 from magia import Constant, Signal
 
@@ -17,19 +16,19 @@ class FSM:
     @dataclass
     class State:
         name: str
-        code: Optional[int]
+        code: None | int
         signal: Constant = field(repr=False)
 
     @dataclass
     class Transition:
         next: str
-        cond: Optional[Signal] = None
+        cond: None | Signal = None
 
     fsm_id = 0
 
     def __init__(
             self,
-            name: Optional[str] = None,
+            name: None | str = None,
             **kwargs,
     ):
         self.states: dict[str, FSM.State] = {}
@@ -49,7 +48,8 @@ class FSM:
     @property
     def width(self):
         """
-        Return the width of the state signal.
+        Returns the width of the state signal.
+
         It is only available after the FSM is finalized.
         """
         if not self.finalized:
@@ -59,6 +59,7 @@ class FSM:
     def add_states(self, **states):
         """
         Add multiple states to the FSM.
+
         The code name are specified as the key of the arguments.
         Code will be automatically assigned if None is passed as the value.
         """
@@ -66,12 +67,12 @@ class FSM:
             self.add_state(name, code)
         return self
 
-    def add_state(self, name: str, code: Optional[int] = None):
+    def add_state(self, name: str, code: None | int = None):
         """
         Add a state to the FSM.
 
-        @param name: The name of the state
-        @param code: The code of the state, if None, it will be automatically assigned
+        :param name: The name of the state
+        :param code: The code of the state, if None, it will be automatically assigned
         """
         if self.finalized:
             raise ValueError("FSM is already finalized")
@@ -88,23 +89,23 @@ class FSM:
 
         return self
 
-    def add_transitions(self, *transitions: tuple[str, str, Optional[Signal]]):
+    def add_transitions(self, *transitions: tuple[str, str, None | Signal]):
         """
         Add multiple transitions to the FSM.
 
-        @param transitions: Tuples contain the source state, destination state, and the transition condition
+        :param transitions: Tuples contain the source state, destination state, and the transition condition
         """
         for src, dst, cond in transitions:
             self.add_transition(src, dst, cond)
         return self
 
-    def add_transition(self, src: str, dst: str, cond: Optional[Signal] = None):
+    def add_transition(self, src: str, dst: str, cond: None | Signal = None):
         """
         Add a transition to the FSM.
 
-        @param src: The source state
-        @param dst: The destination state
-        @param cond: A single bit transition condition. None for unconditional transition.
+        :param src: The source state
+        :param dst: The destination state
+        :param cond: A single bit transition condition. None for unconditional transition.
         """
         if self.finalized:
             raise ValueError("FSM is already finalized")
@@ -113,7 +114,7 @@ class FSM:
         self.transitions[src].append(self.Transition(dst, cond))
         return self
 
-    def _check_transition(self, src: str, dst: str, cond: Optional[Signal] = None):
+    def _check_transition(self, src: str, dst: str, cond: None | Signal = None):
         if self.finalized:
             raise ValueError("FSM is already finalized")
         if cond is not None and cond.width != 1:
@@ -151,8 +152,8 @@ class FSM:
         return self
 
     def _fsm_logic_one_state(self, transitions, prev_state) -> Signal:
-        next_state = Constant(0, self.state_width)
-        prev_cond = Constant(0, 1)
+        next_state: Signal = Constant(0, self.state_width)
+        prev_cond: Signal = Constant(0, 1)
 
         for i, trans in enumerate(transitions):
             if trans.cond:
@@ -183,16 +184,17 @@ class FSM:
     def generate(
             self,
             reset_state: str, clk: Signal,
-            reset: Optional[Signal] = None,
-            async_reset: Optional[Signal] = None,
+            reset: None | Signal = None,
+            async_reset: None | Signal = None,
     ) -> Signal:
         """
         Generate the FSM and return the current state signal.
 
-        @param reset_state: The initial state of the FSM
-        @param clk: The clock signal
-        @param reset: The synchronous reset signal
-        @param async_reset: The asynchronous reset signal
+        :param reset_state: The initial state of the FSM
+        :param clk: The clock signal
+        :param reset: The synchronous reset signal
+        :param async_reset: The asynchronous reset signal
+        :returns: The current state signal
         """
         input_state, state = self.generate_unrolled(
             reset_state=reset_state,
@@ -205,10 +207,10 @@ class FSM:
 
     def generate_unrolled(
             self,
-            reset_state: Optional[str] = None,
-            clk: Optional[Signal] = None,
-            reset: Optional[Signal] = None,
-            async_reset: Optional[Signal] = None,
+            reset_state: None | str = None,
+            clk: None | Signal = None,
+            reset: None | Signal = None,
+            async_reset: None | Signal = None,
     ) -> tuple[Signal, Signal]:  # Input state, Next state
         """
         Generate the FSM logic and optionally register the output state in an unrolled manner.
@@ -219,11 +221,11 @@ class FSM:
         If clk is not provided, only the next state logic is generated but not the output register.
         In this case, reset_state and reset signals are not required.
 
-        @param reset_state: The initial state of the FSM
-        @param clk: The clock signal
-        @param reset: The synchronous reset signal
-        @param async_reset: The asynchronous reset signal
-        @return: The input state and the next state
+        :param reset_state: The initial state of the FSM
+        :param clk: The clock signal
+        :param reset: The synchronous reset signal
+        :param async_reset: The asynchronous reset signal
+        :returns: The input state and the next state
         """
         reg_output = clk is not None
         if reg_output:

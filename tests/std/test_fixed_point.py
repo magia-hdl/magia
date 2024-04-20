@@ -126,7 +126,7 @@ class TestFixedPoint:
     ])
     def test_back_conversion(self, m, n, signed):
         fp_fmt = FixedPoint(m, n, signed=signed)
-        for i in range(1 << len(fp_fmt)):
+        for i in range(1 << fp_fmt.width):
             src = fp_fmt.min + i / (1 << n)
             result = fp_fmt.to_float(fp_fmt(src))
             assert result == src, f"Expect {src}, got {result}"
@@ -149,12 +149,10 @@ class TestFixedPoint:
         (-0.50 - 0.126, 0b111101),
     ])
     def test_rounding(self, src, expected):
-        """
-        Rounding occur at LSB/2. Different from Python's round() function.
-        """
+        """Rounding occur at LSB/2. Different from Python's round() function."""
         fp_fmt = FixedPoint(4, 2, signed=True)
         assert fp_fmt(src) == expected
 
     def test_width(self):
         fp_fmt = FixedPoint(4, 4)
-        assert len(fp_fmt) == 8
+        assert fp_fmt.width == 8

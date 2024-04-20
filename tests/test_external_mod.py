@@ -39,11 +39,11 @@ class TestExternalModImport:
 
     def test_io_width(self):
         mod = ExternalModule.from_code(self.code, "TopModule")()
-        assert len(mod.io.clk) == 1
-        assert len(mod.io.wen) == 1
-        assert len(mod.io.addr) == 8
-        assert len(mod.io.din) == 8
-        assert len(mod.io.dout) == 8
+        assert mod.io.clk.width == 1
+        assert mod.io.wen.width == 1
+        assert mod.io.addr.width == 8
+        assert mod.io.din.width == 8
+        assert mod.io.dout.width == 8
 
     def test_io_signed(self):
         mod = ExternalModule.from_code(self.code, "TopModule")()
@@ -65,11 +65,11 @@ class TestExternalModImport:
     def test_params_override(self):
         mod_class = ExternalModule.from_code(self.code, "TopModule")
         mod = mod_class(WIDTH=16)
-        assert len(mod.io.clk) == 1
-        assert len(mod.io.wen) == 1
-        assert len(mod.io.addr) == 16
-        assert len(mod.io.din) == 16
-        assert len(mod.io.dout) == 16
+        assert mod.io.clk.width == 1
+        assert mod.io.wen.width == 1
+        assert mod.io.addr.width == 16
+        assert mod.io.din.width == 16
+        assert mod.io.dout.width == 16
 
 
 class TestExternalModElaborate:
@@ -198,7 +198,7 @@ class TestExternalModSyntax:
         for name in input_list:
             assert name in mod.io.input_names
         assert mod.io.output_names == ["dout"]
-        assert len(mod.io.dout) == 8
+        assert mod.io.dout.width == 8
         assert mod.io.dout.signed
 
     def test_param_def_in_body(self):
@@ -228,7 +228,7 @@ class TestExternalModSyntax:
         """
         mod = ExternalModule.from_code(code, "Mod1")(BASE=16)
         assert mod.params == {"WIDTH": 32, "BASE": 16}
-        assert len(mod.io.dout) == 32
+        assert mod.io.dout.width == 32
 
     def test_directive_propagation(self):
         code = """
@@ -243,8 +243,8 @@ class TestExternalModSyntax:
         endmodule
         """
         mod = ExternalModule.from_code(code, "Mod1")()
-        assert len(mod.io.addr) == 15
-        assert len(mod.io.dout) == 15
+        assert mod.io.addr.width == 15
+        assert mod.io.dout.width == 15
 
     def test_clog2(self):
         code = """
@@ -258,4 +258,4 @@ class TestExternalModSyntax:
         endmodule
         """
         mod = ExternalModule.from_code(code, "Mod1")()
-        assert len(mod.io.addr) == 10
+        assert mod.io.addr.width == 10
