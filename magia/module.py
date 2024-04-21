@@ -308,16 +308,17 @@ class Module(Synthesizable):
                         traced_inst_id.add(id(inst))
                         traced_inst.append(inst)
 
-                        # The Input port of the instance is skipped
-                        # We will go directly to the driver as it must be driven by another signal.
-                        input_drivers = [
-                            i.driver()
-                            for i in inst.io.values()
-                            if i.type == SignalType.INPUT
+                        # Trace the IO Ports of an instance.
+                        # Input port is driven by external signal, so we go for the driver.
+                        # Output port is an extra signal placeholder,
+                        # so we add the port itself and ensure the declaration exists.
+                        port_drivers = [
+                            port.driver() if port.type == SignalType.INPUT else port
+                            for port in inst.io.values()
                         ]
                         next_trace |= {
                             id_sig: sig
-                            for sig in input_drivers
+                            for sig in port_drivers
                             if (id_sig := id(sig)) not in traced_sig_id
                         }
                 elif signal.type != SignalType.INPUT and signal_id not in traced_sig_id:
