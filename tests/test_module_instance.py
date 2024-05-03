@@ -193,3 +193,32 @@ def test_module_io_definition():
         assert input_name in top.io.input_names
     for output_name in ["out_a", "out_b"]:
         assert output_name in top.io.output_names
+
+
+def test_logic_decl_with_unused_output():
+    class Sub(Module):
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            self.io += Input("in_a", 8)
+            self.io += Output("out_a", 8)
+            self.io += Output("out_b", 8)
+
+            self.io.out_a <<= self.io.in_a
+            self.io.out_b <<= self.io.in_a
+
+    class Top(Module):
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            self.io += Input("in_a", 8)
+            self.io += Output("out_a", 8)
+
+            sub_module = Sub(name="sub")
+            sub_module.instance(io={"in_a": self.io.in_a, "out_a": self.io.out_a})
+
+    top = Top(name="Top")
+    code = Elaborator.to_dict(top)
+    code_lines = code["Top"].splitlines()
+    assignment = [line for line in code_lines if line.strip().startswith("assign ")]
+    signal_decl = [line for line in code_lines if line.strip().startswith("logic ")]
+    assert len(assignment) == 1, f"Expected 1 assignment, got {len(assignment)}."
+    assert len(signal_decl) == 2, f"Expected 2 signal declarations, got {len(signal_decl)}."
