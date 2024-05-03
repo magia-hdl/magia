@@ -76,88 +76,87 @@ class TestModSpecialize:
         assert len(result) == 2, f"Expected 2 modules: Top + 1 SubModules, got {len(result)} modules."
 
 
-def test_elaborate_to_files(temp_build_dir):
-    adder_file = "adder.sv"
+class TestElaboration:
+    def test_elaborate_to_files(self, temp_build_dir):
+        adder_file = "adder.sv"
 
-    @Elaborator.file(adder_file)
-    class Adder(Module):
-        def __init__(self, **kwargs):
-            super().__init__(**kwargs)
-            self.io += Input("a", 4)
-            self.io += Input("b", 4)
-            self.io += Output("q", 5, signed=True)
+        @Elaborator.file(adder_file)
+        class Adder(Module):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                self.io += Input("a", 4)
+                self.io += Input("b", 4)
+                self.io += Output("q", 5, signed=True)
 
-            self.io.q <<= (self.io.a + self.io.b).set_width(5)
+                self.io.q <<= (self.io.a + self.io.b).set_width(5)
 
-    class Top(Module):
-        def __init__(self, **kwargs):
-            super().__init__(**kwargs)
-            self.io += Input("a", 4)
-            self.io += Input("b", 4)
-            self.io += Output("q0", 5, signed=True)
-            self.io += Output("q1", 5, signed=True)
-            self.io += Output("q2", 5, signed=True)
+        class Top(Module):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                self.io += Input("a", 4)
+                self.io += Input("b", 4)
+                self.io += Output("q0", 5, signed=True)
+                self.io += Output("q1", 5, signed=True)
+                self.io += Output("q2", 5, signed=True)
 
-            Adder().instance("adder1", io={"a": self.io.a, "b": self.io.b, "q": self.io.q0})
-            Adder().instance("adder2", io={"a": self.io.a, "b": self.io.b, "q": self.io.q1})
-            Adder().instance("adder3", io={"a": self.io.a, "b": self.io.b, "q": self.io.q2})
+                Adder().instance("adder1", io={"a": self.io.a, "b": self.io.b, "q": self.io.q0})
+                Adder().instance("adder2", io={"a": self.io.a, "b": self.io.b, "q": self.io.q1})
+                Adder().instance("adder3", io={"a": self.io.a, "b": self.io.b, "q": self.io.q2})
 
-    elaborated = Elaborator.to_files(temp_build_dir, Top(name="Top"), Top(name="Top2"), force=True)
-    elaborated = [file.name for file in elaborated]
-    assert len(elaborated) == 3, f"Expected 3 files, got {len(elaborated)} files."
-    assert "Top.sv" in elaborated, "Top.sv is missing."
-    assert "Top2.sv" in elaborated, "Top2.sv is missing."
-    assert adder_file in elaborated, f"{adder_file} is missing."
+        elaborated = Elaborator.to_files(temp_build_dir, Top(name="Top"), Top(name="Top2"), force=True)
+        elaborated = [file.name for file in elaborated]
+        assert len(elaborated) == 3, f"Expected 3 files, got {len(elaborated)} files."
+        assert "Top.sv" in elaborated, "Top.sv is missing."
+        assert "Top2.sv" in elaborated, "Top2.sv is missing."
+        assert adder_file in elaborated, f"{adder_file} is missing."
 
-    adder_conetxt = Path(temp_build_dir, adder_file).read_text()
-    end_modules = [
-        line for line in adder_conetxt.splitlines()
-        if line.strip() == "endmodule"
-    ]
-    assert len(end_modules) == 6, f"Expected 6 modules in {adder_file}, got {len(end_modules)}."
+        adder_conetxt = Path(temp_build_dir, adder_file).read_text()
+        end_modules = [
+            line for line in adder_conetxt.splitlines()
+            if line.strip() == "endmodule"
+        ]
+        assert len(end_modules) == 6, f"Expected 6 modules in {adder_file}, got {len(end_modules)}."
 
+    def test_elaborate_doc(self):
+        class Top(Module):
+            """This is a top module."""
 
-def test_elaborate_doc():
-    class Top(Module):
-        """This is a top module."""
+            def __init__(self, width, **kwargs):
+                super().__init__(**kwargs)
+                self.io += Input("a", width)
+                self.io += Output("b", width)
+                self.io.b <<= self.io.a
 
-        def __init__(self, width, **kwargs):
-            super().__init__(**kwargs)
-            self.io += Input("a", width)
-            self.io += Output("b", width)
-            self.io.b <<= self.io.a
+        doc = Elaborator.to_string(Top(width=7086))
+        assert "This is a top module." in doc, "Module doc is missing."
+        assert "width: 7086" in doc, "Module parameter is missing."
 
-    doc = Elaborator.to_string(Top(width=7086))
-    assert "This is a top module." in doc, "Module doc is missing."
-    assert "width: 7086" in doc, "Module parameter is missing."
+    def test_module_spec(self):
+        class Top(Module):
+            """This is a top module."""
 
+            def __init__(self, width, **kwargs):
+                """:param width: The width of the module."""
+                super().__init__(**kwargs)
+                self.io += Input("a", width, description="Input A")
+                self.io += Output("b", width)
+                self.io.b <<= self.io.a
 
-def test_module_spec():
-    class Top(Module):
-        """This is a top module."""
-
-        def __init__(self, width, **kwargs):
-            """:param width: The width of the module."""
-            super().__init__(**kwargs)
-            self.io += Input("a", width, description="Input A")
-            self.io += Output("b", width)
-            self.io.b <<= self.io.a
-
-    spec = Top(width=7086, name="TopLevel").spec
-    assert spec["name"] == "TopLevel"
-    assert spec["description"] == "This is a top module."
-    assert spec["parameters"][0]["name"] == "width"
-    assert spec["parameters"][0]["value"] == 7086
-    assert spec["parameters"][0]["description"] == "The width of the module."
-    for port in spec["ports"]:
-        assert port["name"] in ["a", "b"]
-        assert port["width"] == 7086
-        if port["name"] == "a":
-            assert port["direction"] == "INPUT"
-            assert port["description"] == "Input A"
-        else:
-            assert port["direction"] == "OUTPUT"
-            assert port["description"] == ""
+        spec = Top(width=7086, name="TopLevel").spec
+        assert spec["name"] == "TopLevel"
+        assert spec["description"] == "This is a top module."
+        assert spec["parameters"][0]["name"] == "width"
+        assert spec["parameters"][0]["value"] == 7086
+        assert spec["parameters"][0]["description"] == "The width of the module."
+        for port in spec["ports"]:
+            assert port["name"] in ["a", "b"]
+            assert port["width"] == 7086
+            if port["name"] == "a":
+                assert port["direction"] == "INPUT"
+                assert port["description"] == "Input A"
+            else:
+                assert port["direction"] == "OUTPUT"
+                assert port["description"] == ""
 
 
 def test_module_io_definition():
@@ -194,3 +193,32 @@ def test_module_io_definition():
         assert input_name in top.io.input_names
     for output_name in ["out_a", "out_b"]:
         assert output_name in top.io.output_names
+
+
+def test_logic_decl_with_unused_output():
+    class Sub(Module):
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            self.io += Input("in_a", 8)
+            self.io += Output("out_a", 8)
+            self.io += Output("out_b", 8)
+
+            self.io.out_a <<= self.io.in_a
+            self.io.out_b <<= self.io.in_a
+
+    class Top(Module):
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            self.io += Input("in_a", 8)
+            self.io += Output("out_a", 8)
+
+            sub_module = Sub(name="sub")
+            sub_module.instance(io={"in_a": self.io.in_a, "out_a": self.io.out_a})
+
+    top = Top(name="Top")
+    code = Elaborator.to_dict(top)
+    code_lines = code["Top"].splitlines()
+    assignment = [line for line in code_lines if line.strip().startswith("assign ")]
+    signal_decl = [line for line in code_lines if line.strip().startswith("logic ")]
+    assert len(assignment) == 1, f"Expected 1 assignment, got {len(assignment)}."
+    assert len(signal_decl) == 2, f"Expected 2 signal declarations, got {len(signal_decl)}."

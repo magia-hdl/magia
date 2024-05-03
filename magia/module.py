@@ -34,6 +34,11 @@ class ModuleInstanceConfig:
     name: None | str = None
 
 
+MOD_DECL_TEMPLATE = Template("module $name (\n$io\n);")
+INST_TEMPLATE = Template("$module_name $inst_name (\n$io\n);")
+IO_TEMPLATE = Template(".$port_name($signal_name)")
+
+
 class IOPorts:
     """
     Define a set of I/O, which can be used as the input or output of a module.
@@ -175,7 +180,6 @@ class Module(Synthesizable):
         self.io.q <<= self.io.a + 1
     """
 
-    _MOD_DECL_TEMPLATE = Template("module $name (\n$io\n);")
     _new_module_counter = count(0)
     output_file: None | PathLike = None
 
@@ -217,7 +221,7 @@ class Module(Synthesizable):
         return []
 
     def mod_declaration(self) -> str:
-        mod_decl = self._MOD_DECL_TEMPLATE.substitute(
+        mod_decl = MOD_DECL_TEMPLATE.substitute(
             name=self.name,
             io=",\n".join(
                 port.elaborate()
@@ -304,16 +308,17 @@ class Module(Synthesizable):
                         traced_inst_id.add(id(inst))
                         traced_inst.append(inst)
 
-                        # The Input port of the instance is skipped
-                        # We will go directly to the driver as it must be driven by another signal.
-                        input_drivers = [
-                            i.driver()
-                            for i in inst.io.values()
-                            if i.type == SignalType.INPUT
+                        # Trace the IO Ports of an instance.
+                        # Input port is driven by external signal, so we go for the driver.
+                        # Output port is an extra signal placeholder,
+                        # so we add the port itself and ensure the declaration exists.
+                        port_drivers = [
+                            port.driver() if port.type == SignalType.INPUT else port
+                            for port in inst.io.values()
                         ]
                         next_trace |= {
                             id_sig: sig
-                            for sig in input_drivers
+                            for sig in port_drivers
                             if (id_sig := id(sig)) not in traced_sig_id
                         }
                 elif signal.type != SignalType.INPUT and signal_id not in traced_sig_id:
@@ -459,9 +464,6 @@ class Module(Synthesizable):
 class Instance(Synthesizable):
     """An instance of a module."""
 
-    _INST_TEMPLATE = Template("$module_name $inst_name (\n$io\n);")
-    _IO_TEMPLATE = Template(".$port_name($signal_name)")
-
     _new_inst_counter = count(0)
 
     def __init__(self,
@@ -542,10 +544,10 @@ class Instance(Synthesizable):
             if port.type == SignalType.INPUT:
                 signal_name = port.driver().name
 
-            io_list.append(self._IO_TEMPLATE.substitute(port_name=port_name, signal_name=signal_name))
+            io_list.append(IO_TEMPLATE.substitute(port_name=port_name, signal_name=signal_name))
 
         io_list = ",\n".join(io_list)
-        return self._INST_TEMPLATE.substitute(
+        return INST_TEMPLATE.substitute(
             module_name=module_name,
             inst_name=inst_name,
             io=io_list,
