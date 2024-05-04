@@ -4,8 +4,9 @@ import enum
 from copy import deepcopy
 
 from .data_struct import SignalDict, SignalType
+from .io_ports import IOPorts
 from .io_signal import Input, Output
-from .module import Instance, IOPorts
+from .module import Instance
 from .signals import Signal, SignalConfig
 
 
