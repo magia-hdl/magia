@@ -4,7 +4,7 @@ import inspect
 import logging
 from collections import Counter, OrderedDict
 from dataclasses import dataclass
-from functools import cached_property
+from functools import cached_property, partial
 from itertools import count
 from os import PathLike
 from string import Template
@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 from .data_struct import SignalDict, SignalType
 from .io_ports import IOPorts
 from .memory import Memory, MemorySignal
-from .signals import SIGNAL_ASSIGN_TEMPLATE, Signal, Synthesizable
+from .signals import SIGNAL_ASSIGN_TEMPLATE, CodeSectionType, Signal, Synthesizable
 
 if TYPE_CHECKING:
     from .bundle import Bundle
@@ -38,10 +38,13 @@ INST_TEMPLATE = Template("$module_name $inst_name (\n$io\n);")
 IO_TEMPLATE = Template(".$port_name($signal_name)")
 
 
+class _ModuleDefaultCodeSection(type):
+    def __call__(cls, *args, **kwargs):
+        with Synthesizable.code_section(CodeSectionType.LOGIC):
+            return super().__call__(*args, **kwargs)
 
 
-
-class Module(Synthesizable):
+class Module(Synthesizable, metaclass=_ModuleDefaultCodeSection):
     """
     A module is a collection of signals and operations. It can also include other modules.
 
@@ -68,6 +71,8 @@ class Module(Synthesizable):
 
     _new_module_counter = count(0)
     output_file: None | PathLike = None
+
+    formal_code = partial(Synthesizable.code_section, CodeSectionType.FORMAL)
 
     def __init__(self, name: None | str = None, **kwargs):
         super().__init__(**kwargs)
@@ -461,13 +466,10 @@ class VerilogWrapper(Module):
         if kwargs.get("name") is None and module.name is not None:
             kwargs["name"] = f"{module.name}Wrapper"
         super().__init__(**kwargs)
-        self.module = module
-        self.io += module.io
-        module.instance(name="inst", io={
-            name: self.io[name]
-            for name in module.io.signals
-        })
-
-    def elaborate(self) -> tuple[str, set[Module]]:
-        with Signal.decl_in_verilog():
-            return super().elaborate()
+        with self.code_section(CodeSectionType.VERILOG):
+            self.module = module
+            self.io += module.io
+            module.instance(name="inst", io={
+                name: self.io[name]
+                for name in module.io.signals
+            })

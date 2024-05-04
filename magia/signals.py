@@ -4,6 +4,7 @@ import inspect
 from collections.abc import Iterable
 from contextlib import contextmanager
 from dataclasses import dataclass
+from enum import Enum, auto
 from functools import cached_property
 from itertools import count
 from pathlib import Path
@@ -22,8 +23,15 @@ if TYPE_CHECKING:
 CURRENT_DIR = Path(__file__).parent
 
 SIGNAL_DECL_TEMPLATE = Template("logic $signed $width $name;")
+SIGNAL_DECL_FORMAL_TEMPLATE = Template("logic $signed $width $name = 0;")
 SIGNAL_DECL_VERILOG_TEMPLATE = Template("wire $signed $width $name;")
 SIGNAL_ASSIGN_TEMPLATE = Template("assign $name = $driver;")
+
+
+class CodeSectionType(Enum):
+    LOGIC = auto()
+    VERILOG = auto()
+    FORMAL = auto()
 
 
 @dataclass
@@ -55,6 +63,27 @@ class Synthesizable:
 
     _ANNOTATION_TEMPLATE = Template("/*\nNet name: $net_name\n$comment$loc\n*/")
 
+    _current_code_section = CodeSectionType.LOGIC
+
+    @classmethod
+    @contextmanager
+    def code_section(cls, section: CodeSectionType):
+        """
+        Specify the code section of the synthesizable objects created within this context manager.
+
+        Code section specify how the object is elaborated in the SystemVerilog code.
+
+        :param section: The type of code section.
+        """
+        prev_value, Synthesizable._current_code_section = Synthesizable._current_code_section, section
+        yield
+        Synthesizable._current_code_section = prev_value
+
+    @classmethod
+    @property
+    def current_code_section(cls) -> CodeSectionType:
+        return Synthesizable._current_code_section
+
     def __init__(self, **kwargs):
         self._init_callstack = [
             frame_info for frame_info in inspect.stack()[1:]
@@ -62,6 +91,7 @@ class Synthesizable:
         ]
         self._annotated_from = None
         self._comment = None
+        self._code_section = Synthesizable.current_code_section
 
     @property
     def name(self) -> str:
@@ -147,7 +177,6 @@ class Signal(Synthesizable):
     DEFAULT_DRIVER: str = "d"
 
     _new_signal_counter = count(0)
-    _signal_decl_in_verilog = False
     _str_with_net_name_only = False
 
     def __init__(
@@ -279,14 +308,6 @@ class Signal(Synthesizable):
             return self[(-1,) * padding_size, :]
         return constant(0, padding_size, False) @ self
 
-    @classmethod
-    @contextmanager
-    def decl_in_verilog(cls):
-        """Declare a context to elaborate signals in Verilog style."""
-        prev_value, cls._signal_decl_in_verilog = cls._signal_decl_in_verilog, True
-        yield
-        cls._signal_decl_in_verilog = prev_value
-
     def signal_decl(self) -> str:
         """
         Declare the signal in the module implementation.
@@ -298,7 +319,14 @@ class Signal(Synthesizable):
         if self.width == 0:
             raise ValueError("Signal width is not set and cannot be inferred")
 
-        template = SIGNAL_DECL_VERILOG_TEMPLATE if self._signal_decl_in_verilog else SIGNAL_DECL_TEMPLATE
+        match self._code_section:
+            case CodeSectionType.LOGIC:
+                template = SIGNAL_DECL_TEMPLATE
+            case CodeSectionType.VERILOG:
+                template = SIGNAL_DECL_VERILOG_TEMPLATE
+            case CodeSectionType.FORMAL:
+                template = SIGNAL_DECL_FORMAL_TEMPLATE
+
         decl = template.substitute(
             signed="signed" if self.signed else "",
             width=f"[{width - 1}:0]" if (width := self.width) > 1 else "",
