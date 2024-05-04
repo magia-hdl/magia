@@ -62,6 +62,7 @@ class Synthesizable:
         ]
         self._annotated_from = None
         self._comment = None
+        self.code_section = Synthesizable.current_code_section
 
     @property
     def name(self) -> str:

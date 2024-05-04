@@ -3,16 +3,15 @@ from __future__ import annotations
 import inspect
 import logging
 from collections import Counter, OrderedDict
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from functools import cached_property
 from itertools import count
 from os import PathLike
-from pathlib import Path
 from string import Template
 from typing import TYPE_CHECKING
 
 from .data_struct import SignalDict, SignalType
-from .io_signal import Input, Output
+from .io_ports import IOPorts
 from .memory import Memory, MemorySignal
 from .signals import SIGNAL_ASSIGN_TEMPLATE, Signal, Synthesizable
 
@@ -39,120 +38,7 @@ INST_TEMPLATE = Template("$module_name $inst_name (\n$io\n);")
 IO_TEMPLATE = Template(".$port_name($signal_name)")
 
 
-class IOPorts:
-    """
-    Define a set of I/O, which can be used as the input or output of a module.
 
-    An IOPorts can be added with Input and Output.
-    However, the bundle cannot be used as normal signals.
-    The actual signals can be accessed from `input` and `output` of the instance instead.
-
-    We can use `signal_bundle()` to create a SignalBundle that turns all the ports into normal signals,
-    which we can connect to the instance of the module and other destinations.
-    It can be accessed by individual port by attributes, or connect to multiple instance directly.
-    """
-
-    def __init__(self, owner_instance: None | Instance = None, **kwargs):
-        self.signals = SignalDict()
-        self._owner_instance = owner_instance
-
-    def __add__(self, other: IOPorts | list[Input | Output | IOPorts] | Input | Output) -> IOPorts:
-        new_ports = IOPorts()
-        new_ports += self
-        new_ports += other
-        return new_ports
-
-    def __iadd__(self, other: IOPorts | list[Input | Output | IOPorts] | Input | Output) -> IOPorts:
-        if isinstance(other, list):
-            flatten = []
-            for ports in other:
-                if isinstance(ports, IOPorts):
-                    flatten += ports.inputs + ports.outputs
-                else:
-                    flatten.append(ports)
-            other = flatten
-        else:
-            if isinstance(other, IOPorts):
-                other = other.inputs + other.outputs
-            elif isinstance(other, (Input, Output)):
-                other = [other]
-
-        for port in other:
-            self._add_port(port)
-
-        return self
-
-    def _add_port(self, port: Input | Output):
-        """Copy the given port and add it into current IOPorts."""
-        if port.name in self.signals:
-            raise KeyError(f"Port {port.name} is already defined.")
-
-        if port.type not in (SignalType.INPUT, SignalType.OUTPUT):
-            raise TypeError(f"Signal Type {port.type} is forbidden in IOPorts.")
-
-        self.signals[port.name] = port.__class__(
-            **{
-                k: v
-                for k, v in asdict(port.signal_config).items()
-                if k not in ("signal_type", "owner_instance",)
-            },
-            owner_instance=self._owner_instance,
-        )
-
-    def __getattr__(self, name: str) -> Input | Output:
-        if name.startswith("_"):
-            return super().__getattribute__(name)
-        if name in self.signals:
-            return self.__getitem__(name)
-        return super().__getattribute__(name)
-
-    def __setattr__(self, name: str, value: Input | Output):
-        if name.startswith("_"):
-            super().__setattr__(name, value)
-        if isinstance(value, Signal):
-            self.__setitem__(name, value)
-        else:
-            super().__setattr__(name, value)
-
-    def __getitem__(self, item: str) -> Input | Output:
-        return self.signals[item]
-
-    def __setitem__(self, key, value):
-        self.signals[key] = value
-
-    @property
-    def inputs(self) -> list[Signal]:
-        return [
-            signal for signal in self.signals.values()
-            if signal.type == SignalType.INPUT
-        ]
-
-    @property
-    def outputs(self) -> list[Signal]:
-        return [
-            signal for signal in self.signals.values()
-            if signal.type == SignalType.OUTPUT
-        ]
-
-    @property
-    def input_names(self) -> list[str]:
-        return [
-            name for name, port in self.signals.items()
-            if port.type == SignalType.INPUT
-        ]
-
-    @property
-    def output_names(self) -> list[str]:
-        return [
-            name for name, port in self.signals.items()
-            if port.type == SignalType.OUTPUT
-        ]
-
-    def __ilshift__(self, other: Bundle):
-        if self._owner_instance is not None:
-            raise TypeError("Connect the bundle to an Instance directly, instead of `Instance.io <<= Bundle`.")
-        other.connect_to(self)
-        return self
 
 
 class Module(Synthesizable):
@@ -585,114 +471,3 @@ class VerilogWrapper(Module):
     def elaborate(self) -> tuple[str, set[Module]]:
         with Signal.decl_in_verilog():
             return super().elaborate()
-
-
-class Elaborator:
-    """Elaborator is a helper class to elaborate modules."""
-
-    name_to_module: dict[str, Module] = {}
-
-    def __init__(self):
-        raise NotImplementedError("Elaborator is a helper class and should not be instantiated.")
-
-    @classmethod
-    def to_dict(cls, *modules: Module, top_only: bool = False) -> dict[str, str]:
-        """
-        Elaborate all modules in the list.
-
-        Each module will be elaborated only once and return the SystemVerilog code, plus a list of submodules
-        Duplicated submodules will not be elaborated again.
-        The elaboration is done recursively, until all submodules are elaborated.
-
-        :param modules: The modules to be elaborated.
-        :param top_only: If True, Elaborator will skip the submodules instantiated by `modules`
-        :returns: A dictionary of the SystemVerilog code for each module.
-        """
-        cls.name_to_module = {}
-        modules = list(modules)
-        elaborated_modules: dict[str, str] = {}
-        while modules:
-            mod = modules.pop()
-            cls.name_to_module[mod.name] = mod
-            if mod.name not in elaborated_modules:
-                sv_code, submodules = mod.elaborate()
-                elaborated_modules[mod.name] = sv_code
-                if not top_only:
-                    modules += submodules
-        return elaborated_modules
-
-    @classmethod
-    def to_string(cls, *modules: Module, top_only: bool = False) -> str:
-        """Elaborate all modules in the list and return the SystemVerilog code as a string."""
-        return "\n\n".join(cls.to_dict(*modules, top_only=top_only).values())
-
-    @classmethod
-    def to_file(cls, filename: PathLike, *modules: Module, top_only: bool = False):
-        """Elaborate all modules in the list and write the SystemVerilog code to a file."""
-        sv_code = cls.to_string(*modules, top_only=top_only)
-        Path(filename).write_text(sv_code)
-
-    @classmethod
-    def to_files(
-            cls, output_dir: PathLike, /,
-            *modules: Module,
-            force: bool = False,
-            top_only: bool = False
-    ) -> list[Path]:
-        """
-        Elaborate all modules in the list and write the SystemVerilog code to files.
-
-        The files are written to the output directory.
-
-        :param output_dir: The output directory.
-        :param modules: The modules to be elaborated.
-        :param force: If True, files in the output directory will be overwritten if it exists.
-        :param top_only: If True, Elaborator will skip the submodules instantiated by `modules`
-
-        :returns: A list of Path objects of the files written.
-        """
-        output_dir = Path(output_dir)
-        if not force and output_dir.is_dir() and any(output_dir.iterdir()):
-            raise FileExistsError(f"Directory {output_dir} already exists and not empty.")
-        output_dir.mkdir(parents=True, exist_ok=True)
-
-        result = cls.to_dict(*modules, top_only=top_only)
-        result_by_file: dict[str, list[str]] = {}
-
-        # Categorize by output file
-        for fname, sv_code in result.items():
-            module = cls.name_to_module[fname]
-            output_file = f"{fname}.sv" if module.output_file is None else module.output_file
-
-            if output_file not in result_by_file:
-                result_by_file[output_file] = []
-            result_by_file[output_file].append(sv_code)
-
-        # Write to files
-        for fname, sv_codes in result_by_file.items():
-            sv_code = "\n\n".join(sv_codes)
-            Path(output_dir, fname).write_text(sv_code)
-
-        return [Path(output_dir, fname) for fname in result_by_file]
-
-    @staticmethod
-    def file(fname: PathLike):
-        """
-        Return a class decorator to register the filename of generated code to a Module.
-
-        The effect is employed by the `to_files` method only.
-
-        Example:
-        @Elaborator.file("adder.sv")
-        class Adder(Module):
-            ...
-
-        Elaborator.to_files("/tmp/output", Adder(name="adder1"), Adder(name="adder2"))
-        # Result in /tmp/output/adder.sv with 2 adders.
-        """
-
-        def decorator(cls: type[Module]):
-            cls.output_file = Path(fname)
-            return cls
-
-        return decorator
