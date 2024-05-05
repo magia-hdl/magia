@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from magia import Elaborator, Input, IOPorts, Module, Output, VerilogWrapper
+from magia import CodeSectionType, Elaborator, Input, IOPorts, Module, Output, VerilogWrapper
 
 
 class TestModSpecialize:
@@ -271,3 +271,36 @@ def test_verilog_wrapper():
     assert not all(
         "logic" in line for line in elaborated_io["TopWrapper"]
     ), "Logic declaration found in IO of Elaborated Verilog Code."
+
+
+def test_code_section():
+    class Sub(Module):
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            self.io += Input("in_a", 8)
+            self.io += Output("out_a", 8)
+
+            assert self.current_code_section == CodeSectionType.LOGIC
+            with self.formal_code():
+                assert self.current_code_section == CodeSectionType.FORMAL
+            with self.code_section(CodeSectionType.VERILOG):
+                assert self.current_code_section == CodeSectionType.VERILOG
+                self.io.out_a <<= self.io.in_a
+
+    class Top(Module):
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            self.io += Input("in_a", 8)
+            self.io += Output("out_a", 8)
+
+            assert self.current_code_section == CodeSectionType.LOGIC
+            with self.formal_code():
+                assert self.current_code_section == CodeSectionType.FORMAL
+                s1 = Sub()
+            with self.code_section(CodeSectionType.VERILOG):
+                assert self.current_code_section == CodeSectionType.VERILOG
+                self.io.out_a <<= self.io.in_a
+                s2 = Sub()
+
+    Top()
+    Sub()
