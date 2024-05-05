@@ -296,11 +296,11 @@ def test_code_section():
             assert self.current_code_section == CodeSectionType.LOGIC
             with self.formal_code():
                 assert self.current_code_section == CodeSectionType.FORMAL
-                s1 = Sub()
+                _ = Sub()
             with self.code_section(CodeSectionType.VERILOG):
                 assert self.current_code_section == CodeSectionType.VERILOG
                 self.io.out_a <<= self.io.in_a
-                s2 = Sub()
+                _ = Sub()
 
     Top()
     Sub()
