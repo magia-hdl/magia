@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 from .data_struct import SignalDict, SignalType
 from .io_ports import IOPorts
 from .memory import Memory, MemorySignal
+from .module_context import ModuleContext
 from .signals import SIGNAL_ASSIGN_TEMPLATE, CodeSectionType, Signal, Synthesizable
 
 if TYPE_CHECKING:
@@ -42,7 +43,10 @@ class _ModuleMetaClass(type):
     def __call__(cls, *args, **kwargs):
         # Reset code section to Logic. Restore after creation.
         with Synthesizable.code_section(CodeSectionType.LOGIC):
-            return super().__call__(*args, **kwargs)
+            inst = super().__call__(*args, **kwargs)
+            # Restore module stack after creation
+            ModuleContext().pop()
+            return inst
 
 
 class Module(Synthesizable, metaclass=_ModuleMetaClass):
@@ -58,7 +62,7 @@ class Module(Synthesizable, metaclass=_ModuleMetaClass):
 
     The module can be instantiated with the `instance` method.
 
-    Designers shall implement the circuit logic in the `__init__` method.
+    Designers must implement the circuit logic in the `__init__` method.
     However, we highly recommend designers to extract the logic implementation into a seperated method.
     e.g.
     def __init__(self, **kwargs):
@@ -77,6 +81,7 @@ class Module(Synthesizable, metaclass=_ModuleMetaClass):
 
     def __init__(self, name: None | str = None, **kwargs):
         super().__init__(**kwargs)
+        ModuleContext().push(self)  # Push current module to the context stack
 
         # Get the arguments passed to the __init__ method of the inherited class
         # === DON'T REFACTOR BELOW. We are inspecting the stack and refactoring will affect the result ===
