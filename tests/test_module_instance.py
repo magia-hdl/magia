@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from magia import Elaborator, Input, IOPorts, Module, Output
+from magia import Elaborator, Input, IOPorts, Module, Output, VerilogWrapper
 
 
 class TestModSpecialize:
@@ -222,3 +222,52 @@ def test_logic_decl_with_unused_output():
     signal_decl = [line for line in code_lines if line.strip().startswith("logic ")]
     assert len(assignment) == 1, f"Expected 1 assignment, got {len(assignment)}."
     assert len(signal_decl) == 2, f"Expected 2 signal declarations, got {len(signal_decl)}."
+
+
+def test_verilog_wrapper():
+    class Top(Module):
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            self.io += Input("in_a", 8)
+            self.io += Output("out_a", 8)
+
+            self.io.out_a <<= self.io.in_a
+
+    wrapper = VerilogWrapper(Top(name="Top"), name="TopWrapper")
+    elaborated_lines = {
+        name: [line.strip() for line in code.splitlines()]
+        for name, code in Elaborator.to_dict(wrapper).items()
+    }
+    elaborated_io = {
+        name: [
+            line.replace("input", "").replace("output", "").strip()
+            for line in lines
+            if line.startswith("input") or line.startswith("output")
+        ] for name, lines in elaborated_lines.items()
+    }
+
+    # SV Output: Only "logic" is valid in signal declarations.
+    assert any(
+        line.startswith("logic") for line in
+        elaborated_lines["Top"] + elaborated_io["Top"]
+    ), "No Signal declaration found in Elaborated SystemVerilog Code."
+    assert not any(
+        line.startswith("wire")
+        for line in elaborated_lines["Top"]
+    ), "Wire declaration found in Elaborated SystemVerilog Code."
+    assert not all(
+        "wire" in line for line in elaborated_io["Top"]
+    ), "Wire declaration found in IO of Elaborated SystemVerilog Code."
+
+    # Verilog Output: Only "wire" is valid in signal declarations.
+    assert any(
+        line.startswith("wire") for line in
+        elaborated_lines["TopWrapper"] + elaborated_io["TopWrapper"]
+    ), "No Signal declaration found in Elaborated Verilog Code."
+    assert not any(
+        line.startswith("logic")
+        for line in elaborated_lines["TopWrapper"]
+    ), "Logic declaration found in Elaborated Verilog Code."
+    assert not all(
+        "logic" in line for line in elaborated_io["TopWrapper"]
+    ), "Logic declaration found in IO of Elaborated Verilog Code."
