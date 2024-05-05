@@ -38,13 +38,14 @@ INST_TEMPLATE = Template("$module_name $inst_name (\n$io\n);")
 IO_TEMPLATE = Template(".$port_name($signal_name)")
 
 
-class _ModuleDefaultCodeSection(type):
+class _ModuleMetaClass(type):
     def __call__(cls, *args, **kwargs):
+        # Reset code section to Logic. Restore after creation.
         with Synthesizable.code_section(CodeSectionType.LOGIC):
             return super().__call__(*args, **kwargs)
 
 
-class Module(Synthesizable, metaclass=_ModuleDefaultCodeSection):
+class Module(Synthesizable, metaclass=_ModuleMetaClass):
     """
     A module is a collection of signals and operations. It can also include other modules.
 
