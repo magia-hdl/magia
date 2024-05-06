@@ -1,6 +1,8 @@
 from pathlib import Path
 
 from magia import CodeSectionType, Elaborator, Input, IOPorts, Module, Output, VerilogWrapper
+from magia.signals import Synthesizable
+from magia.utils import ModuleContext
 
 
 class TestModSpecialize:
@@ -304,3 +306,38 @@ def test_code_section():
 
     Top()
     Sub()
+
+
+def test_auto_object_collection():
+    class SpecialCode(Synthesizable):
+        def __init__(self, code: str, **kwargs):
+            super().__init__(**kwargs)
+            if (module := ModuleContext().current) is not None:
+                module.special_code.append(self)
+            self.code = code
+
+        def __str__(self):
+            return f"SpecialCode: {self.code}"
+
+    class Top(Module):
+        def __init__(self, code_count: int, **kwargs):
+            self.special_code = []
+            super().__init__(**kwargs)
+            self.io += Input("in_a", 8)
+            self.io += Output("out_a", 8)
+
+            for i in range(code_count):
+                SpecialCode(f"code {i}")
+            self.io.out_a <<= self.io.in_a
+
+    top_5, top_10 = Top(5), Top(10)
+    assert len(top_5.special_code) == 5, f"Expected 5 SpecialCode objects, got {len(top_5.special_code)}."
+    assert len(top_10.special_code) == 10, f"Expected 10 SpecialCode objects, got {len(top_10.special_code)}."
+
+    top_5_code = {str(code) for code in top_5.special_code}
+    top_10_code = {str(code) for code in top_10.special_code}
+
+    for i in range(5):
+        assert f"SpecialCode: code {i}" in top_5_code, f"SpecialCode code {i} is missing in top_5."
+    for i in range(10):
+        assert f"SpecialCode: code {i}" in top_10_code, f"SpecialCode code {i} is missing in top_10."
