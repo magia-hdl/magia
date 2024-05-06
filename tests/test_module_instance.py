@@ -1,7 +1,8 @@
 from pathlib import Path
 
+from utils.module_context import ModuleContext
+
 from magia import CodeSectionType, Elaborator, Input, IOPorts, Module, Output, VerilogWrapper
-from magia.module_context import ModuleContext
 from magia.signals import Synthesizable
 
 

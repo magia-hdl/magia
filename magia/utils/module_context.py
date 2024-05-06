@@ -1,10 +1,11 @@
+"""ModuleContext is a singleton class that keeps track of the module that is currently being constructed."""
 from __future__ import annotations
 
 import typing
 from contextlib import contextmanager
 
 if typing.TYPE_CHECKING:
-    from .module import Module
+    from magia import Module
 
 
 class ModuleContext:

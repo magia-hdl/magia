@@ -10,10 +10,11 @@ from os import PathLike
 from string import Template
 from typing import TYPE_CHECKING
 
+from utils import ModuleContext
+
 from .data_struct import SignalDict, SignalType
 from .io_ports import IOPorts
 from .memory import Memory, MemorySignal
-from .module_context import ModuleContext
 from .signals import SIGNAL_ASSIGN_TEMPLATE, CodeSectionType, Signal, Synthesizable
 
 if TYPE_CHECKING:
