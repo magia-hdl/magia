@@ -16,7 +16,7 @@ from .io_signal import Input, Output
 from .memory import Memory
 from .module import Instance, Module, VerilogWrapper
 from .register import Register
-from .signals import Signal
+from .signals import CodeSectionType, Signal
 
 if find_spec("hdlConvertor") is not None:
     from .external import ExternalModule
@@ -66,6 +66,7 @@ __all__ += [
     "Elaborator",
     "ExternalModule",
     "VerilogWrapper",
+    "CodeSectionType",
 ]
 
 """
