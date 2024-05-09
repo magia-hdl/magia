@@ -45,10 +45,15 @@ def simulate(
         test_module: str | Sequence[str],
         python_search_path: str | Sequence[str] | None = None,
         testcase: str | Sequence[str] | None = None,
+        build_args: str | Sequence[str] | None = None,
 ):
     sim = Simulator(top_level_name)
     sim.add_magia_module(hdl_modules)
-    sim.compile()
+    sim.compile(**(
+        {
+            "build_args": build_args,
+        } if build_args is not None else {}
+    ))
     sim.sim(
         testcase=testcase,
         test_module=test_module,
