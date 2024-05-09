@@ -15,6 +15,7 @@ from .io_ports import IOPorts
 from .io_signal import Input, Output
 from .memory import MemorySignal
 from .signals import SIGNAL_ASSIGN_TEMPLATE, CodeSectionType, Signal, Synthesizable
+from .sva_manual import SVAManual
 from .utils import ModuleContext
 
 if TYPE_CHECKING:
@@ -104,6 +105,7 @@ class Module(Synthesizable, metaclass=_ModuleMetaClass):
             name=name,
         )
         self.io = IOPorts()
+        self.manual_sva_collected = []
 
     def validate(self) -> list[Exception]:
         undriven_outputs = [
@@ -141,7 +143,9 @@ class Module(Synthesizable, metaclass=_ModuleMetaClass):
 
         mod_decl = self.mod_declaration()
 
-        signals, insts = self.trace(self.io.outputs)
+        trace_from = self.io.outputs
+        trace_from += self.manual_sva_collected
+        signals, insts = self.trace(trace_from)
 
         mod_impl = [
             inst.elaborate()
@@ -255,6 +259,12 @@ class Module(Synthesizable, metaclass=_ModuleMetaClass):
                             if (id_sig := id(sig)) not in traced_obj_id
                         }
 
+                    case SVAManual():
+                        next_trace |= {
+                            id_sig: sig for sig in obj.drivers
+                            if (id_sig := id(sig)) not in traced_obj_id
+                        }
+
                     case _:
                         raise ValueError(f"Unsupported object type: {obj}")
 
@@ -334,7 +344,7 @@ class Module(Synthesizable, metaclass=_ModuleMetaClass):
         params = [(k, f"{k}:") for k in self._mod_params]
         doc = inspect.getdoc(self.__init__)
         if doc is None:
-            return []
+            return {}
 
         result_doc = {}
         possible_param = [line.strip() for line in doc.split("\n") if ":" in line]

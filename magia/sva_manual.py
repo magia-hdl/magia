@@ -1,8 +1,15 @@
+"""
+Manual SystemVerilog Assertions statements.
+
+It is used to create SystemVerilog assertions that are not supported by the magia library.
+We assume the developer has the knowledge of SystemVerilog Assertions and can write the assertions manually.
+"""
 from contextlib import contextmanager
 from string import Template
 
 from .data_struct import PropType
 from .signals import CodeSectionType, Signal, Synthesizable
+from .utils import ModuleContext
 
 SVA_MANUAL_TEMPLATE = Template(
     "$prop_name: $prop_type property (\n"
@@ -30,6 +37,9 @@ class SVAManual(Synthesizable):
             **kwargs
     ):
         super().__init__(**kwargs)
+        if (module_context := ModuleContext().current) is not None:
+            module_context.manual_sva_collected.append(self)
+
         if name is None:
             name = f"prop_{SVAManual.assertion_count}"
             SVAManual.assertion_count += 1

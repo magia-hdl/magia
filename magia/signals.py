@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 
 from .data_struct import OPType, SignalDict, SignalType
 from .factory import constant, constant_like, create_case, create_comb_op, create_when, register
+from .utils import ModuleContext
 
 if TYPE_CHECKING:
     from .bundle import Bundle, BundleSpec, BundleType
@@ -26,6 +27,7 @@ SIGNAL_DECL_TEMPLATE = Template("logic $signed $width $name;")
 SIGNAL_DECL_FORMAL_TEMPLATE = Template("logic $signed $width $name = 0;")
 SIGNAL_DECL_VERILOG_TEMPLATE = Template("wire $signed $width $name;")
 SIGNAL_ASSIGN_TEMPLATE = Template("assign $name = $driver;")
+ANNOTATION_TEMPLATE = Template("/*\nNet name: $net_name\n$comment$loc\n*/")
 
 
 class CodeSectionType(Enum):
@@ -61,8 +63,6 @@ class Synthesizable:
 
     They can be elaborated into SystemVerilog code.
     """
-
-    _ANNOTATION_TEMPLATE = Template("/*\nNet name: $net_name\n$comment$loc\n*/")
 
     _current_code_section = CodeSectionType.LOGIC
 
@@ -161,7 +161,7 @@ class Synthesizable:
 
         :returns: SV comments with Line number of the object in the elaborated code.
         """
-        return self._ANNOTATION_TEMPLATE.substitute(
+        return ANNOTATION_TEMPLATE.substitute(
             net_name=self.name,
             comment=f"{self._comment}\n" if self._comment else "",
             loc=self.loc,
@@ -206,6 +206,10 @@ class Signal(Synthesizable):
             bundle_type=bundle_type,
         )
         self._drivers = SignalDict()
+        match self._code_section:
+            case CodeSectionType.SVA_MANUAL:
+                if (module_context := ModuleContext().current) is not None:
+                    module_context.manual_sva_collected.append(self)
 
     @property
     def name(self) -> str:
@@ -320,6 +324,7 @@ class Signal(Synthesizable):
         if self.width == 0:
             raise ValueError("Signal width is not set and cannot be inferred")
 
+        template: None | Template = None
         match self._code_section:
             case CodeSectionType.LOGIC:
                 template = SIGNAL_DECL_TEMPLATE
@@ -329,6 +334,9 @@ class Signal(Synthesizable):
                 template = SIGNAL_DECL_FORMAL_TEMPLATE
             case CodeSectionType.SVA_MANUAL:
                 template = SIGNAL_DECL_TEMPLATE
+
+        if template is None:
+            raise ValueError("Cannot determine the template.")
 
         decl = template.substitute(
             signed="signed" if self.signed else "",
