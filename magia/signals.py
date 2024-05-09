@@ -32,6 +32,7 @@ class CodeSectionType(Enum):
     LOGIC = auto()
     VERILOG = auto()
     FORMAL = auto()
+    SVA_MANUAL = auto()
 
 
 @dataclass
@@ -326,6 +327,8 @@ class Signal(Synthesizable):
                 template = SIGNAL_DECL_VERILOG_TEMPLATE
             case CodeSectionType.FORMAL:
                 template = SIGNAL_DECL_FORMAL_TEMPLATE
+            case CodeSectionType.SVA_MANUAL:
+                template = SIGNAL_DECL_TEMPLATE
 
         decl = template.substitute(
             signed="signed" if self.signed else "",
