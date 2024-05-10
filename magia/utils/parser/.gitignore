@@ -1,5 +1,0 @@
-*.interp
-*.tokens
-*.class
-.antlr
-gen
