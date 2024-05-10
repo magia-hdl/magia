@@ -46,16 +46,6 @@ class SignalDict(UserDict):
             self.data[alias] = value
 
 
-class SignalType(Enum):
-    """Kinds of signals."""
-
-    SIGNAL = 0
-    INPUT = 1
-    OUTPUT = 2
-    MEMORY = 3
-    CONSTANT = 4
-
-
 class PropType(Enum):
     """Type of Properties."""
 

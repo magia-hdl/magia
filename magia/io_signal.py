@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from .data_struct import SignalType
 from .factory import signal_config_like
 from .signals import Signal
 
@@ -31,7 +30,6 @@ class Input(Signal):
             raise ValueError("Input width is not set")
 
         super().__init__(name=name, width=width, signed=signed, **kwargs)
-        self.signal_config.signal_type = SignalType.INPUT
         self.signal_config.owner_instance = owner_instance
 
     @property
@@ -79,7 +77,6 @@ class Output(Signal):
         if width == 0:
             raise ValueError("Output width is not set")
         super().__init__(name=name, width=width, signed=signed, **kwargs)
-        self.signal_config.signal_type = SignalType.OUTPUT
         self.signal_config.owner_instance = owner_instance
 
     @property

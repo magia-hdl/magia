@@ -38,7 +38,6 @@ def signal_config_like(signal: Signal, **kwargs) -> dict:
         "width": signal.width,
         "signed": signal.signed,
         "description": signal.description,
-        "signal_type": signal.type,
         **kwargs,
     }
 

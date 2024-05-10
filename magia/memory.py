@@ -5,7 +5,7 @@ import string
 from dataclasses import dataclass
 from itertools import count
 
-from .data_struct import SignalDict, SignalType
+from .data_struct import SignalDict
 from .io_signal import Input
 from .signals import Signal, Synthesizable
 
@@ -27,7 +27,6 @@ class MemorySignal(Signal):
 
     def __init__(self, memory: Memory, name: str, width: int, drive_by_mem: bool = False, **kwargs):
         super().__init__(name=name, width=width, **kwargs)
-        self.signal_config.signal_type = SignalType.MEMORY
         self.memory = memory
         self.drive_by_mem = drive_by_mem
 

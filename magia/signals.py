@@ -11,7 +11,7 @@ from pathlib import Path
 from string import Template
 from typing import TYPE_CHECKING
 
-from .data_struct import OPType, SignalDict, SignalType
+from .data_struct import OPType, SignalDict
 from .factory import constant, constant_like, create_case, create_comb_op, create_when, register, signal_config_like
 from .utils import ModuleContext
 
@@ -42,7 +42,6 @@ class SignalConfig:
     name: None | str = None
     width: int = 0
     signed: bool = False
-    signal_type: SignalType = SignalType.SIGNAL
     op_type: OPType = OPType.WIRE
     description: str = ""
 
@@ -220,10 +219,6 @@ class Signal(Synthesizable):
     def description(self) -> str:
         """Description of the signal."""
         return self.signal_config.description
-
-    @property
-    def type(self) -> SignalType:
-        return self.signal_config.signal_type
 
     @property
     def is_input(self) -> bool:
