@@ -12,8 +12,10 @@ from typing import TYPE_CHECKING
 
 from .data_struct import SignalDict, SignalType
 from .io_ports import IOPorts
-from .memory import Memory, MemorySignal
+from .io_signal import Input, Output
+from .memory import MemorySignal
 from .signals import SIGNAL_ASSIGN_TEMPLATE, CodeSectionType, Signal, Synthesizable
+from .sva_manual import SVAManual
 from .utils import ModuleContext
 
 if TYPE_CHECKING:
@@ -103,6 +105,7 @@ class Module(Synthesizable, metaclass=_ModuleMetaClass):
             name=name,
         )
         self.io = IOPorts()
+        self.manual_sva_collected = []
 
     def validate(self) -> list[Exception]:
         undriven_outputs = [
@@ -140,7 +143,9 @@ class Module(Synthesizable, metaclass=_ModuleMetaClass):
 
         mod_decl = self.mod_declaration()
 
-        signals, insts = self.trace()
+        trace_from = self.io.outputs
+        trace_from += self.manual_sva_collected
+        signals, insts = self.trace(trace_from)
 
         mod_impl = [
             inst.elaborate()
@@ -181,73 +186,95 @@ class Module(Synthesizable, metaclass=_ModuleMetaClass):
         _ = self  # Stub to avoid IDE/Lint warning
         return ""
 
-    def trace(self) -> tuple[list[Signal | Memory], list[Instance]]:
-        """Trace nets and instances from output ports."""
-        traced_sig_id: set[int] = set()
+    @staticmethod
+    def trace(trace_from: list[Synthesizable]) -> tuple[list[Synthesizable], list[Instance]]:
+        """Trace nets and instances from a set of synthesizable objects."""
+        traced_obj_id: set[int] = set()
         traced_inst_id: set[int] = set()
-        traced_signal: list[Signal | Memory] = []
+        traced_obj: list[Synthesizable] = []
         traced_inst: list[Instance] = []
-        sig_to_be_traced: dict[int, Signal] = {}
+        obj_to_be_traced: dict[int, Synthesizable] = {
+            id(obj): obj
+            for obj in trace_from
+        }
 
-        for output in self.io.outputs:
-            sig_to_be_traced |= {
-                id(sig): sig
-                for sig in output.drivers
-            }
-        while sig_to_be_traced:
+        while obj_to_be_traced:
             next_trace = {}
-            for signal_id, signal in sig_to_be_traced.items():
+            for obj_id, obj in obj_to_be_traced.items():
+                if obj_id in traced_obj_id:
+                    continue
+                if not isinstance(obj, (Input, Output)):
+                    traced_obj_id.add(obj_id)
+                    traced_obj.append(obj)
 
-                # Tracing Instances with Output connected
-                if signal.type == SignalType.OUTPUT:
-                    inst = signal.owner_instance
-                    if inst is not None and id(inst) not in traced_inst_id:
-                        traced_inst_id.add(id(inst))
-                        traced_inst.append(inst)
+                match obj:
+                    case Input():
+                        continue
 
-                        # Trace the IO Ports of an instance.
-                        # Input port is driven by external signal, so we go for the driver.
-                        # Output port is an extra signal placeholder,
-                        # so we add the port itself and ensure the declaration exists.
-                        port_drivers = [
-                            port.driver() if port.type == SignalType.INPUT else port
-                            for port in inst.io.values()
-                        ]
-                        next_trace |= {
-                            id_sig: sig
-                            for sig in port_drivers
-                            if (id_sig := id(sig)) not in traced_sig_id
-                        }
-                elif signal.type != SignalType.INPUT and signal_id not in traced_sig_id:
-                    traced_sig_id.add(signal_id)
-                    traced_signal.append(signal)
-
-                    next_trace |= {
-                        id_sig: sig
-                        for sig in signal.drivers
-                        if sig.type not in (SignalType.INPUT,)
-                           and (id_sig := id(sig)) not in traced_sig_id
-                    }
-
-                    if signal.type == SignalType.MEMORY:
-                        signal: MemorySignal
-                        if id(signal.memory) not in traced_sig_id:
-                            traced_sig_id.add(id(signal.memory))
-                            traced_signal.append(signal.memory)
-
+                    case Output():
+                        owner_inst = obj.owner_instance
+                        if owner_inst is None:
                             next_trace |= {
-                                id_sig: sig
-                                for sig in signal.memory.drivers
-                                if (id_sig := id(sig)) not in traced_sig_id
+                                id_sig: sig for sig in obj.drivers
+                                if (id_sig := id(sig)) not in traced_obj_id
+                            }
+                        else:
+                            if id(owner_inst) in traced_inst_id:
+                                continue
+                            traced_inst_id.add(id(owner_inst))
+                            traced_inst.append(owner_inst)
+                            # Trace the IO Ports of an instance.
+                            # Input port is driven by external signal, so we go for the driver.
+                            # Output port is an extra signal placeholder,
+                            # so we add the port itself and ensure the declaration exists.
+                            port_drivers = [
+                                port.driver() if port.type == SignalType.INPUT else port
+                                for port in owner_inst.io.values()
+                            ]
+                            next_trace |= {
+                                id_sig: sig for sig in port_drivers
+                                if (id_sig := id(sig)) not in traced_obj_id
                             }
 
-            sig_to_be_traced = next_trace
+                    case MemorySignal() as obj_mem_sig:
+                        next_trace |= {
+                            id_sig: sig for sig in obj_mem_sig.drivers
+                            if (id_sig := id(sig)) not in traced_obj_id
+                        }
 
-        traced_signal.reverse()
+                        obj_mem = obj_mem_sig.memory
+                        if id(obj_mem) in traced_obj_id:
+                            continue
+
+                        traced_obj_id.add(id(obj_mem))
+                        traced_obj.append(obj_mem)
+                        next_trace |= {
+                            id_sig: sig for sig in obj_mem.drivers
+                            if (id_sig := id(sig)) not in traced_obj_id
+                        }
+
+                    case Signal():
+                        next_trace |= {
+                            id_sig: sig for sig in obj.drivers
+                            if (id_sig := id(sig)) not in traced_obj_id
+                        }
+
+                    case SVAManual():
+                        next_trace |= {
+                            id_sig: sig for sig in obj.drivers
+                            if (id_sig := id(sig)) not in traced_obj_id
+                        }
+
+                    case _:
+                        raise ValueError(f"Unsupported object type: {obj}")
+
+            obj_to_be_traced = next_trace
+
+        traced_obj.reverse()
         traced_inst.reverse()
 
         # Check if we have name conflict on the signals and instances
-        sig_name_counter = Counter(sig.name for sig in traced_signal)
+        sig_name_counter = Counter(sig.name for sig in traced_obj)
         inst_name_counter = Counter(inst.name for inst in traced_inst)
         sig_conflicts = [name for name, cnt in sig_name_counter.items() if cnt > 1]
         inst_conflicts = [name for name, cnt in inst_name_counter.items() if cnt > 1]
@@ -256,7 +283,7 @@ class Module(Synthesizable, metaclass=_ModuleMetaClass):
         if inst_conflicts:
             raise ValueError(f"Instance name conflict: {inst_conflicts}")
 
-        return traced_signal, traced_inst
+        return traced_obj, traced_inst
 
     def instance(
             self, name: None | str = None,
@@ -317,7 +344,7 @@ class Module(Synthesizable, metaclass=_ModuleMetaClass):
         params = [(k, f"{k}:") for k in self._mod_params]
         doc = inspect.getdoc(self.__init__)
         if doc is None:
-            return []
+            return {}
 
         result_doc = {}
         possible_param = [line.strip() for line in doc.split("\n") if ":" in line]

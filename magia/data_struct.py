@@ -56,6 +56,14 @@ class SignalType(Enum):
     CONSTANT = 4
 
 
+class PropType(Enum):
+    """Type of Properties."""
+
+    ASSERT = "assert"
+    ASSUME = "assume"
+    COVER = "cover"
+
+
 class OPType(IntEnum):
     """List of operations that can be performed on signals."""
 
