@@ -2,7 +2,7 @@ import cocotb
 import pytest
 from cocotb.clock import Clock
 from cocotb.triggers import FallingEdge
-from magia_flow.simulation import Simulator
+from magia_flow.simulation.general import Simulator
 
 from magia import Input, Module, Output, Register
 from magia.sva_manual import SVAManual
