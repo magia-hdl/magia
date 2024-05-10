@@ -12,7 +12,7 @@ from string import Template
 from typing import TYPE_CHECKING
 
 from .data_struct import OPType, SignalDict, SignalType
-from .factory import constant, constant_like, create_case, create_comb_op, create_when, register
+from .factory import constant, constant_like, create_case, create_comb_op, create_when, register, signal_config_like
 from .utils import ModuleContext
 
 if TYPE_CHECKING:
@@ -394,7 +394,7 @@ class Signal(Synthesizable):
         if isinstance(other, (int, bytes)):
             other = constant_like(other, self)
         if not isinstance(other, Signal):
-            raise TypeError(f"Cannot assign {type(other)} to drive {type(self)}")
+            raise TypeError(f"Cannot assign {type(other).__name__} to drive {type(self).__name__}")
         if self.driver() is not None:
             raise ValueError(f"Multiple driver on Signal {self.name}.")
 
@@ -530,7 +530,7 @@ class Signal(Synthesizable):
             item = slice(None, None, None)
 
         if not isinstance(item, slice):
-            raise TypeError(f"Cannot perform operation on {type(item)}")
+            raise TypeError(f"Cannot perform operation on {type(item).__name__}")
         if item.step is not None:
             raise ValueError("Slice step is not implement.")
 
@@ -544,7 +544,7 @@ class Signal(Synthesizable):
         """
         if isinstance(other, Signal):
             return create_comb_op(OPType.CONCAT, self, other)
-        raise TypeError(f"Cannot perform operation on {type(other)}")
+        raise TypeError(f"Cannot perform operation on {type(other).__name__}")
 
     def __imatmul__(self, other) -> Signal:
         return self.__matmul__(other)
@@ -609,3 +609,8 @@ class Signal(Synthesizable):
     def parity(self) -> Signal:
         """Create an `parity` statement."""
         return create_comb_op(OPType.PARITY, self, None)
+
+    @classmethod
+    def like(cls, signal: Signal, **kwargs) -> Signal:
+        """Create a signal with the same configuration as the given signal."""
+        return Signal(**signal_config_like(signal, **kwargs))

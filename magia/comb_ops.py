@@ -138,7 +138,7 @@ class Operation(Signal):
     def create(op_type: OPType, x: Signal, y: None | Signal | slice | int | bytes) -> Operation:
         """Create common operation with single / two arguments."""
         if not isinstance(x, Signal):
-            raise TypeError(f"Cannot perform operation on {type(x)}")
+            raise TypeError(f"Cannot perform operation on {type(x).__name__}")
 
         if op_type not in OP_IMPL_TEMPLATE:
             raise ValueError(f"Operation {op_type} is not supported.")
@@ -155,7 +155,7 @@ class Operation(Signal):
             if isinstance(y, (int, bytes)):
                 y = Constant(y, x.width, x.signed)
             if not isinstance(y, Signal) and y is not None:
-                raise TypeError(f"Cannot perform operation on {type(y)}")
+                raise TypeError(f"Cannot perform operation on {type(y).__name__}")
 
         # Check the Sign of the Operands
         if op_type in (

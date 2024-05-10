@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 import enum
-from copy import deepcopy
 
 from .data_struct import SignalDict, SignalType
 from .io_ports import IOPorts
 from .io_signal import Input, Output
 from .module import Instance
-from .signals import Signal, SignalConfig
+from .signals import Signal
 
 
 class BundleType(enum.Enum):
@@ -26,9 +25,9 @@ class BundleSpec:
     def __init__(self, **kwargs):
         self.bus_signature: str = ""  # Identifying different types of buses
 
-        self.common: dict[str, SignalConfig] = {}
-        self.forward: dict[str, SignalConfig] = {}
-        self.backward: dict[str, SignalConfig] = {}
+        self.common = SignalDict()
+        self.forward = SignalDict()
+        self.backward = SignalDict()
 
         self.routing_map: dict[str, str] = {}
         self.prefix = self.suffix = ""
@@ -44,16 +43,14 @@ class BundleSpec:
         if name is None:
             raise ValueError("Signal must have a name")
         if name in self.common or name in self.forward or name in self.backward:
-            raise ValueError(f"Signal {name} already exists in common")
-        if signal.type not in (SignalType.INPUT, SignalType.OUTPUT):
-            raise ValueError(f"Common signal {name} must be an input / output")
-        self.common[name] = SignalConfig(
-            name=name,
-            width=signal.width,
-            signed=signal.signed,
-            description=signal.description,
-            signal_type=signal.type,
-        )
+            raise ValueError(f"Signal {name} already exists")
+        match signal:
+            case Input():
+                self.common[name] = Input.like(signal)
+            case Output():
+                self.common[name] = Output.like(signal)
+            case _:
+                raise ValueError(f"Common signal {name} must be an input / output")
 
     def add_signal(self, signal: Signal):
         """
@@ -68,19 +65,13 @@ class BundleSpec:
         if name in self.common or name in self.forward or name in self.backward:
             raise ValueError(f"Signal {name} already exists in common")
 
-        if signal.type == SignalType.INPUT:
-            target = self.backward
-        elif signal.type == SignalType.OUTPUT:
-            target = self.forward
-        else:
-            raise ValueError(f"Unknown signal type {signal.type}")
-        target[name] = SignalConfig(
-            name=name,
-            width=signal.width,
-            signed=signal.signed,
-            description=signal.description,
-            signal_type=signal.type,
-        )
+        match signal:
+            case Input():
+                self.backward[name] = Signal.like(signal)
+            case Output():
+                self.forward[name] = Signal.like(signal)
+            case _:
+                raise ValueError(f"Unknown signal type {type(signal).__name__}")
 
     def __iadd__(self, other: Signal | list[Signal] | IOPorts):
         if isinstance(other, Signal):
@@ -106,28 +97,30 @@ class BundleSpec:
         self.routing_map[dst] = src
 
     def _spec_gen(self, prefix: None | str = None, suffix: None | str = None) -> BundleSpec:
-        new_spec = deepcopy(self)
+        new_spec = BundleSpec()
         if prefix is not None:
             new_spec.prefix = prefix
         if suffix is not None:
             new_spec.suffix = suffix
+        for signal in self.common.values():
+            new_spec.add_common(signal)
+        new_spec += [Output.like(signal) for signal in self.forward.values()]
+        new_spec += [Input.like(signal) for signal in self.backward.values()]
         return new_spec
 
     # IO Ports factory methods
     def _create_ports(
             self,
             prefix: None | str, suffix: None | str,
-            inputs: list[SignalConfig], outputs: list[SignalConfig],
+            inputs: list[Signal], outputs: list[Signal],
             bundle_type: BundleType,
     ) -> IOPorts:
         new_spec = self._spec_gen(prefix, suffix)
         new_ports = IOPorts()
         new_ports += [
-            Input(
+            Input.like(
+                port,
                 name=new_spec.prefix + port.name + new_spec.suffix,
-                width=port.width,
-                signed=port.signed,
-                description=port.description,
                 bundle_spec=new_spec,
                 bundle_alias=port.name,
                 bundle_type=bundle_type,
@@ -135,11 +128,9 @@ class BundleSpec:
             for port in inputs
         ]
         new_ports += [
-            Output(
+            Output.like(
+                port,
                 name=new_spec.prefix + port.name + new_spec.suffix,
-                width=port.width,
-                signed=port.signed,
-                description=port.description,
                 bundle_spec=new_spec,
                 bundle_alias=port.name,
                 bundle_type=bundle_type,
@@ -149,52 +140,43 @@ class BundleSpec:
         return new_ports
 
     def master_ports(self, prefix: None | str = None, suffix: None | str = None) -> IOPorts:
-        input_configs = [
-            config
-            for config in self.common.values()
-            if config.signal_type == SignalType.INPUT
-        ]
-        input_configs += list(self.backward.values())
-        output_configs = [
-            config
-            for config in self.common.values()
-            if config.signal_type == SignalType.OUTPUT
-        ]
-        output_configs += list(self.forward.values())
-        return self._create_ports(prefix, suffix, input_configs, output_configs, BundleType.MASTER)
+        input_signals = [
+                            signal for signal in self.common.values()
+                            if signal.is_input
+                        ] + list(self.backward.values())
+        output_signals = [
+                             signal for signal in self.common.values()
+                             if signal.is_output
+                         ] + list(self.forward.values())
+        return self._create_ports(prefix, suffix, input_signals, output_signals, BundleType.MASTER)
 
     def slave_ports(self, prefix: None | str = None, suffix: None | str = None) -> IOPorts:
-        input_configs = [
-            config
-            for config in self.common.values()
-            if config.signal_type == SignalType.INPUT
-        ]
-        input_configs += list(self.forward.values())
-        output_configs = [
-            config
-            for config in self.common.values()
-            if config.signal_type == SignalType.OUTPUT
-        ]
-        output_configs += list(self.backward.values())
-        return self._create_ports(prefix, suffix, input_configs, output_configs, BundleType.SLAVE)
+        input_signals = [
+                            signal for signal in self.common.values()
+                            if signal.is_input
+                        ] + list(self.forward.values())
+        output_signals = [
+                             signal for signal in self.common.values()
+                             if signal.is_output
+                         ] + list(self.backward.values())
+        return self._create_ports(prefix, suffix, input_signals, output_signals, BundleType.SLAVE)
 
     def monitor_ports(self, prefix: None | str = None, suffix: None | str = None) -> IOPorts:
-        input_configs = list(self.common.values()) + list(self.forward.values()) + list(self.backward.values())
-        output_configs = []
-        return self._create_ports(prefix, suffix, input_configs, output_configs, BundleType.MONITOR)
+        input_signals = list(self.common.values()) + list(self.forward.values()) + list(self.backward.values())
+        output_signals = []
+        return self._create_ports(prefix, suffix, input_signals, output_signals, BundleType.MONITOR)
 
     # Signal Bundle factory method
     def bundle(self, name: None | str = None) -> Bundle:
         new_bundle = Bundle(new_spec := self._spec_gen(), name)
-        signal_configs = list(self.common.values()) + list(self.forward.values()) + list(self.backward.values())
-        for config in signal_configs:
-            new_bundle.signals[config.name] = Signal(
-                width=config.width,
-                signed=config.signed,
-                description=config.description,
+        new_signals = list(self.common.values()) + list(self.forward.values()) + list(self.backward.values())
+        for signal in new_signals:
+            new_bundle.signals[signal.name] = Signal.like(
+                signal,
+                name=None,
                 bundle=new_bundle,
                 bundle_spec=new_spec,
-                bundle_alias=config.name,
+                bundle_alias=signal.name,
             )
         return new_bundle
 
@@ -284,7 +266,7 @@ class Bundle:
     def connect_to(self, target_io: IOPorts | Instance):
         """Connect the bundle to an IOPorts, owned by an Instance / Module."""
         if not isinstance(target_io, (IOPorts, Instance)):
-            raise ValueError(f"Target must be an IOPorts or an Instance, got {type(target_io)}")
+            raise ValueError(f"Target must be an IOPorts or an Instance, got {type(target_io).__name__}")
 
         # Find one of the port from the target IOPorts
         # to obtain the bundle type

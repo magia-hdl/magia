@@ -27,6 +27,22 @@ def constant_like(value: int | bytes, signal: Signal) -> Constant:
     return constant(value, signal.width, signal.signed)
 
 
+def signal_config_like(signal: Signal, **kwargs) -> dict:
+    """
+    Create a signal configuration dictionary with the same configuration as the given signal.
+
+    Bundle information and Module instances are not copied.
+    """
+    return {
+        "name": signal.name,
+        "width": signal.width,
+        "signed": signal.signed,
+        "description": signal.description,
+        "signal_type": signal.type,
+        **kwargs,
+    }
+
+
 def sv_constant(value: None | int | bytes, width: int, signed: bool = False) -> str:
     """Redirect call to Constant.sv_constant, create SystemVerilog constant expression."""
     return Constant.sv_constant(value, width, signed)

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import typing
-from dataclasses import asdict
 
 from .data_struct import SignalDict
 from .io_signal import Input, Output
@@ -46,7 +45,7 @@ class IOPorts:
             other = flatten
         else:
             if isinstance(other, IOPorts):
-                other = other.inputs + other.outputs
+                other = list(other.signals.values())
             elif other.is_input or other.is_output:
                 other = [other]
 
@@ -60,17 +59,25 @@ class IOPorts:
         if port.name in self.signals:
             raise KeyError(f"Port {port.name} is already defined.")
 
-        if not port.is_input and not port.is_output:
-            raise TypeError(f"Signal Type {type(port)} is forbidden in IOPorts.")
-
-        self.signals[port.name] = port.__class__(
-            **{
-                k: v
-                for k, v in asdict(port.signal_config).items()
-                if k not in ("signal_type", "owner_instance",)
-            },
-            owner_instance=self._owner_instance,
-        )
+        bundle_config = {
+            "bundle": port.signal_config.bundle,
+            "bundle_spec": port.signal_config.bundle_spec,
+            "bundle_alias": port.signal_config.bundle_alias,
+            "bundle_type": port.signal_config.bundle_type,
+        }
+        match port:
+            case Input():
+                self.signals[port.name] = Input.like(
+                    port, owner_instance=self._owner_instance,
+                    **bundle_config,
+                )
+            case Output():
+                self.signals[port.name] = Output.like(
+                    port, owner_instance=self._owner_instance,
+                    **bundle_config,
+                )
+            case _:
+                raise TypeError(f"Signal Type {type(port).__name__} is forbidden in IOPorts.")
 
     def __getattr__(self, name: str) -> Input | Output:
         if name.startswith("_"):

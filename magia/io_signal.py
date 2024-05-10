@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from .data_struct import SignalType
+from .factory import signal_config_like
 from .signals import Signal
 
 if TYPE_CHECKING:
@@ -52,6 +53,11 @@ class Input(Signal):
             raise ValueError("Cannot drive the Input of a module type.")
         return super().__ilshift__(other)
 
+    @classmethod
+    def like(cls, signal: Signal, **kwargs) -> Signal:
+        """Create an Input with the same configuration as the given signal."""
+        return Input(**signal_config_like(signal, **kwargs))
+
 
 class Output(Signal):
     """
@@ -94,3 +100,8 @@ class Output(Signal):
         if self.owner_instance is not None:
             raise ValueError("Cannot drive output of a module instance.")
         return super().__ilshift__(other)
+
+    @classmethod
+    def like(cls, signal: Signal, **kwargs) -> Signal:
+        """Create an output with the same configuration as the given signal."""
+        return Output(**signal_config_like(signal, **kwargs))
