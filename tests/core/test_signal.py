@@ -87,7 +87,7 @@ class TestSignalManipulate:
         """Signal can be annotated by `signal.annotate()` with comment."""
         signal = Signal(8, name="a").annotate("This is a comment")
         signal <<= signal  # Stub just for elaboration
-        result = signal.elaborate()
+        result = f"{signal.signal_decl()}\n{signal.elaborate()}"
         assert "/*" in result, "There shall be a comment in the elaboration result"
         assert "Net name: a\nThis is a comment\n/" in result, "Net name does not exists in the elaboration result"
         assert __file__ in result, "The file name does not exists in the elaboration result"
@@ -96,7 +96,7 @@ class TestSignalManipulate:
         """Signal can be annotated by `signal.annotate()` without comment."""
         signal = Signal(8, name="a").annotate()
         signal <<= signal  # Stub just for elaboration
-        result = signal.elaborate()
+        result = f"{signal.signal_decl()}\n{signal.elaborate()}"
         assert "/*" in result, "There shall be a comment in the elaboration result"
         assert "Net name: a\n/" in result, "Net name does not exists in the elaboration result"
         assert __file__ in result, "The file name does not exists in the elaboration result"

@@ -52,14 +52,12 @@ class When(Signal):
         self._drivers["d_false"] = if_false
 
     def elaborate(self) -> str:
-        signal_decl = self.signal_decl()
-        if_else = IF_ELSE_TEMPLATE.substitute(
+        return IF_ELSE_TEMPLATE.substitute(
             output=self.name,
             condition=self._drivers["condition"].name,
             if_true=self._drivers[self.DEFAULT_DRIVER].name,
             if_false=self._drivers["d_false"].name,
         )
-        return "\n".join((signal_decl, if_else))
 
 
 class Case(Signal):
@@ -136,7 +134,6 @@ class Case(Signal):
                 return sig_or_const.name
             return Constant.sv_constant(sig_or_const, self.width, self.signed)
 
-        signal_decl = self.signal_decl()
         case_table = []
 
         for selector_value, driver in self._cases.items():
@@ -162,9 +159,8 @@ class Case(Signal):
                 )
             )
 
-        case_impl = CASE_TEMPLATE.substitute(
+        return CASE_TEMPLATE.substitute(
             selector=self._drivers[self.DEFAULT_DRIVER].name,
             cases="\n".join(case_table),
             unique="unique" if self._case_config.unique else "",
         )
-        return "\n".join((signal_decl, case_impl))

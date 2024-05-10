@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from itertools import count
 
 from .data_struct import SignalDict, SignalType
-from .io_signal import Input, Output
+from .io_signal import Input
 from .signals import Signal, Synthesizable
 
 
@@ -28,16 +28,8 @@ class MemorySignal(Signal):
     def __init__(self, memory: Memory, name: str, width: int, drive_by_mem: bool = False, **kwargs):
         super().__init__(name=name, width=width, **kwargs)
         self.signal_config.signal_type = SignalType.MEMORY
-        self._memory = memory
-        self._drive_by_mem = drive_by_mem
-
-    @property
-    def memory(self) -> Memory:
-        return self._memory
-
-    @property
-    def drive_by_mem(self) -> bool:
-        return self._drive_by_mem
+        self.memory = memory
+        self.drive_by_mem = drive_by_mem
 
     @property
     def drivers(self) -> list[Signal]:
@@ -54,7 +46,7 @@ class MemorySignal(Signal):
         :returns: The driver signal.
         """
         if self.drive_by_mem:
-            return Output("dummy", 1)
+            return None
         return self._drivers.get(driver_name)
 
 
