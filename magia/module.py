@@ -145,15 +145,22 @@ class Module(Synthesizable, metaclass=_ModuleMetaClass):
 
         trace_from = self.io.outputs
         trace_from += self.manual_sva_collected
-        signals, insts = self.trace(trace_from)
+        synth_objs, insts = self.trace(trace_from)
+
+        signal_decl = [
+            signal.signal_decl()
+            for signal in synth_objs
+            if isinstance(signal, Signal) and not isinstance(signal, (Input, Output))
+        ]
+        signal_decl = "\n".join(signal_decl)
 
         mod_impl = [
             inst.elaborate()
             for inst in insts
         ]
         mod_impl += [
-            signal.elaborate()
-            for signal in signals
+            synth_obj.elaborate()
+            for synth_obj in synth_objs
         ]
 
         mod_impl = "\n".join(mod_impl)
@@ -170,7 +177,14 @@ class Module(Synthesizable, metaclass=_ModuleMetaClass):
 
         mod_end = "endmodule"
 
-        sv_code = "\n".join((mod_decl, mod_impl, mod_output_assignment, extra_code, mod_end))
+        sv_code = "\n".join((
+            mod_decl,
+            signal_decl,
+            mod_impl,
+            mod_output_assignment,
+            extra_code,
+            mod_end,
+        ))
         submodules = {inst.module for inst in insts}
 
         return sv_code, submodules

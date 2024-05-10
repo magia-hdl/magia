@@ -110,7 +110,6 @@ class Operation(Signal):
 
     def elaborate(self) -> str:
         """Declare the signal and elaborate the operation in the module implementation."""
-        signal_decl = self.signal_decl()
         op_impl = ""
         if self.signal_config.op_type in OP_IMPL_TEMPLATE:
             impl_params = {
@@ -133,7 +132,7 @@ class Operation(Signal):
             op_impl = OP_IMPL_TEMPLATE[self.signal_config.op_type].substitute(**impl_params)
             op_impl = OP_BLOCK_TEMPLATE.substitute(op_impl=op_impl)
 
-        return "\n".join((signal_decl, op_impl))
+        return op_impl
 
     @staticmethod
     def create(op_type: OPType, x: Signal, y: None | Signal | slice | int | bytes) -> Operation:

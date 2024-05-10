@@ -160,8 +160,6 @@ class Register(Signal):
         if errors:
             raise ValueError(f"Register {self.name} is not valid.", errors)
 
-        reg_decl = self.signal_decl()
-
         match self._reg_config.enable, self._reg_config.reset, self._reg_config.async_reset:
             case (False, False, False):
                 reg_type = RegType.DFF
@@ -197,6 +195,4 @@ class Register(Signal):
                 self._reg_config.async_reset_value, self.width, self.signed
             )
 
-        reg_impl = REG_TEMPLATE[reg_type].substitute(**connections)
-
-        return "\n".join((reg_decl, reg_impl))
+        return REG_TEMPLATE[reg_type].substitute(**connections)

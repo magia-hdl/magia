@@ -31,12 +31,10 @@ class Constant(Signal):
         self.value = value
 
     def elaborate(self) -> str:
-        signal_decl = self.signal_decl()
-        assignment = SIGNAL_ASSIGN_TEMPLATE.substitute(
+        return SIGNAL_ASSIGN_TEMPLATE.substitute(
             name=self.name,
             driver=self.sv_constant(self.value, self.width, self.signed),
         )
-        return "\n".join((signal_decl, assignment))
 
     @staticmethod
     def sv_constant(value: None | int | bytes, width: int, signed: bool = False) -> str:
