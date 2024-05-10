@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import enum
 
-from .data_struct import SignalDict, SignalType
+from .data_struct import SignalDict
 from .io_ports import IOPorts
 from .io_signal import Input, Output
 from .module import Instance
@@ -293,18 +293,18 @@ class Bundle:
             # IO ports owned by instance
             # Inputs are load, outputs are drivers
             for src_name, dst_name in connection_map.items():
-                match mod_io[dst_name].type:
-                    case SignalType.INPUT:
+                match mod_io[dst_name]:
+                    case Input():
                         target_io.io[dst_name] <<= self[src_name]
-                    case SignalType.OUTPUT:
+                    case Output():
                         self[src_name] <<= target_io.io[dst_name]
 
         else:
             # IO ports owned by module
             # Inputs are drivers, outputs are loads
             for src_name, dst_name in connection_map.items():
-                match target_io[dst_name].type:
-                    case SignalType.INPUT:
+                match target_io[dst_name]:
+                    case Input():
                         self[src_name] <<= target_io[dst_name]
-                    case SignalType.OUTPUT:
+                    case Output():
                         target_io[dst_name] <<= self[src_name]
