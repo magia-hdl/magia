@@ -154,10 +154,10 @@ class TestElaboration:
             assert port["name"] in ["a", "b"]
             assert port["width"] == 7086
             if port["name"] == "a":
-                assert port["direction"] == "INPUT"
+                assert port["direction"] == "Input"
                 assert port["description"] == "Input A"
             else:
-                assert port["direction"] == "OUTPUT"
+                assert port["direction"] == "Output"
                 assert port["description"] == ""
 
 

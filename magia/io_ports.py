@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import typing
-from dataclasses import asdict
 
-from .data_struct import SignalDict, SignalType
+from .data_struct import SignalDict
 from .io_signal import Input, Output
 from .signals import Signal
 
@@ -46,8 +45,8 @@ class IOPorts:
             other = flatten
         else:
             if isinstance(other, IOPorts):
-                other = other.inputs + other.outputs
-            elif isinstance(other, (Input, Output)):
+                other = list(other.signals.values())
+            elif other.is_input or other.is_output:
                 other = [other]
 
         for port in other:
@@ -60,17 +59,25 @@ class IOPorts:
         if port.name in self.signals:
             raise KeyError(f"Port {port.name} is already defined.")
 
-        if port.type not in (SignalType.INPUT, SignalType.OUTPUT):
-            raise TypeError(f"Signal Type {port.type} is forbidden in IOPorts.")
-
-        self.signals[port.name] = port.__class__(
-            **{
-                k: v
-                for k, v in asdict(port.signal_config).items()
-                if k not in ("signal_type", "owner_instance",)
-            },
-            owner_instance=self._owner_instance,
-        )
+        bundle_config = {
+            "bundle": port.signal_config.bundle,
+            "bundle_spec": port.signal_config.bundle_spec,
+            "bundle_alias": port.signal_config.bundle_alias,
+            "bundle_type": port.signal_config.bundle_type,
+        }
+        match port:
+            case Input():
+                self.signals[port.name] = Input.like(
+                    port, owner_instance=self._owner_instance,
+                    **bundle_config,
+                )
+            case Output():
+                self.signals[port.name] = Output.like(
+                    port, owner_instance=self._owner_instance,
+                    **bundle_config,
+                )
+            case _:
+                raise TypeError(f"Signal Type {type(port).__name__} is forbidden in IOPorts.")
 
     def __getattr__(self, name: str) -> Input | Output:
         if name.startswith("_"):
@@ -97,28 +104,28 @@ class IOPorts:
     def inputs(self) -> list[Signal]:
         return [
             signal for signal in self.signals.values()
-            if signal.type == SignalType.INPUT
+            if signal.is_input
         ]
 
     @property
     def outputs(self) -> list[Signal]:
         return [
             signal for signal in self.signals.values()
-            if signal.type == SignalType.OUTPUT
+            if signal.is_output
         ]
 
     @property
     def input_names(self) -> list[str]:
         return [
             name for name, port in self.signals.items()
-            if port.type == SignalType.INPUT
+            if port.is_input
         ]
 
     @property
     def output_names(self) -> list[str]:
         return [
             name for name, port in self.signals.items()
-            if port.type == SignalType.OUTPUT
+            if port.is_output
         ]
 
     def __ilshift__(self, other: Bundle):

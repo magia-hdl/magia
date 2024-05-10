@@ -8,7 +8,6 @@ from __future__ import annotations
 from itertools import count
 from math import ceil
 
-from .data_struct import SignalType
 from .signals import SIGNAL_ASSIGN_TEMPLATE, Signal
 
 
@@ -27,7 +26,6 @@ class Constant(Signal):
             name = f"const_{next(self.new_const_counter)}"
 
         super().__init__(width=width, signed=signed, name=name, **kwargs)
-        self.signal_config.signal_type = SignalType.CONSTANT
         self.value = value
 
     def elaborate(self) -> str:
@@ -58,3 +56,6 @@ class Constant(Signal):
             value = "X"
         sign = "s" if signed else ""
         return f"{width}'{sign}h{value}"
+
+    def __ilshift__(self, other):
+        raise ValueError("Cannot drive output of a module instance.")

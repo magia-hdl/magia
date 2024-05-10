@@ -11,8 +11,8 @@ from pathlib import Path
 from string import Template
 from typing import TYPE_CHECKING
 
-from .data_struct import OPType, SignalDict, SignalType
-from .factory import constant, constant_like, create_case, create_comb_op, create_when, register
+from .data_struct import OPType, SignalDict
+from .factory import constant, constant_like, create_case, create_comb_op, create_when, register, signal_config_like
 from .utils import ModuleContext
 
 if TYPE_CHECKING:
@@ -42,7 +42,6 @@ class SignalConfig:
     name: None | str = None
     width: int = 0
     signed: bool = False
-    signal_type: SignalType = SignalType.SIGNAL
     op_type: OPType = OPType.WIRE
     description: str = ""
 
@@ -222,8 +221,14 @@ class Signal(Synthesizable):
         return self.signal_config.description
 
     @property
-    def type(self) -> SignalType:
-        return self.signal_config.signal_type
+    def is_input(self) -> bool:
+        """Check if the signal is an input signal."""
+        return False
+
+    @property
+    def is_output(self) -> bool:
+        """Check if the signal is an output signal."""
+        return False
 
     @property
     def width(self):
@@ -384,19 +389,14 @@ class Signal(Synthesizable):
         if isinstance(other, (int, bytes)):
             other = constant_like(other, self)
         if not isinstance(other, Signal):
-            raise TypeError(f"Cannot assign {type(other)} to drive {type(self)}")
-        if self._drivers.get(self.DEFAULT_DRIVER) is not None:
+            raise TypeError(f"Cannot assign {type(other).__name__} to drive {type(self).__name__}")
+        if self.driver() is not None:
             raise ValueError(f"Multiple driver on Signal {self.name}.")
-        if self.type == SignalType.OUTPUT and self.owner_instance is not None:
-            raise ValueError("Cannot drive output of a module instance.")
-        if other.type == SignalType.INPUT and other.owner_instance is not None:
+
+        if other.is_input and other.owner_instance is not None:
             raise ValueError("Input of a module instance cannot drive other signal.")
-        if self.type == SignalType.INPUT and self.owner_instance is None:
-            raise ValueError("Cannot drive the Input of a module type.")
-        if other.type == SignalType.OUTPUT and other.owner_instance is None:
+        if other.is_output and other.owner_instance is None:
             raise ValueError("Output of a module type cannot drive other signal.")
-        if self.type == SignalType.CONSTANT:
-            raise ValueError("Constant signal cannot be driven.")
 
         self._drivers[self.DEFAULT_DRIVER] = other
         if self.width == 0:
@@ -525,7 +525,7 @@ class Signal(Synthesizable):
             item = slice(None, None, None)
 
         if not isinstance(item, slice):
-            raise TypeError(f"Cannot perform operation on {type(item)}")
+            raise TypeError(f"Cannot perform operation on {type(item).__name__}")
         if item.step is not None:
             raise ValueError("Slice step is not implement.")
 
@@ -539,7 +539,7 @@ class Signal(Synthesizable):
         """
         if isinstance(other, Signal):
             return create_comb_op(OPType.CONCAT, self, other)
-        raise TypeError(f"Cannot perform operation on {type(other)}")
+        raise TypeError(f"Cannot perform operation on {type(other).__name__}")
 
     def __imatmul__(self, other) -> Signal:
         return self.__matmul__(other)
@@ -604,3 +604,8 @@ class Signal(Synthesizable):
     def parity(self) -> Signal:
         """Create an `parity` statement."""
         return create_comb_op(OPType.PARITY, self, None)
+
+    @classmethod
+    def like(cls, signal: Signal, **kwargs) -> Signal:
+        """Create a signal with the same configuration as the given signal."""
+        return Signal(**signal_config_like(signal, **kwargs))

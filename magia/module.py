@@ -10,7 +10,7 @@ from os import PathLike
 from string import Template
 from typing import TYPE_CHECKING
 
-from .data_struct import SignalDict, SignalType
+from .data_struct import SignalDict
 from .io_ports import IOPorts
 from .io_signal import Input, Output
 from .memory import MemorySignal
@@ -150,7 +150,7 @@ class Module(Synthesizable, metaclass=_ModuleMetaClass):
         signal_decl = [
             signal.signal_decl()
             for signal in synth_objs
-            if isinstance(signal, Signal) and not isinstance(signal, (Input, Output))
+            if isinstance(signal, Signal) and not (signal.is_input or signal.is_output)
         ]
         signal_decl = "\n".join(signal_decl)
 
@@ -242,7 +242,7 @@ class Module(Synthesizable, metaclass=_ModuleMetaClass):
                             # Output port is an extra signal placeholder,
                             # so we add the port itself and ensure the declaration exists.
                             port_drivers = [
-                                port.driver() if port.type == SignalType.INPUT else port
+                                port.driver() if port.is_input else port
                                 for port in owner_inst.io.values()
                             ]
                             next_trace |= {
@@ -389,7 +389,7 @@ class Module(Synthesizable, metaclass=_ModuleMetaClass):
             "ports": [
                 {
                     "name": alias,
-                    "direction": signal.type.name,
+                    "direction": type(signal).__name__,
                     "width": signal.width,
                     "signed": signal.signed,
                     "description": signal.description,
@@ -421,10 +421,10 @@ class Instance(Synthesizable):
         self.io = SignalDict()
 
         for port_name, port in self._io_ports.signals.items():
-            match port.type:
-                case SignalType.INPUT:
+            match port:
+                case Input():
                     self.io[port_name] = port
-                case SignalType.OUTPUT:
+                case Output():
                     self.io[port_name] = Signal(
                         width=port.width,
                         signed=port.signed,
@@ -433,10 +433,10 @@ class Instance(Synthesizable):
 
         if io is not None:
             for name, signal in io.items():
-                match signal.type:
-                    case SignalType.INPUT:
+                match signal:
+                    case Input():
                         self.io[name] <<= signal
-                    case SignalType.OUTPUT:
+                    case Output():
                         signal <<= self.io[name]
 
     @property
@@ -458,13 +458,13 @@ class Instance(Synthesizable):
     def validate(self) -> list[Exception]:
         errors = []
         for signal in self.io.values():
-            if signal.type == SignalType.INPUT and signal.driver() is None:
+            if signal.is_input and signal.driver() is None:
                 errors.append(ValueError(f"Input {signal.name} is not connected."))
         return errors
 
     def _fix_output_name(self):
         for port, signal in self.io.items():
-            if signal.type != SignalType.INPUT and signal.name is None:
+            if isinstance(signal, Output) and signal.name is None:
                 signal.set_name(f"{self._inst_config.name}_output_{port}")
 
     def elaborate(self) -> str:
@@ -479,7 +479,7 @@ class Instance(Synthesizable):
         io_list = []
         for port_name, port in self._io_ports.signals.items():
             signal_name = self.io[port_name].name
-            if port.type == SignalType.INPUT:
+            if port.is_input:
                 signal_name = port.driver().name
 
             io_list.append(IO_TEMPLATE.substitute(port_name=port_name, signal_name=signal_name))
