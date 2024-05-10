@@ -366,14 +366,16 @@ class Signal(Synthesizable):
     def elaborate(self) -> str:
         signal_decl = self.signal_decl()
 
-        # Ignore assignment signal if it is driven by an output of a module instance
-        if self.driver().type != SignalType.OUTPUT:
-            assignment = SIGNAL_ASSIGN_TEMPLATE.substitute(
-                name=self.name,
-                driver=self.driver().name,
-            )
-            return "\n".join((signal_decl, assignment))
-        return signal_decl
+        # Ignore assignment signal if it is not driven by any signal
+        # or by an output of a module instance
+        if (driving_signal := self.driver()) is None or driving_signal.owner_instance is not None:
+            return signal_decl
+
+        assignment = SIGNAL_ASSIGN_TEMPLATE.substitute(
+            name=self.name,
+            driver=self.driver().name,
+        )
+        return "\n".join((signal_decl, assignment))
 
     def __ilshift__(self, other):
         """
