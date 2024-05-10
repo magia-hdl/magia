@@ -58,3 +58,6 @@ class Constant(Signal):
             value = "X"
         sign = "s" if signed else ""
         return f"{width}'{sign}h{value}"
+
+    def __ilshift__(self, other):
+        raise ValueError("Cannot drive output of a module instance.")

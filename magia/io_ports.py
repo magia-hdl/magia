@@ -47,7 +47,7 @@ class IOPorts:
         else:
             if isinstance(other, IOPorts):
                 other = other.inputs + other.outputs
-            elif isinstance(other, (Input, Output)):
+            elif other.is_input or other.is_output:
                 other = [other]
 
         for port in other:
@@ -60,7 +60,7 @@ class IOPorts:
         if port.name in self.signals:
             raise KeyError(f"Port {port.name} is already defined.")
 
-        if not isinstance(port, (Input, Output)):
+        if not port.is_input and not port.is_output:
             raise TypeError(f"Signal Type {type(port)} is forbidden in IOPorts.")
 
         self.signals[port.name] = port.__class__(
@@ -97,28 +97,28 @@ class IOPorts:
     def inputs(self) -> list[Signal]:
         return [
             signal for signal in self.signals.values()
-            if isinstance(signal, Input)
+            if signal.is_input
         ]
 
     @property
     def outputs(self) -> list[Signal]:
         return [
             signal for signal in self.signals.values()
-            if isinstance(signal, Output)
+            if signal.is_output
         ]
 
     @property
     def input_names(self) -> list[str]:
         return [
             name for name, port in self.signals.items()
-            if isinstance(port, Input)
+            if port.is_input
         ]
 
     @property
     def output_names(self) -> list[str]:
         return [
             name for name, port in self.signals.items()
-            if isinstance(port, Output)
+            if port.is_output
         ]
 
     def __ilshift__(self, other: Bundle):

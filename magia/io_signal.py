@@ -33,6 +33,11 @@ class Input(Signal):
         self.signal_config.signal_type = SignalType.INPUT
         self.signal_config.owner_instance = owner_instance
 
+    @property
+    def is_input(self) -> bool:
+        """Check if the signal is an input signal."""
+        return True
+
     def elaborate(self) -> str:
         """
         Elaborate the input signal in the module declaration.
@@ -41,6 +46,11 @@ class Input(Signal):
         """
         port_decl = self.signal_decl().rstrip(";")
         return f"input  {port_decl}"
+
+    def __ilshift__(self, other):
+        if self.owner_instance is None:
+            raise ValueError("Cannot drive the Input of a module type.")
+        return super().__ilshift__(other)
 
 
 class Output(Signal):
@@ -66,6 +76,11 @@ class Output(Signal):
         self.signal_config.signal_type = SignalType.OUTPUT
         self.signal_config.owner_instance = owner_instance
 
+    @property
+    def is_output(self) -> bool:
+        """Check if the signal is an output signal."""
+        return True
+
     def elaborate(self) -> str:
         """
         Elaborate the output signal in the module declaration.
@@ -74,3 +89,8 @@ class Output(Signal):
         """
         port_decl = self.signal_decl().rstrip(";")
         return f"output {port_decl}"
+
+    def __ilshift__(self, other):
+        if self.owner_instance is not None:
+            raise ValueError("Cannot drive output of a module instance.")
+        return super().__ilshift__(other)

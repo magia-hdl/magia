@@ -226,6 +226,16 @@ class Signal(Synthesizable):
         return self.signal_config.signal_type
 
     @property
+    def is_input(self) -> bool:
+        """Check if the signal is an input signal."""
+        return False
+
+    @property
+    def is_output(self) -> bool:
+        """Check if the signal is an output signal."""
+        return False
+
+    @property
     def width(self):
         return self.signal_config.width
 
@@ -385,18 +395,13 @@ class Signal(Synthesizable):
             other = constant_like(other, self)
         if not isinstance(other, Signal):
             raise TypeError(f"Cannot assign {type(other)} to drive {type(self)}")
-        if self._drivers.get(self.DEFAULT_DRIVER) is not None:
+        if self.driver() is not None:
             raise ValueError(f"Multiple driver on Signal {self.name}.")
-        if self.type == SignalType.OUTPUT and self.owner_instance is not None:
-            raise ValueError("Cannot drive output of a module instance.")
-        if other.type == SignalType.INPUT and other.owner_instance is not None:
+
+        if other.is_input and other.owner_instance is not None:
             raise ValueError("Input of a module instance cannot drive other signal.")
-        if self.type == SignalType.INPUT and self.owner_instance is None:
-            raise ValueError("Cannot drive the Input of a module type.")
-        if other.type == SignalType.OUTPUT and other.owner_instance is None:
+        if other.is_output and other.owner_instance is None:
             raise ValueError("Output of a module type cannot drive other signal.")
-        if self.type == SignalType.CONSTANT:
-            raise ValueError("Constant signal cannot be driven.")
 
         self._drivers[self.DEFAULT_DRIVER] = other
         if self.width == 0:

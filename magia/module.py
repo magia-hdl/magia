@@ -150,7 +150,7 @@ class Module(Synthesizable, metaclass=_ModuleMetaClass):
         signal_decl = [
             signal.signal_decl()
             for signal in synth_objs
-            if isinstance(signal, Signal) and not isinstance(signal, (Input, Output))
+            if isinstance(signal, Signal) and not (signal.is_input or signal.is_output)
         ]
         signal_decl = "\n".join(signal_decl)
 
@@ -242,7 +242,7 @@ class Module(Synthesizable, metaclass=_ModuleMetaClass):
                             # Output port is an extra signal placeholder,
                             # so we add the port itself and ensure the declaration exists.
                             port_drivers = [
-                                port.driver() if isinstance(port, Input) else port
+                                port.driver() if port.is_input else port
                                 for port in owner_inst.io.values()
                             ]
                             next_trace |= {
@@ -458,7 +458,7 @@ class Instance(Synthesizable):
     def validate(self) -> list[Exception]:
         errors = []
         for signal in self.io.values():
-            if isinstance(signal, Input) and signal.driver() is None:
+            if signal.is_input and signal.driver() is None:
                 errors.append(ValueError(f"Input {signal.name} is not connected."))
         return errors
 
@@ -479,7 +479,7 @@ class Instance(Synthesizable):
         io_list = []
         for port_name, port in self._io_ports.signals.items():
             signal_name = self.io[port_name].name
-            if isinstance(port, Input):
+            if port.is_input:
                 signal_name = port.driver().name
 
             io_list.append(IO_TEMPLATE.substitute(port_name=port_name, signal_name=signal_name))
