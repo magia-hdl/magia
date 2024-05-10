@@ -31,8 +31,8 @@ class SVAManual(Synthesizable):
     assertion_count = 0
 
     def __init__(
-            self, prop_statement: str,
-            name: None | str, clk: Signal, disable_iff: None | Signal = None,
+            self, name: None | str, prop_statement: str, clk: Signal,
+            disable_iff: None | Signal = None,
             prop_type: PropType = PropType.ASSERT,
             **kwargs
     ):

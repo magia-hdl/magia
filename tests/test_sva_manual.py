@@ -48,8 +48,9 @@ class TestSVAManual:
 
             with SVAManual.code_section():
                 SVAManual(
+                    "count_10_to_11" if not sva_fail else "count_10_to_12_shall_fail",
                     f"{self.io.out == 10} |=> {self.io.out == (12 if sva_fail else 11)}",
-                    name="count", **clk,
+                    **clk,
                 )
 
     def test_assertion_success(self):
