@@ -3,7 +3,7 @@ from __future__ import annotations
 import typing
 from dataclasses import asdict
 
-from .data_struct import SignalDict, SignalType
+from .data_struct import SignalDict
 from .io_signal import Input, Output
 from .signals import Signal
 
@@ -60,8 +60,8 @@ class IOPorts:
         if port.name in self.signals:
             raise KeyError(f"Port {port.name} is already defined.")
 
-        if port.type not in (SignalType.INPUT, SignalType.OUTPUT):
-            raise TypeError(f"Signal Type {port.type} is forbidden in IOPorts.")
+        if not isinstance(port, (Input, Output)):
+            raise TypeError(f"Signal Type {type(port)} is forbidden in IOPorts.")
 
         self.signals[port.name] = port.__class__(
             **{
@@ -97,28 +97,28 @@ class IOPorts:
     def inputs(self) -> list[Signal]:
         return [
             signal for signal in self.signals.values()
-            if signal.type == SignalType.INPUT
+            if isinstance(signal, Input)
         ]
 
     @property
     def outputs(self) -> list[Signal]:
         return [
             signal for signal in self.signals.values()
-            if signal.type == SignalType.OUTPUT
+            if isinstance(signal, Output)
         ]
 
     @property
     def input_names(self) -> list[str]:
         return [
             name for name, port in self.signals.items()
-            if port.type == SignalType.INPUT
+            if isinstance(port, Input)
         ]
 
     @property
     def output_names(self) -> list[str]:
         return [
             name for name, port in self.signals.items()
-            if port.type == SignalType.OUTPUT
+            if isinstance(port, Output)
         ]
 
     def __ilshift__(self, other: Bundle):
