@@ -59,7 +59,7 @@ jobs:
           poetry env info
       - name: Print Verilator version
         run: |
-          verilator --version
+          poetry run verilator --version
       - name: Python Version
         run: |
           python --version
