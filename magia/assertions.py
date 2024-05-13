@@ -55,6 +55,8 @@ class AssertionCell(Synthesizable):
             assertion_type: AssertionType | str = AssertionType.ASSERT,
             **kwargs,
     ):
+        if self.current_code_section != CodeSectionType.FORMAL:
+            raise RuntimeError("AssertionCell can only be used inside a Formal code section.")
         super().__init__(**kwargs)
         if cond.width != 1:
             raise ValueError("Assertion condition must be 1-bit wide")
