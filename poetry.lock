@@ -374,13 +374,13 @@ i18n = ["Babel (>=2.7)"]
 
 [[package]]
 name = "magia-flow"
-version = "0.2.0"
+version = "0.2.1"
 description = "Design flow integration and automation with Magia"
 optional = false
 python-versions = "<4.0,>=3.10"
 files = [
-    {file = "magia_flow-0.2.0-py3-none-any.whl", hash = "sha256:7ec6b11875addbd01f03a548aaae3021ce0100024986936387d9d58e53dade23"},
-    {file = "magia_flow-0.2.0.tar.gz", hash = "sha256:9095c3b396bbadc8dcd5e993954f14be3f416b288a9ca97bad527db0e94f1977"},
+    {file = "magia_flow-0.2.1-py3-none-any.whl", hash = "sha256:a80cfa4421fabdc9c701ce85485e2f106c964608cc43264a355614c59a60e84d"},
+    {file = "magia_flow-0.2.1.tar.gz", hash = "sha256:78b51b314972a2bb3ab7030e4dcd09bcd424ad70475f28c914b285aeb2791770"},
 ]
 
 [package.dependencies]
@@ -878,4 +878,4 @@ full = ["hdlConvertor-binary"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "ae7ce10086836bf87fdb9523ca3a4eff1c0a12e0e67a604bee31c62ed771cc3a"
+content-hash = "420953e160be3e411cc867e0cc698963bb4ef54b5d0c3c21184da8d9586b5b8e"
