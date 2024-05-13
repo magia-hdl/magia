@@ -2,6 +2,7 @@ from pathlib import Path
 
 from magia import CodeSectionType, Elaborator, Input, IOPorts, Module, Output, VerilogWrapper
 from magia.signals import Synthesizable
+from magia.sva_manual import SVAManual
 from magia.utils import ModuleContext
 
 
@@ -283,8 +284,8 @@ def test_code_section():
             self.io += Output("out_a", 8)
 
             assert self.current_code_section == CodeSectionType.LOGIC
-            with self.formal_code():
-                assert self.current_code_section == CodeSectionType.FORMAL
+            with SVAManual.code_section():
+                assert self.current_code_section == CodeSectionType.SVA_MANUAL
             with self.code_section(CodeSectionType.VERILOG):
                 assert self.current_code_section == CodeSectionType.VERILOG
                 self.io.out_a <<= self.io.in_a
@@ -296,8 +297,8 @@ def test_code_section():
             self.io += Output("out_a", 8)
 
             assert self.current_code_section == CodeSectionType.LOGIC
-            with self.formal_code():
-                assert self.current_code_section == CodeSectionType.FORMAL
+            with SVAManual.code_section():
+                assert self.current_code_section == CodeSectionType.SVA_MANUAL
                 _ = Sub()
             with self.code_section(CodeSectionType.VERILOG):
                 assert self.current_code_section == CodeSectionType.VERILOG

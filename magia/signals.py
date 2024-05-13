@@ -336,7 +336,8 @@ class Signal(Synthesizable):
             case CodeSectionType.VERILOG:
                 template = SIGNAL_DECL_VERILOG_TEMPLATE
             case CodeSectionType.FORMAL:
-                template = SIGNAL_DECL_FORMAL_TEMPLATE
+                template = SIGNAL_DECL_FORMAL_TEMPLATE \
+                    if self.signal_config.op_type == OPType.REG else SIGNAL_DECL_TEMPLATE
             case CodeSectionType.SVA_MANUAL:
                 template = SIGNAL_DECL_TEMPLATE
 

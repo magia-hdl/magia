@@ -4,12 +4,13 @@ import inspect
 import logging
 from collections import Counter, OrderedDict
 from dataclasses import dataclass
-from functools import cached_property, partial
+from functools import cached_property
 from itertools import count
 from os import PathLike
 from string import Template
 from typing import TYPE_CHECKING
 
+from .assertions import AssertionCell
 from .data_struct import SignalDict
 from .io_ports import IOPorts
 from .io_signal import Input, Output
@@ -39,6 +40,11 @@ class ModuleInstanceConfig:
 MOD_DECL_TEMPLATE = Template("module $name (\n$io\n);")
 INST_TEMPLATE = Template("$module_name $inst_name (\n$io\n);")
 IO_TEMPLATE = Template(".$port_name($signal_name)")
+FORMAL_SECTION_TEMPLATE = Template(
+    "`ifdef FORMAL\n"
+    "$code\n"
+    "`endif"
+)
 
 
 class _ModuleMetaClass(type):
@@ -79,8 +85,6 @@ class Module(Synthesizable, metaclass=_ModuleMetaClass):
     _new_module_counter = count(0)
     output_file: None | PathLike = None
 
-    formal_code = partial(Synthesizable.code_section, CodeSectionType.FORMAL)
-
     def __init__(self, name: None | str = None, **kwargs):
         super().__init__(**kwargs)
         ModuleContext().push(self)  # Push current module to the context stack
@@ -106,6 +110,7 @@ class Module(Synthesizable, metaclass=_ModuleMetaClass):
         )
         self.io = IOPorts()
         self.manual_sva_collected = []
+        self.assertions_collected = {}
 
     def validate(self) -> list[Exception]:
         undriven_outputs = [
@@ -145,7 +150,17 @@ class Module(Synthesizable, metaclass=_ModuleMetaClass):
 
         trace_from = self.io.outputs
         trace_from += self.manual_sva_collected
+        trace_from += list(self.assertions_collected.values())
         synth_objs, insts = self.trace(trace_from)
+
+        formal_objs = [
+            obj for obj in synth_objs
+            if obj._code_section == CodeSectionType.FORMAL
+        ]
+        synth_objs = [
+            obj for obj in synth_objs
+            if obj._code_section != CodeSectionType.FORMAL
+        ]
 
         signal_decl = [
             signal.signal_decl()
@@ -173,6 +188,22 @@ class Module(Synthesizable, metaclass=_ModuleMetaClass):
             for output in self.io.outputs
         )
 
+        formal_signal_decl = [
+            signal.signal_decl()
+            for signal in formal_objs
+            if isinstance(signal, Signal) and not (signal.is_input or signal.is_output)
+        ]
+        formal_signal_decl = "\n".join(formal_signal_decl)
+        formal_impl = [
+            obj.elaborate()
+            for obj in formal_objs
+        ]
+        formal_impl = "\n".join(formal_impl)
+
+        formal_section = FORMAL_SECTION_TEMPLATE.substitute(
+            code=f"{formal_signal_decl}\n{formal_impl}"
+        )
+
         extra_code = self.post_elaborate()
 
         mod_end = "endmodule"
@@ -181,6 +212,7 @@ class Module(Synthesizable, metaclass=_ModuleMetaClass):
             mod_decl,
             signal_decl,
             mod_impl,
+            formal_section,
             mod_output_assignment,
             extra_code,
             mod_end,
@@ -267,13 +299,7 @@ class Module(Synthesizable, metaclass=_ModuleMetaClass):
                             if (id_sig := id(sig)) not in traced_obj_id
                         }
 
-                    case Signal():
-                        next_trace |= {
-                            id_sig: sig for sig in obj.drivers
-                            if (id_sig := id(sig)) not in traced_obj_id
-                        }
-
-                    case SVAManual():
+                    case Signal() | SVAManual() | AssertionCell():
                         next_trace |= {
                             id_sig: sig for sig in obj.drivers
                             if (id_sig := id(sig)) not in traced_obj_id

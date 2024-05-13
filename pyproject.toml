@@ -45,7 +45,6 @@ full = ["hdlConvertor-binary"]
 [tool.poetry.dependencies]
 python = "^3.10"
 hdlConvertor-binary = { version = "~2.3", optional = true }
-antlr4-python3-runtime = "4.13.1"
 
 [tool.poetry.group.dev.dependencies]
 cocotb = "*"
@@ -55,8 +54,7 @@ pytest-xdist = "*"
 pytest-github-report = "*"
 ruff = "==0.3.3"
 hdlConvertor-binary = "~2.3"
-magia-flow = "^0.1"
-antlr4-tools = "^0.2.1"
+magia-flow = ">=0.2.1"
 
 [tool.poetry.urls]
 Repository = "https://github.com/magia-hdl/magia"
